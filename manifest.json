@@ -16,7 +16,7 @@
     "https://chatgpt.com/*",
     "https://gemini.google.com/*",
     "https://chat.deepseek.com/*",
-    "https://kimi.com/*",
+    "https://www.kimi.com/*",
     "https://ying.baichuan-ai.com/*",
     "https://yuanbao.tencent.com/*",
     "https://tongyi.com/*",
@@ -38,7 +38,7 @@
         "https://chatgpt.com/*",
         "https://gemini.google.com/*",
         "https://chat.deepseek.com/*",
-        "https://kimi.com/*",
+        "https://www.kimi.com/*",
         "https://ying.baichuan-ai.com/*",
         "https://yuanbao.tencent.com/*",
         "https://tongyi.com/*",
@@ -51,6 +51,7 @@
         "https://www.doubao.com/*"
       ],
       "js": ["content.js"],
+      "css": ["content.css"],
       "run_at": "document_idle"
     }
   ],

@@ -22,15 +22,11 @@ export default defineConfig({
       input: {
         popup: resolve(__dirname, 'popup.html'),
         options: resolve(__dirname, 'options.html'),
-        content: resolve(__dirname, 'src/content/index.ts'),
         background: resolve(__dirname, 'src/background/index.ts'),
       },
       output: {
         entryFileNames: (chunkInfo) => {
           const facadeModuleId = chunkInfo.facadeModuleId
-          if (facadeModuleId?.includes('content')) {
-            return 'content.js'
-          }
           if (facadeModuleId?.includes('background')) {
             return 'background.js'
           }
@@ -41,6 +37,6 @@ export default defineConfig({
       },
     },
     outDir: 'dist',
-    emptyOutDir: true,
+    emptyOutDir: false, // Let the build script handle cleaning
   },
 })
