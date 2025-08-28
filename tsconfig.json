@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "jsx": "preserve",
+    "jsxImportSource": "vue",
+    "lib": [
+      "DOM",
+      "ESNext"
+    ],
+    "baseUrl": ".",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "~/*": [
+        "./*"
+      ]
+    },
+    "resolveJsonModule": true,
+    "types": [
+      "vite/client",
+      "chrome"
+    ],
+    "strict": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": false,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "src/**/*.d.ts",
+    "*.ts",
+    "*.vue"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.js"
+  ],
+  "vueCompilerOptions": {
+    "target": 3
+  }
+}
