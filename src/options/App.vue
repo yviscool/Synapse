@@ -197,11 +197,11 @@
     <!-- 现代化编辑模态框 -->
     <div v-if="editingPrompt" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" @click="closeEditor">
       <div 
-        class="bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden w-full" 
+        class="bg-white rounded-2xl shadow-2xl max-h-[100vh] overflow-hidden w-full" 
         :class="{ 'max-w-6xl': !showVersionHistory, 'max-w-7xl': showVersionHistory }" 
         @click.stop
       >
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+        <div class="flex items-center justify-between p-2 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
           <div class="flex-1">
             <h2 class="flex items-center gap-3 text-xl font-semibold text-gray-900">
               <div class="i-carbon-edit"></div>
@@ -227,8 +227,7 @@
           </div>
         </div>
         
-        <div class="flex max-h-[70vh]">
-
+        <div class="flex">
           <!-- 版本历史面板 -->
           <div v-if="showVersionHistory && editingPrompt.id" class="w-80 border-l border-gray-200">
             <VersionHistory
@@ -240,45 +239,66 @@
             />
           </div>
       
-          <div class="flex-1 p-6 space-y-6 overflow-y-auto">
-            <!-- 基本信息区域 -->
-            <div class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">标题</label>
-                <input
-                  v-model="editingPrompt.title"
-                  type="text"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="为你的 Prompt 起个好名字..."
-                >
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">分类 (可多选)</label>
-                <div class="flex flex-wrap gap-2 p-2 border border-gray-200 rounded-lg">
-                  <button
-                    v-for="category in availableCategories"
-                    :key="category.id"
-                    @click="selectedCategoriesForEdit.includes(category.id) ? selectedCategoriesForEdit = selectedCategoriesForEdit.filter(id => id !== category.id) : selectedCategoriesForEdit.push(category.id)"
-                    :class="['px-3 py-1 rounded-full text-sm', selectedCategoriesForEdit.includes(category.id) ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']"
-                  >
-                    {{ category.name }}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">标签 (用逗号或 | 分隔)</label>
-                <input
-                  v-model="editingTags"
-                  type="text"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="例如: gpt-4, 翻译, ..."
-                >
-              </div>
+          <div class="flex-1 flex overflow-hidden">
+            <!-- 左侧元数据面板 -->
+            <div class="w-96 border-r border-gray-200 p-4 flex flex-col space-y-4 overflow-y-auto">
+              <h3 class="text-lg font-semibold text-gray-800 tracking-wide">元数据</h3>
               
-              <div class="flex gap-4 items-end">
-                <div class="flex-1 space-y-2 flex-[2]">
+              <div class="space-y-5">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">标题</label>
+                  <input
+                    v-model="editingPrompt.title"
+                    type="text"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="为你的 Prompt 起个好名字..."
+                  >
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">分类 (可多选)</label>
+                  <div class="w-full p-2 border border-gray-200 rounded-lg flex flex-wrap gap-2">
+                    <button
+                      v-for="category in availableCategories"
+                      :key="category.id"
+                      @click="toggleCategoryForEdit(category.id)"
+                      :class="[
+                        'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border',
+                        selectedCategoriesForEdit.includes(category.id)
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                      ]"
+                    >
+                      {{ category.name }}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">标签</label>
+                  <div class="w-full px-3 py-2 border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent flex flex-wrap items-center gap-2">
+                    <span
+                      v-for="tag in editingTags"
+                      :key="tag"
+                      class="flex items-center gap-1.5 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm font-medium"
+                    >
+                      {{ tag }}
+                      <button @click="removeTag(tag)" class="text-blue-600 hover:text-blue-800 -mr-1 rounded-full hover:bg-blue-200">
+                        <div class="i-carbon-close text-xs"></div>
+                      </button>
+                    </span>
+                    <input
+                      v-model="tagInput"
+                      type="text"
+                      class="flex-1 bg-transparent outline-none min-w-[80px] h-8"
+                      placeholder="添加标签后回车..."
+                      @keydown.enter.prevent="addCurrentTag"
+                      @keydown.backspace="handleTagBackspace"
+                    >
+                  </div>
+                </div>
+                
+                <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">变更说明</label>
                   <input
                     v-model="changeNote"
@@ -288,25 +308,22 @@
                   >
                 </div>
                 
-                <div class="flex-1 space-y-2">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">选项</label>
-                  <div class="flex items-center h-12">
-                    <label class="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 h-12">
-                      <input type="checkbox" v-model="editingPrompt.favorite">
-                      <span class="flex items-center gap-2 text-sm font-medium text-gray-700">
-                        <div class="i-carbon-favorite"></div>
-                        标记为收藏
-                      </span>
-                    </label>
-                  </div>
+                <div>
+                  <label class="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input type="checkbox" v-model="editingPrompt.favorite" class="rounded text-blue-600 focus:ring-blue-500">
+                    <span class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <div class="i-carbon-favorite"></div>
+                      标记为收藏
+                    </span>
+                  </label>
                 </div>
               </div>
             </div>
             
-            <!-- 编辑器区域 -->
-            <div class="space-y-3">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Prompt 内容</label>
-              <div class="h-96 border border-gray-200 rounded-lg overflow-hidden">
+            <!-- 右侧编辑器区域 -->
+            <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50">
+              <label class="block text-sm font-medium text-gray-700">Prompt 内容</label>
+              <div class="h-[70vh] relative border border-gray-200 rounded-lg overflow-hidden shadow-inner bg-white flex flex-col">
                 <MarkdownEditor
                   v-model="editingPrompt.content"
                   placeholder="在这里编写你的 AI Prompt..."
@@ -315,11 +332,10 @@
               </div>
             </div>
           </div>
-          
 
         </div>
         
-        <div class="flex items-center justify-between p-4 border-t border-gray-200 bg-gray-50">
+        <div class="flex items-center justify-between p-2 border-t border-gray-200 bg-gray-50">
           <div class="text-sm text-gray-500">
             <span v-if="editingPrompt.content">
               {{ editingPrompt.content.length }} 字符
@@ -504,7 +520,8 @@ const showFavoriteOnly = ref(false)
 const sortBy = ref<'updatedAt' | 'createdAt' | 'title'>('updatedAt')
 const editingPrompt = ref<Partial<Prompt> | null>(null)
 const selectedCategoriesForEdit = ref<string[]>([])
-const editingTags = ref('')
+const editingTags = ref<string[]>([])
+const tagInput = ref('')
 const showCategoryManager = ref(false)
 const newCategoryName = ref('')
 const newCategoryIcon = ref('')
@@ -681,13 +698,15 @@ function createNewPrompt() {
     tagIds: []
   })
   selectedCategoriesForEdit.value = []
-  editingTags.value = ''
+  editingTags.value = []
+  tagInput.value = ''
 }
 
 function editPrompt(prompt: Prompt) {
   editingPrompt.value = clonePrompt(prompt)
   selectedCategoriesForEdit.value = prompt.categoryIds || []
-  editingTags.value = getTagsString(prompt.tagIds || [])
+  editingTags.value = getTagNames(prompt.tagIds || [])
+  tagInput.value = ''
 }
 
 async function toggleFavorite(prompt: Prompt) {
@@ -715,7 +734,7 @@ async function savePrompt() {
   
   try {
     // Handle tags
-    const tagNames = editingTags.value.split(/[,|]/).map(t => t.trim()).filter(Boolean)
+    const tagNames = editingTags.value.map(t => t.trim()).filter(Boolean)
     const tagIds: string[] = []
     if (tagNames.length > 0) {
       const existingTags = await db.tags.where('name').anyOf(tagNames).toArray()
@@ -804,7 +823,8 @@ async function copyPrompt(prompt: Prompt) {
 function closeEditor() {
   editingPrompt.value = null
   selectedCategoriesForEdit.value = []
-  editingTags.value = ''
+  editingTags.value = []
+  tagInput.value = ''
   showVersionHistory.value = true
   changeNote.value = ''
   hasContentChanged.value = false
@@ -825,6 +845,33 @@ function handleVersionRestored(version: any) {
 
 function handleVersionDeleted(versionId: string) {
   showToast('版本已删除', 'success')
+}
+
+function toggleCategoryForEdit(categoryId: string) {
+  const index = selectedCategoriesForEdit.value.indexOf(categoryId)
+  if (index > -1) {
+    selectedCategoriesForEdit.value.splice(index, 1)
+  } else {
+    selectedCategoriesForEdit.value.push(categoryId)
+  }
+}
+
+function addCurrentTag() {
+  const tagName = tagInput.value.trim()
+  if (tagName && !editingTags.value.includes(tagName)) {
+    editingTags.value.push(tagName)
+  }
+  tagInput.value = ''
+}
+
+function removeTag(tagToRemove: string) {
+  editingTags.value = editingTags.value.filter(tag => tag !== tagToRemove)
+}
+
+function handleTagBackspace() {
+  if (tagInput.value === '' && editingTags.value.length > 0) {
+    editingTags.value.pop()
+  }
 }
 
 // 分类管理功能
@@ -950,34 +997,4 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .header-content {
-    @apply flex-col gap-4;
-  }
-  
-  .header-actions {
-    @apply w-full justify-center;
-  }
-  
-  .filter-container {
-    @apply flex-col gap-4;
-  }
-  
-  .prompts-grid {
-    @apply grid-cols-1;
-  }
-  
-  .modal-container {
-    @apply mx-4;
-  }
-  
-  .form-row {
-    @apply flex-col;
-  }
-  
-  .settings-grid {
-    @apply grid-cols-1;
-  }
-}
 </style>

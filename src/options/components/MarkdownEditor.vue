@@ -311,25 +311,27 @@ function updateCursorPosition() {
 }
 
 function togglePreview() {
+  // If we are in split view, this button acts as an "exit" to editor-only.
   if (splitView.value) {
     splitView.value = false
     showPreview.value = false
-  } else if (showPreview.value) {
-    splitView.value = true
-  } else {
-    showPreview.value = true
+    return
   }
+  // Otherwise, it toggles between editor-only and preview-only.
+  showPreview.value = !showPreview.value
 }
 
 function toggleSplit() {
-  splitView.value = !splitView.value
+  // This button toggles between editor-only and split-view.
   if (splitView.value) {
+    splitView.value = false
+    showPreview.value = false
+  } else {
+    splitView.value = true
     showPreview.value = true
   }
 }
 </script>
 
 <style scoped>
-/* All styles have been moved to inline classes for better AI processing. */
-/* The styling for the rendered markdown is handled by the @unocss/preset-typography 'prose' classes. */
 </style>
