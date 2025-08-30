@@ -196,6 +196,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useUI } from '@/stores/ui'
+import { db } from '@/stores/db'
 
 const { showToast, askConfirm } = useUI()
 
@@ -246,32 +247,38 @@ const saveSettings = async () => {
 // 导出配置
 const exportData = async () => {
   try {
-    // 获取所有存储的数据
-    const allData = await chrome.storage.sync.get(null)
-    
-    const exportData = {
-      settings: allData.appSettings || settings,
-      prompts: allData.prompts || [],
-      exportTime: new Date().toISOString(),
-      version: '1.0.0'
-    }
+    const prompts = await db.prompts.toArray();
+    const prompt_versions = await db.prompt_versions.toArray();
+    const categories = await db.categories.toArray();
+    const tags = await db.tags.toArray();
+    const appSettings = (await chrome.storage.sync.get('appSettings')).appSettings;
 
-    const dataStr = JSON.stringify(exportData, null, 2)
-    const blob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
+    const exportObject = {
+      prompts,
+      prompt_versions,
+      categories,
+      tags,
+      settings: appSettings,
+      exportTime: new Date().toISOString(),
+      version: '1.1.0' 
+    };
+
+    const dataStr = JSON.stringify(exportObject, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `prompt-manager-config-${new Date().toISOString().split('T')[0]}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `apm-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     
-    showToast('配置导出成功', 'success')
+    showToast('数据导出成功', 'success');
   } catch (error) {
-    console.error('导出配置失败:', error)
-    showToast('导出失败，请重试', 'error')
+    console.error('导出数据失败:', error);
+    showToast('导出失败，请重试', 'error');
   }
 }
 
@@ -284,35 +291,48 @@ const importData = async (event: Event) => {
     const text = await file.text()
     const importedData = JSON.parse(text)
     
-    // 验证数据格式
-    if (!importedData.settings && !importedData.prompts) {
-      throw new Error('无效的配置文件格式')
+    if (!importedData.prompts && !importedData.settings) {
+      throw new Error('无效的备份文件格式')
     }
 
-    // 确认导入
-    const confirmed = await askConfirm('导入配置将覆盖当前设置，是否继续？', { type: 'danger' })
+    const confirmed = await askConfirm('导入数据将覆盖现有所有数据和设置，此操作不可撤销。是否继续？', { type: 'danger' })
     if (!confirmed) return
 
-    // 导入设置
+    await db.transaction('rw', db.prompts, db.prompt_versions, db.categories, db.tags, async () => {
+      if (importedData.prompts) {
+        await db.prompts.clear();
+        await db.prompts.bulkPut(importedData.prompts);
+      }
+      if (importedData.prompt_versions) {
+        await db.prompt_versions.clear();
+        await db.prompt_versions.bulkPut(importedData.prompt_versions);
+      }
+      if (importedData.categories) {
+        await db.categories.clear();
+        await db.categories.bulkPut(importedData.categories);
+      }
+      if (importedData.tags) {
+        await db.tags.clear();
+        await db.tags.bulkPut(importedData.tags);
+      }
+    });
+
     if (importedData.settings) {
-      Object.assign(settings, importedData.settings)
-      await chrome.storage.sync.set({ appSettings: settings })
+      await chrome.storage.sync.set({ appSettings: importedData.settings });
+      Object.assign(settings, importedData.settings);
     }
 
-    // 导入提示词数据
-    if (importedData.prompts) {
-      await chrome.storage.sync.set({ prompts: importedData.prompts })
-    }
+    showToast('数据导入成功！页面将刷新。', 'success')
+    
+    setTimeout(() => {
+      window.location.reload()
+    }, 1500)
 
-    showToast('配置导入成功！', 'success')
-    // 重新加载页面以应用新设置
-    window.location.reload()
   } catch (error) {
-    console.error('导入配置失败:', error)
-    showToast('导入失败，请检查文件格式', 'error')
+    console.error('导入数据失败:', error)
+    showToast(`导入失败: ${(error as Error).message}`, 'error')
   }
   
-  // 清空文件输入
   if (importInput.value) {
     importInput.value.value = ''
   }

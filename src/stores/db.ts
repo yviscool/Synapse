@@ -13,7 +13,7 @@ export class APMDB extends Dexie {
     this.version(1).stores({
       prompts: 'id, title, tagIds, updatedAt, favorite, createdAt',
       prompt_versions: 'id, promptId, createdAt',
-      categories: 'id, name, sort, icon, color',
+      categories: 'id, name, sort, icon',
       tags: 'id, name',
       settings: 'id',
     })

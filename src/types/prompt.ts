@@ -3,7 +3,6 @@ export interface Category {
   name: string
   sort?: number
   icon?: string
-  color?: string
 }
 
 export interface Tag {

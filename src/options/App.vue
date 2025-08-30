@@ -50,24 +50,48 @@
         </div>
         
         <div class="space-y-4">
-          <div class="flex items-center justify-center gap-2 flex-wrap">
-            <button
-              @click="toggleCategory('')"
-              :class="['flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.length === 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
-            >
-              <span>全部分类</span>
-            </button>
-            <button
-              v-for="category in availableCategories"
-              :key="category.id"
-              @click="toggleCategory(category.id)"
-              :class="['flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.includes(category.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
-            >
-              <div v-if="category.icon" :class="[category.icon]"></div>
-              <span>{{ category.name }}</span>
-            </button>
+          <div class="flex items-center justify-between gap-6 flex-wrap">
+            <!-- Category Filters -->
+            <div class="flex items-center justify-start gap-2 flex-wrap">
+              <button
+                @click="toggleCategory('')"
+                :class="['flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.length === 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
+              >
+                <div class="i-ph-books"></div>
+                <span>全部分类</span>
+              </button>
+              <button
+                v-for="category in availableCategories"
+                :key="category.id"
+                @click="toggleCategory(category.id)"
+                :class="['flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.includes(category.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
+              >
+                <div v-if="category.icon" :class="[category.icon]"></div>
+                <span>{{ category.name }}</span>
+              </button>
+            </div>
+
+            <!-- Sort and Favorite Filters -->
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3">
+                <label class="text-sm font-medium text-gray-600 whitespace-nowrap">排序:</label>
+                <select v-model="sortBy" class="px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <option value="updatedAt">最近更新</option>
+                  <option value="createdAt">创建时间</option>
+                  <option value="title">标题排序</option>
+                </select>
+              </div>
+              <button 
+                @click="showFavoriteOnly = !showFavoriteOnly" 
+                :class="['flex items-center gap-2 px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors', { 'bg-blue-100 border-blue-300 text-blue-700': showFavoriteOnly }]"
+              >
+                <div class="i-carbon-favorite"></div>
+                <span>仅收藏</span>
+              </button>
+            </div>
           </div>
 
+          <!-- Tag Filters -->
           <div v-if="selectedCategories.length > 0 && availableTags.length > 0" class="flex items-center justify-center gap-2 flex-wrap border-t border-gray-200 pt-4">
             <button
               @click="toggleTag('')"
@@ -84,25 +108,6 @@
               {{ tag.name }}
             </button>
           </div>
-        </div>
-
-        <div class="flex items-center justify-center gap-6 flex-wrap">
-          <div class="flex items-center gap-3">
-            <label class="text-sm font-medium text-gray-600 whitespace-nowrap">排序:</label>
-            <select v-model="sortBy" class="px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-              <option value="updatedAt">最近更新</option>
-              <option value="createdAt">创建时间</option>
-              <option value="title">标题排序</option>
-            </select>
-          </div>
-          
-          <button 
-            @click="showFavoriteOnly = !showFavoriteOnly" 
-            :class="['flex items-center gap-2 px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors', { 'bg-blue-100 border-blue-300 text-blue-700': showFavoriteOnly }]"
-          >
-            <div class="i-carbon-favorite"></div>
-            <span>仅收藏</span>
-          </button>
         </div>
       </div>
 
@@ -370,17 +375,22 @@
         
         <div class="p-6">
           <!-- 添加新分类 -->
-          <div class="flex gap-3 mb-6">
+          <div class="grid grid-cols-3 gap-3 mb-6">
             <input 
               v-model="newCategoryName" 
               type="text" 
-              placeholder="输入新分类名称..." 
-              class="flex-grow px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              @keyup.enter="addCategory"
+              placeholder="新分类名称..." 
+              class="col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
             >
-            <button @click="addCategory" class="flex items-center gap-2 px-5 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow hover:shadow-md">
+            <input 
+              v-model="newCategoryIcon"
+              type="text" 
+              placeholder="图标 (e.g. i-carbon-cat)" 
+              class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+            >
+            <button @click="addCategory" class="col-span-3 flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow hover:shadow-md">
               <div class="i-carbon-add"></div>
-              <span>添加</span>
+              <span>添加新分类</span>
             </button>
           </div>
 
@@ -390,14 +400,24 @@
               
               <!-- 编辑状态 -->
               <template v-if="editingCategoryId === category.id">
-                <input 
-                  v-model="editingCategoryName"
-                  type="text"
-                  class="flex-1 w-0 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
-                  @keyup.enter="saveCategoryEdit"
-                  @keyup.esc="cancelCategoryEdit"
-                  v-focus
-                >
+                <div class="flex-1 w-0 flex gap-2">
+                  <input 
+                    v-model="editingCategoryName"
+                    type="text"
+                    class="flex-1 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                    @keyup.enter="saveCategoryEdit"
+                    @keyup.esc="cancelCategoryEdit"
+                    v-focus
+                  >
+                  <input 
+                    v-model="editingCategoryIcon"
+                    type="text"
+                    placeholder="图标"
+                    class="flex-1 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                    @keyup.enter="saveCategoryEdit"
+                    @keyup.esc="cancelCategoryEdit"
+                  >
+                </div>
                 <div class="flex items-center gap-2 ml-4">
                   <button @click="saveCategoryEdit" title="保存" class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors">
                     <div class="i-carbon-checkmark"></div>
@@ -410,10 +430,13 @@
 
               <!-- 显示状态 -->
               <template v-else>
-                <div class="flex-1 min-w-0">
-                  <div class="font-medium text-gray-800 truncate">{{ category.name }}</div>
-                  <div class="text-sm text-gray-500">
-                    {{ prompts.filter(p => p.categoryIds?.includes(category.id)).length }} 个 Prompts
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                  <div v-if="category.icon" :class="[category.icon, 'text-lg text-gray-600']"></div>
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-800 truncate">{{ category.name }}</div>
+                    <div class="text-sm text-gray-500">
+                      {{ prompts.filter(p => p.categoryIds?.includes(category.id)).length }} 个 Prompts
+                    </div>
                   </div>
                 </div>
                 <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -450,7 +473,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ui, useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
 import type { Prompt, Category, Tag } from '@/types/prompt'
@@ -484,8 +507,10 @@ const selectedCategoriesForEdit = ref<string[]>([])
 const editingTags = ref('')
 const showCategoryManager = ref(false)
 const newCategoryName = ref('')
+const newCategoryIcon = ref('')
 const editingCategoryId = ref<string | null>(null)
 const editingCategoryName = ref<string>('')
+const editingCategoryIcon = ref<string>('')
 const showVersionHistory = ref(true)
 const changeNote = ref('')
 const hasContentChanged = ref(false)
@@ -611,11 +636,17 @@ async function loadCategories() {
     
     if (categories.value.length === 0) {
       const defaultCategories: Category[] = [
-        { id: 'work', name: '工作', sort: 1, icon: 'i-carbon-briefcase', color: 'blue' },
-        { id: 'coding', name: '编程', sort: 2, icon: 'i-carbon-code', color: 'purple' },
-        { id: 'study', name: '学习', sort: 3, icon: 'i-carbon-book', color: 'green' },
+        { id: 'work', name: '工作', sort: 1, icon: 'i-mdi-work' },
+        { id: 'coding', name: '编程', sort: 2, icon: 'i-carbon-code' },
+        { id: 'study', name: '学习', sort: 3, icon: 'i-carbon-book' },
+        { id: 'writing', name: '写作', sort: 4, icon: 'i-carbon-pen' },
+        { id: 'creation', name: '创作', sort: 5, icon: 'i-carbon-idea' },
+        { id: 'teaching', name: '教学', sort: 6, icon: 'i-carbon-presentation-file' },
+        { id: 'yijing', name: '易经', sort: 7, icon: 'i-simple-icons:taichilang' },
+        { id: 'life', name: '生活', sort: 8, icon: 'i-carbon-home' },
+        { id: 'other', name: '其他', sort: 9, icon: 'i-mdi-question-mark-circle' },
       ]
-      
+
       await db.categories.bulkPut(defaultCategories)
       categories.value = defaultCategories
     }
@@ -798,7 +829,8 @@ function handleVersionDeleted(versionId: string) {
 
 // 分类管理功能
 async function addCategory() {
-  if (!newCategoryName.value.trim()) {
+  const name = newCategoryName.value.trim()
+  if (!name) {
     showToast('请输入分类名称', 'error')
     return
   }
@@ -806,13 +838,15 @@ async function addCategory() {
   try {
     const category: Category = {
       id: nanoid(),
-      name: newCategoryName.value.trim(),
-      sort: categories.value.length + 1
+      name,
+      icon: newCategoryIcon.value.trim(),
+      sort: (categories.value.length > 0 ? Math.max(...categories.value.map(c => c.sort || 0)) : 0) + 1
     }
     
     await db.categories.put(category)
     await loadCategories()
     newCategoryName.value = ''
+    newCategoryIcon.value = ''
     showToast('分类添加成功', 'success')
   } catch (error) {
     console.error('Failed to add category:', error)
@@ -823,31 +857,37 @@ async function addCategory() {
 function editCategory(category: Category) {
   editingCategoryId.value = category.id
   editingCategoryName.value = category.name
+  editingCategoryIcon.value = category.icon || ''
 }
 
 function cancelCategoryEdit() {
   editingCategoryId.value = null
   editingCategoryName.value = ''
+  editingCategoryIcon.value = ''
 }
 
 async function saveCategoryEdit() {
-  if (!editingCategoryId.value || !editingCategoryName.value.trim()) {
+  const id = editingCategoryId.value
+  const name = editingCategoryName.value.trim()
+  const icon = editingCategoryIcon.value.trim()
+
+  if (!id || !name) {
     cancelCategoryEdit()
     return
   }
   
-  const originalCategory = categories.value.find(c => c.id === editingCategoryId.value)
-  if (originalCategory && originalCategory.name !== editingCategoryName.value.trim()) {
-    await updateCategory(editingCategoryId.value, editingCategoryName.value.trim())
+  const originalCategory = categories.value.find(c => c.id === id)
+  if (originalCategory && (originalCategory.name !== name || originalCategory.icon !== icon)) {
+    await updateCategory(id, { name, icon })
   }
   cancelCategoryEdit()
 }
 
-async function updateCategory(id: string, name: string) {
+async function updateCategory(id: string, data: { name: string, icon?: string }) {
   try {
     const category = categories.value.find(c => c.id === id)
     if (category) {
-      await db.categories.put({ ...category, name })
+      await db.categories.update(id, data)
       await loadCategories()
       showToast('分类更新成功', 'success')
     }
@@ -883,13 +923,29 @@ function formatDate(timestamp: number): string {
   }).format(new Date(timestamp))
 }
 
-
+// 全局键盘事件
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    if (editingPrompt.value) {
+      closeEditor()
+    } else if (showCategoryManager.value) {
+      showCategoryManager.value = false
+    } else if (showSettings.value) {
+      showSettings.value = false
+    }
+  }
+}
 
 // 生命周期
 onMounted(() => {
   loadPrompts()
   loadCategories()
   loadTags()
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
