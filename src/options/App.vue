@@ -131,48 +131,64 @@
           <div
             v-for="prompt in filteredPrompts"
             :key="prompt.id"
-            class="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 p-6 cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200"
-            @click="editPrompt(prompt)"
+            class="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 p-6 hover:shadow-lg transition-transform duration-200 hover:-translate-y-1"
+            @dblclick="editPrompt(prompt)"
+            title="双击编辑"
           >
             <div class="flex items-start justify-between mb-4">
               <div class="flex-1 min-w-0">
                 <h3 class="font-semibold text-gray-900 mb-2 line-clamp-2">{{ prompt.title }}</h3>
                 <div class="flex items-center gap-3 text-sm text-gray-500">
                   <span class="card-date">{{ formatDate(prompt.updatedAt) }}</span>
-                  <span class="card-length">{{ prompt.content.length }} 字符</span>
+
                 </div>
               </div>
               
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1 relative">
                 <button 
                   @click.stop="toggleFavorite(prompt)" 
+                  @dblclick.stop
                   :class="['p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors', { 'text-yellow-500 hover:text-yellow-600': prompt.favorite }]"
                   :title="prompt.favorite ? '取消收藏' : '收藏'"
                 >
                   <div :class="prompt.favorite ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'"></div>
                 </button>
-                <button @click.stop="copyPrompt(prompt)" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors" title="复制内容">
-                  <div class="i-carbon-copy"></div>
+                <button
+                  @click.stop="menuOpenId = menuOpenId === prompt.id ? null : prompt.id"
+                  @dblclick.stop
+                  class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                  title="更多"
+                >
+                  <div class="i-carbon-overflow-menu-horizontal"></div>
                 </button>
-                <button @click.stop="editPrompt(prompt)" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors" title="编辑">
-                  <div class="i-carbon-edit"></div>
-                </button>
-                <button @click.stop="deletePrompt(prompt.id)" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors hover:text-red-600 hover:bg-red-50" title="删除">
-                  <div class="i-carbon-trash-can"></div>
-                </button>
+                <div
+                  v-if="menuOpenId === prompt.id"
+                  class="absolute right-0 top-10 z-10 w-28 bg-white border border-gray-200 rounded-lg shadow-lg py-1"
+                >
+                  <button
+                    @click.stop="editPrompt(prompt); menuOpenId = null"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50"
+                  >
+                    <div class="i-carbon-edit"></div>
+                    <span>编辑</span>
+                  </button>
+                  <button
+                    @click.stop="deletePrompt(prompt.id); menuOpenId = null"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50"
+                  >
+                    <div class="i-carbon-trash-can"></div>
+                    <span>删除</span>
+                  </button>
+                </div>
               </div>
             </div>
             
             <div class="mb-4">
-              <p class="text-gray-600 leading-relaxed line-clamp-3">{{ getPreview(prompt.content) }}</p>
+              <p class="text-gray-600 leading-relaxed line-clamp-3" @dblclick.stop>{{ getPreview(prompt.content) }}</p>
             </div>
             
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2 flex-wrap">
-                <span v-if="prompt.favorite" class="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
-                  <div class="i-carbon-favorite-filled"></div>
-                  收藏
-                </span>
                 <span 
                   v-for="categoryId in prompt.categoryIds" 
                   :key="categoryId" 
@@ -188,6 +204,15 @@
                   {{ getTagNames([tagId])[0] }}
                 </span>
               </div>
+              <button
+                @click.stop="copyPrompt(prompt)"
+                @dblclick.stop
+                :class="['flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors', copiedId === prompt.id ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700']"
+                title="复制内容"
+              >
+                <div :class="copiedId === prompt.id ? 'i-carbon-checkmark' : 'i-carbon-copy'"></div>
+                <span>{{ copiedId === prompt.id ? '已复制' : '复制' }}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -492,6 +517,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ui, useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
+import { MSG } from '@/utils/messaging'
 import type { Prompt, Category, Tag } from '@/types/prompt'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
@@ -532,6 +558,8 @@ const showVersionHistory = ref(true)
 const changeNote = ref('')
 const hasContentChanged = ref(false)
 const showSettings = ref(false)
+const menuOpenId = ref<string | null>(null)
+const copiedId = ref<string | null>(null)
 
 // 计算属性
 const getTagNames = (tagIds: string[]): string[] => {
@@ -632,7 +660,14 @@ function toggleTag(tagId: string) {
 // 操作函数
 async function loadPrompts() {
   try {
-    const allPrompts = await db.prompts.toArray()
+    console.log('Attempting to load prompts...');
+    const allPrompts = await db.prompts.toArray();
+    console.log(`Loaded ${allPrompts.length} prompts from DB:`, JSON.parse(JSON.stringify(allPrompts)));
+    
+    if (allPrompts.length === 0) {
+      console.warn('db.prompts.toArray() returned an empty array. If you see data in IndexedDB via DevTools, this might indicate a schema or connection issue.');
+    }
+
     prompts.value = allPrompts.map(prompt => ({
       ...prompt,
       categoryIds: Array.isArray(prompt.categoryIds) ? prompt.categoryIds : [],
@@ -640,18 +675,22 @@ async function loadPrompts() {
       favorite: Boolean(prompt.favorite),
       createdAt: Number(prompt.createdAt),
       updatedAt: Number(prompt.updatedAt)
-    }))
+    }));
   } catch (error) {
-    console.error('Failed to load prompts:', error)
-    showToast('加载失败', 'error')
+    console.error('Failed to load prompts:', error);
+    showToast('加载 Prompts 失败', 'error');
   }
 }
 
 async function loadCategories() {
   try {
-    categories.value = await db.categories.toArray()
+    console.log('Attempting to load categories...');
+    const allCategories = await db.categories.toArray();
+    console.log(`Loaded ${allCategories.length} categories from DB:`, JSON.parse(JSON.stringify(allCategories)));
+    categories.value = allCategories;
     
     if (categories.value.length === 0) {
+      console.log('No categories found, creating default set...');
       const defaultCategories: Category[] = [
         { id: 'work', name: '工作', sort: 1, icon: 'i-mdi-work' },
         { id: 'coding', name: '编程', sort: 2, icon: 'i-carbon-code' },
@@ -662,21 +701,27 @@ async function loadCategories() {
         { id: 'yijing', name: '易经', sort: 7, icon: 'i-simple-icons:taichilang' },
         { id: 'life', name: '生活', sort: 8, icon: 'i-carbon-home' },
         { id: 'other', name: '其他', sort: 9, icon: 'i-mdi-question-mark-circle' },
-      ]
+      ];
 
-      await db.categories.bulkPut(defaultCategories)
-      categories.value = defaultCategories
+      await db.categories.bulkPut(defaultCategories);
+      categories.value = defaultCategories;
+      console.log('Default categories created and loaded.');
     }
   } catch (error) {
-    console.error('Failed to load categories:', error)
+    console.error('Failed to load categories:', error);
+    showToast('加载 Categories 失败', 'error');
   }
 }
 
 async function loadTags() {
   try {
-    tags.value = await db.tags.toArray()
+    console.log('Attempting to load tags...');
+    const allTags = await db.tags.toArray();
+    console.log(`Loaded ${allTags.length} tags from DB:`, JSON.parse(JSON.stringify(allTags)));
+    tags.value = allTags;
   } catch (error) {
-    console.error('Failed to load tags:', error)
+    console.error('Failed to load tags:', error);
+    showToast('加载 Tags 失败', 'error');
   }
 }
 
@@ -738,7 +783,6 @@ async function savePrompt() {
     const tagIds: string[] = []
     if (tagNames.length > 0) {
       const existingTags = await db.tags.where('name').anyOf(tagNames).toArray()
-      const existingTagNames = new Set(existingTags.map(t => t.name))
       
       for (const name of tagNames) {
         const existingTag = existingTags.find(t => t.name === name)
@@ -790,6 +834,12 @@ async function savePrompt() {
     await loadPrompts()
     closeEditor()
     showToast('保存成功', 'success')
+
+    // Notify background about the update
+    chrome.runtime.sendMessage({
+      type: MSG.DATA_UPDATED,
+      data: { scope: 'prompts', version: Date.now().toString() },
+    })
     
   } catch (error) {
     console.error('Failed to save prompt:', error)
@@ -804,6 +854,11 @@ async function deletePrompt(id: string) {
     await db.prompts.delete(id)
     await loadPrompts()
     showToast('删除成功', 'success')
+    // Notify background about the update
+    chrome.runtime.sendMessage({
+      type: MSG.DATA_UPDATED,
+      data: { scope: 'prompts', version: Date.now().toString() },
+    })
   } catch (error) {
     console.error('Failed to delete prompt:', error)
     showToast('删除失败', 'error')
@@ -813,6 +868,10 @@ async function deletePrompt(id: string) {
 async function copyPrompt(prompt: Prompt) {
   try {
     await navigator.clipboard.writeText(prompt.content)
+    copiedId.value = prompt.id
+    setTimeout(() => {
+      if (copiedId.value === prompt.id) copiedId.value = null
+    }, 1500)
     showToast('已复制到剪贴板', 'success')
   } catch (error) {
     console.error('Failed to copy prompt:', error)
@@ -895,6 +954,10 @@ async function addCategory() {
     newCategoryName.value = ''
     newCategoryIcon.value = ''
     showToast('分类添加成功', 'success')
+    chrome.runtime.sendMessage({
+      type: MSG.DATA_UPDATED,
+      data: { scope: 'categories', version: Date.now().toString() },
+    })
   } catch (error) {
     console.error('Failed to add category:', error)
     showToast('添加分类失败', 'error')
@@ -904,7 +967,7 @@ async function addCategory() {
 function editCategory(category: Category) {
   editingCategoryId.value = category.id
   editingCategoryName.value = category.name
-  editingCategoryIcon.value = category.icon || ''
+  editingCategoryIcon.value = category.icon ?? ''
 }
 
 function cancelCategoryEdit() {
@@ -937,6 +1000,10 @@ async function updateCategory(id: string, data: { name: string, icon?: string })
       await db.categories.update(id, data)
       await loadCategories()
       showToast('分类更新成功', 'success')
+      chrome.runtime.sendMessage({
+        type: MSG.DATA_UPDATED,
+        data: { scope: 'categories', version: Date.now().toString() },
+      })
     }
   } catch (error) {
     console.error('Failed to update category:', error)
@@ -951,6 +1018,10 @@ async function deleteCategory(id: string) {
     await db.categories.delete(id)
     await loadCategories()
     showToast('分类删除成功', 'success')
+    chrome.runtime.sendMessage({
+      type: MSG.DATA_UPDATED,
+      data: { scope: 'categories', version: Date.now().toString() },
+    })
   } catch (error) {
     console.error('Failed to delete category:', error)
     showToast('删除分类失败', 'error')
@@ -979,15 +1050,27 @@ const handleKeydown = (event: KeyboardEvent) => {
       showCategoryManager.value = false
     } else if (showSettings.value) {
       showSettings.value = false
+    } else if (menuOpenId.value) {
+      menuOpenId.value = null
     }
   }
 }
 
 // 生命周期
-onMounted(() => {
-  loadPrompts()
-  loadCategories()
-  loadTags()
+onMounted(async () => {
+  try {
+    await db.open()
+    console.log('Database connection successful.')
+    // Load data only after DB is confirmed open
+    loadPrompts()
+    loadCategories()
+    loadTags()
+  }
+  catch (error) {
+    console.error('Failed to open database:', error)
+    showToast('数据库连接失败，请检查控制台获取详细信息。', 'error')
+  }
+
   window.addEventListener('keydown', handleKeydown)
 })
 

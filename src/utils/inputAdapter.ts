@@ -48,8 +48,17 @@ export function insertAtCursor(target: InputTarget, text: string) {
   }
   const range = sel.getRangeAt(0)
   range.deleteContents()
-  range.insertNode(document.createTextNode(text))
-  range.collapse(false)
+  const textNode = document.createTextNode(text)
+  range.insertNode(textNode)
+  
+  // Move cursor to the end of the inserted text
+  range.setStartAfter(textNode)
+  range.collapse(true)
+  sel.removeAllRanges()
+  sel.addRange(range)
+
+  // Dispatch an input event to notify listeners of the change
+  el.dispatchEvent(new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' }))
 }
 
 export function isComposing(): boolean {

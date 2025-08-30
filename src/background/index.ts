@@ -1,64 +1,107 @@
-import { MSG, type RuntimeMessage } from '@/utils/messaging'
+import { db, getSettings } from '@/stores/db'
+import type { Prompt, Category, Tag } from '@/types'
+import {
+  MSG,
+  type RequestMessage,
+  type ResponseMessage,
+  type GetPromptsPayload,
+  type PromptDTO,
+  type DataUpdatedPayload,
+} from '@/utils/messaging'
 
-async function getActiveTabId(): Promise<number | null> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  return tab?.id ?? null
-}
+chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
+  const { type, data } = msg
 
-async function sendToActiveTab(message: RuntimeMessage) {
-  const tabId = await getActiveTabId()
-  if (tabId != null) await chrome.tabs.sendMessage(tabId, message).catch(() => {})
-}
+  if (type === MSG.GET_PROMPTS) {
+    handleGetPrompts(data)
+      .then(res => sendResponse({ ok: true, ...res }))
+      .catch(e => sendResponse({ ok: false, error: e.message }))
+    return true // Keep the message channel open for async response
+  }
 
-chrome.runtime.onInstalled.addListener(() => {
-  // Context menus
-  chrome.contextMenus.create({
-    id: 'apm.openPanel',
-    title: 'APM: 打开 Prompt 面板',
-    contexts: ['all'],
-  })
-  chrome.contextMenus.create({
-    id: 'apm.quickSave',
-    title: 'APM: 快速保存当前输入为 Prompt',
-    contexts: ['editable'],
-  })
+  if (type === MSG.GET_CATEGORIES) {
+    db.categories.toArray()
+      .then(data => sendResponse({ ok: true, data }))
+      .catch(e => sendResponse({ ok: false, error: e.message }))
+    return true
+  }
+
+  if (type === MSG.GET_SETTINGS) {
+    getSettings()
+      .then(data => sendResponse({ ok: true, data }))
+      .catch(e => sendResponse({ ok: false, error: e.message }))
+    return true
+  }
+
+  if (type === MSG.DATA_UPDATED) {
+    // Broadcast to all content scripts that data has changed
+    broadcastToTabs(msg)
+    return false // No response needed
+  }
 })
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === 'apm.openPanel') {
-    if (tab?.id != null) chrome.tabs.sendMessage(tab.id, { type: MSG.OPEN_PANEL })
+async function handleGetPrompts(
+  payload?: GetPromptsPayload,
+): Promise<{ data: PromptDTO[]; version: string }> {
+  const [prompts, categories, tags] = await Promise.all([
+    db.prompts.toArray(),
+    db.categories.toArray(),
+    db.tags.toArray(),
+  ])
+
+  const categoryMap = new Map(categories.map(c => [c.id, c.name]))
+  const tagMap = new Map(tags.map(t => [t.id, t.name]))
+
+  let filteredPrompts = prompts
+
+  // Filtering logic
+  if (payload?.q) {
+    const q = payload.q.toLowerCase()
+    filteredPrompts = filteredPrompts.filter(p => {
+      const tagNames = p.tagIds.map(tid => tagMap.get(tid) || '').join(' ')
+      return (
+        p.title.toLowerCase().includes(q) ||
+        p.content.toLowerCase().includes(q) ||
+        tagNames.toLowerCase().includes(q)
+      )
+    })
   }
-  if (info.menuItemId === 'apm.quickSave') {
-    if (tab?.id != null) {
-      chrome.tabs.sendMessage(tab.id, { type: MSG.INSERT_PROMPT, data: '{# 快速保存占位 #}' })
+
+  if (payload?.category && payload.category !== '全部') {
+    const catId = categories.find(c => c.name === payload.category)?.id
+    if (catId) {
+      filteredPrompts = filteredPrompts.filter(p => p.categoryIds.includes(catId))
+    } else if (payload.category === '未分类') {
+      filteredPrompts = filteredPrompts.filter(p => p.categoryIds.length === 0)
     }
   }
-})
 
-chrome.commands.onCommand.addListener(async (command) => {
-  if (command === 'open_panel' || command === 'toggle-panel') {
-    await sendToActiveTab({ type: MSG.OPEN_PANEL })
-  }
-})
+  // Map to DTO
+  const data: PromptDTO[] = filteredPrompts.map(p => ({
+    id: p.id,
+    title: p.title,
+    content: p.content,
+    // For simplicity, we assign the first category name. Multi-category can be handled if needed.
+    categoryName: p.categoryIds.length > 0 ? categoryMap.get(p.categoryIds[0]) || '未分类' : '未分类',
+    tags: p.tagIds.map(tid => tagMap.get(tid) || '').filter(Boolean),
+  }))
 
-chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
-  if (message?.type === MSG.DOWNLOAD_FILE) {
-    const { name, content } = message.data as { name: string; content: string }
-    const blob = new Blob([content], { type: 'application/json;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    chrome.downloads.download({ url, filename: name, saveAs: true }, () => {
-      URL.revokeObjectURL(url)
-    })
-    sendResponse({ ok: true })
-    return true
+  const latestUpdate = prompts.reduce((max, p) => Math.max(max, p.updatedAt), 0)
+  const version = latestUpdate.toString()
+
+  return { data, version }
+}
+
+async function broadcastToTabs(msg: RequestMessage<DataUpdatedPayload>) {
+  const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] })
+  for (const tab of tabs) {
+    if (tab.id) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, msg)
+      }
+      catch (e) {
+        // console.warn(`Could not send message to tab ${tab.id}`, e)
+      }
+    }
   }
-  if (message?.type === MSG.INSERT_PROMPT) {
-    // 转发到活动页
-    getActiveTabId().then((tabId) => {
-      if (tabId != null) chrome.tabs.sendMessage(tabId, message)
-    })
-    sendResponse({ ok: true })
-    return true
-  }
-  return false
-})
+}
