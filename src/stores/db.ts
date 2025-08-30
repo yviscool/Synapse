@@ -11,7 +11,7 @@ export class APMDB extends Dexie {
   constructor() {
     super('apm')
     this.version(1).stores({
-      prompts: 'id, title, updatedAt, favorite',
+      prompts: 'id, title, updatedAt, favorite, createdAt',
       prompt_versions: 'id, promptId, createdAt',
       categories: 'id, name, sort',
       tags: 'id, name',

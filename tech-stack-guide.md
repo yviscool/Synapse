@@ -83,26 +83,6 @@
 <div class="i-carbon-close"></div>         <!-- 关闭图标 -->
 ```
 
-### 3. 响应式设计
-```html
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-  <!-- 响应式网格布局 -->
-</div>
-```
-
-### 4. Chrome Extension 特定样式
-```css
-/* popup 窗口样式 */
-.popup-container {
-  @apply w-80 h-96 p-4 bg-white;
-}
-
-/* content script 样式 */
-.extension-overlay {
-  @apply fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 z-50;
-}
-```
-
 ### 5. Shiki 代码高亮
 
 #### 基础配置
@@ -169,27 +149,11 @@ const loadLanguage = async (lang: string) => {
 }
 ```
 
-3. **样式定制**
-```css
-.code-block {
-  @apply rounded-lg overflow-x-auto;
-}
-
-.code-block pre {
-  @apply p-4 text-sm leading-relaxed;
-}
-
-.code-block code {
-  @apply font-mono;
-}
-```
-
 ## 开发建议
 
 1. **优先使用属性化模式** - 提高代码可读性
 2. **合理使用图标预设** - 减少图标资源加载
 3. **利用排版预设** - 保持文本样式一致性
-4. **使用 @apply 指令** - 复用复杂样式组合
 5. **Shiki 代码高亮** - 提供专业的语法高亮体验
 
 ## 常用工具类速查

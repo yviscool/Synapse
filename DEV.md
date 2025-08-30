@@ -1,58 +1,210 @@
-# AI Prompt Manager 开发文档（简版）
+prompt
+├── DEV.md
+├── README.md
+├── components.d.ts
+├── dist
+│   ├── assets
+│   ├── background.js
+│   ├── content.css
+│   ├── content.js
+│   ├── icons
+│   ├── manifest.json
+│   ├── options.html
+│   ├── options.js
+│   ├── popup.html
+│   └── popup.js
+├── manifest.json
+├── options.html
+├── package.json
+├── popup.html
+├── public
+│   └── icons
+├── scripts
+│   ├── build-extension.js
+│   └── build.js
+├── src
+│   ├── background
+│   ├── content
+│   ├── options
+│   ├── outline
+│   ├── popup
+│   ├── stores
+│   ├── styles
+│   ├── types
+│   └── utils
+├── tech-stack-guide.md
+├── tsconfig.json
+├── uno.config.ts
+├── vite.config.content.ts
+└── vite.config.ts
 
-## 架构
-- background（MV3 Service Worker）
-  - 处理快捷键 chrome.commands、右键菜单、下载导出、消息中转
-- content
-  - 按 “/” 打开 Shadow DOM 面板，插入到输入框；接收 OPEN_PANEL/INSERT_PROMPT
-  - 引入 outline/OutlineGenerator 按域名自适配生成大纲
-- popup
-  - 一键打开面板（向活动页发 OPEN_PANEL）
-- options
-  - 设置示例 + 导出 JSON（Dexie 全量导出）
-- stores（Dexie）
-  - prompts/prompt_versions/categories/tags/settings
-- utils
-  - messaging：消息常量
-  - inputAdapter：通用输入框定位与插入
+### **AI Prompt Manager: 最终设计底稿 (版本 2.2)**
 
-## 消息协议
-- background -> content
-  - APM/OPEN_PANEL：打开面板
-  - APM/INSERT_PROMPT：插入文本
-- 任意 -> background
-  - APM/DOWNLOAD_FILE：下载导出文件
+**产品愿景：打造 AI 时代思想者的“第二大脑”。一个无形、智能、优雅的灵感放大器，它应该感觉像是你思想的延伸，而不是一个外部工具。**
 
-## 数据模型（Dexie）
-- prompts: { id, title, content, categoryIds[], tagIds[], currentVersionId?, favorite?, createdAt, updatedAt }
-- prompt_versions: { id, promptId, content, note?, parentVersionId?, createdAt }
-- categories: { id, name, sort? }
-- tags: { id, name }
-- settings: { id:'global', hotkeyOpen, enableSlash, enableSites, panelPos, theme, outlineEnabled }
+**核心设计原则：**
+1.  **心流至上 (Flow First):** 绝不打断用户的思考。任何交互都必须快如闪电，顺应直觉。
+2.  **无形界面 (Invisible UI):** 功能应在需要时浮现，在不需要时隐形。最好的界面是感觉不到界面。
+3.  **情境为王 (Context is King):** 工具必须理解用户在哪、在做什么，并提供恰到好处的帮助。
 
-## 站点支持（大纲）
-在 src/outline/OutlineGenerator.ts 中按域名映射到具体生成器，新增站点只需继承 BaseOutlineGenerator 并登记映射。
+---
 
-## 快捷键
-- 全局 Alt+K：manifest.commands.open_panel（可在扩展管理页修改）
-- 输入框 “/”：content 捕获后弹出面板（可在 settings 做开关，当前为默认开启）
+### **第一部分：Popup (代号：钥匙 The Key)**
 
-## 开发
-- 本地调试
-  - npm run build:extension
-  - Chrome 加载 dist
-  - 修改代码后重新 build:extension 并在 chrome://extensions 点击“重新加载”
-- 多页面入口（vite.config.ts）
-  - popup.html / options.html / src/content/index.ts / src/background/index.ts
-  - 输出：dist/{popup.js, options.js, content.js, background.js}
+* **核心哲学：** 零阻力获取。一个动作，而非一个应用。
+* **用户心流故事：**
+    1.  需要一个 Prompt。
+    2.  按下全局快捷键 `Cmd+Shift+P`。
+    3.  一个无边框、毛玻璃效果的窗口从屏幕中央**柔和地浮现**。光标**已自动**聚焦在唯一的搜索框里。
+    4.  输入关键词，列表**实时响应**。
+    5.  使用键盘 `↑` `↓` 选择，按 `Enter` 复制。
+    6.  窗口**瞬间消失**。
+    7.  思绪从未中断。
+* **UI 与元素拆解：**
+    * **容器：** 无边框、圆角卡片，背景采用系统毛玻璃效果（Backdrop Filter）。
+    * **搜索框：** 唯一的交互焦点，占位符文字“搜索你的灵感库...”。
+    * **结果列表：** 垂直列表，项目间距充足。列表项由左侧的**彩色圆点**（分组）、**Prompt 标题**和下方的灰色内容摘要组成。
+    * **入口图标：** 右下角有一个极其精巧、简约的**齿轮 `⚙️` 图标**。默认半透明，悬停时完全不透明。
+* **交互与动效 (The Feel):**
+    * **出现/消失：** 快速、平滑的缩放+渐变效果（Scale & Fade）。
+    * **列表过滤：** 列表项伴随轻微的 `Fade` 和 `Slide-up` 效果，避免生硬。
+    * **入口交互：** 点击 `⚙️` 图标，在新标签页打开“工作室 (Options)”。这是为“搜索失败”或有明确管理意图的用户提供的出口。
 
-## 扩展点
-- 面板 UI：在 src/content/PanelApp.vue 内扩展搜索、列表、CRUD
-- Prompt CRUD：在 options/popup 内接入 Dexie，完成增删改与版本管理
-- 输入框适配：utils/inputAdapter 提供通用策略，可在 options 定义站点自定义选择器
+---
 
-## 待办（下一步）
-- 面板内接入 Dexie + Fuse 搜索，完成 Prompt 列表/筛选/插入
-- 版本管理视图（diff-match-patch 对比、回滚/派生）
-- settings.enableSlash 等设置与 content 行为打通
-- 导入 JSON（冲突策略）
+### **第二部分：Content Script (代号：影子 The Shadow)**
+
+* **核心哲学：** 融入环境，智能感知，永不打扰。
+* **交互模型 A： 生成大纲已实现 (打勾)
+* **交互模型 B：AI 网站的原生指令与捕获**
+    * **使用 (Use):**
+        * **触发器：** `//` (双斜杠)，以完美避开网站原生 `/` 指令冲突。
+        * **心流：** 在输入框中输入 `//`，一个**轻量级搜索面板**从输入框上方“生长”出来。输入关键词筛选，按 `Enter` 后，指令被**瞬间替换为完整的 Prompt 内容**。
+    * **捕获 (Capture):**
+        * **触发器：** 鼠标**悬停**在任何对话气泡上（用户或 AI 的），气泡角落**浮现**出一个精巧的 `+` 图标。
+        * **心流：** 点击 `+`，图标变为 `✓`。同时屏幕边缘出现一个简短通知：“**已存至收件箱。 [查看]**”。捕获完成，心流不中断。
+        * **入口交互：** 该通知条本身**可点击**。在它消失前点击，将直接在新标签页打开“工作室 (Options)”并定位到“收件箱”。
+
+---
+
+### **第三部分：Options (代号：工作室 The Studio)**
+
+* **核心哲学：** 思想的诞生地，必须专注、有序、美观。
+* **核心概念：收件箱 (Inbox)**
+    * 所有快速捕获的内容，都将首先进入位于导航栏最顶端的“收件箱”分组。这是一个临时的、待处理的区域，鼓励用户后续进行整理。
+* **用户心流故事：**
+    1.  通过任一入口进入“工作室”。
+    2.  首先看到的是一个**开阔、居中的欢迎界面 (Gallery View)**，展示着“收藏的”或“最近编辑的”**卡片式** Prompts。
+    3.  用户看到“收件箱”有新项目提示。点击进入，开始从容地为捕获的灵感命名、编辑、打标签，并将其拖拽至合适的永久分组。
+    4.  当他想进行深度创作时，点击某个分组，视图**平滑过渡为三栏式管理布局 (Manager View)**。
+    5.  在编辑器中打字时，**左右两栏的透明度自动降低**，创造“聚光灯”效果。
+* **UI 与元素拆解：**
+    * **导航栏：** 永久置顶“**收件箱 (Inbox)**”分组，并带有新项目角标提示。
+    * **启动视图 (Gallery View):** 单栏居中，核心是搜索框和灵感卡片。
+    * **管理视图 (Manager View):** 三栏布局（导航、列表、编辑器）。
+    * **编辑器栏：**
+        * 干净、所见即所得的 Markdown 编辑环境，支持变量语法高亮。
+        * 右上角有不起眼的“时钟”图标，用于查看和对比**版本历史**。
+* **入口 (Entry Points):**
+    1.  **从 Popup：** 点击右下角的 `⚙️` 图标。
+    2.  **从 Content Script：** 点击捕获成功后的“[查看]”通知条。
+    3.  **从浏览器工具栏：** 点击插件主图标（见下文）。
+
+---
+
+### **第四部分：浏览器主图标 (代号：大本营 The Home Base)**
+
+* **核心哲学：** 明确的起点和最终归宿。
+* **定位：** 它不是日常频繁交互的入口，而是用户想进行系统性工作时的“起始点”和“大本营”。
+* **交互：**
+    * **左键单击：** 直接在新标签页打开“工作室 (Options)”的**启动视图**。
+    * **右键单击：** 提供一个简洁的上下文菜单，包含快捷方式：
+        * `打开工作室`
+        * `查看收件箱`
+        * `新建 Prompt`
+
+---
+
+### **第五部分：Background (代号：心脏 The Heart)**
+
+* **核心哲学：** 稳定、可靠、无声。用户感受不到它的存在，但它支撑着一切。
+* **设计原则（代码层面）：**
+    * **唯一真相来源 (Single Source of Truth):** 所有的数据状态由 Background 统一管理和分发。
+    * **数据库抽象层：** 将所有 Dexie 操作封装，为未来更换数据库做好准备。
+    * **全局事件总线：** 处理全局快捷键、跨标签页通信。
+    * **健壮性：** 完备的错误处理和数据备份/迁移逻辑。
+
+---
+
+这份蓝图现已完成。
+
+它定义了一个完整的、闭环的、尊重用户心流的灵感生态系统。从捕获，到整理，再到使用，每一个环节都经过了反复推敲。
+
+现在，去实现它。每一个细节都不能妥协。
+
+---
+
+## 存储层架构设计
+
+### 核心理念
+存储层采用**本地优先**的设计理念，默认使用 IndexedDB 本地存储，为用户提供快速、可靠的数据访问体验。同时预留云端同步接口，支持未来接入 Supabase、MongoDB 等云端数据库。
+
+### 技术架构
+
+#### 1. 本地存储 (默认)
+- **数据库**: IndexedDB (通过 Dexie.js 封装)
+- **优势**: 
+  - 零延迟访问
+  - 离线可用
+  - 无需网络依赖
+  - 数据隐私保护
+- **容量**: 支持大量数据存储 (通常 >50MB)
+
+#### 2. 数据模型
+```typescript
+// 核心数据表
+- prompts: Prompt 主表
+- prompt_versions: 版本历史表  
+- categories: 分类管理表
+- tags: 标签系统表
+- settings: 用户设置表
+```
+
+#### 3. 版本管理系统
+- **版本追踪**: 每次内容修改自动创建版本记录
+- **差异对比**: 基于 diff-match-patch 算法的智能对比
+- **版本恢复**: 支持一键恢复到任意历史版本
+- **存储优化**: 自动清理过期版本，保持存储效率
+
+#### 4. 云端扩展 (规划中)
+```typescript
+// 适配器模式设计
+interface StorageAdapter {
+  // Supabase 适配器
+  supabase: SupabaseAdapter
+  // MongoDB 适配器  
+  mongodb: MongoDBAdapter
+  // 本地适配器
+  local: LocalAdapter
+}
+```
+
+#### 5. 数据同步策略
+- **双向同步**: 本地 ↔ 云端实时同步
+- **冲突解决**: 基于时间戳的智能合并
+- **离线支持**: 离线操作队列，网络恢复后自动同步
+- **增量同步**: 只同步变更数据，节省带宽
+
+### 用户价值
+1. **即开即用**: 无需注册登录，本地存储开箱即用
+2. **数据安全**: 本地存储保护隐私，云端备份防止丢失  
+3. **跨设备同步**: 可选择启用云端同步，多设备数据一致
+4. **自主选择**: 用户可自由选择存储方式和云端服务商
+
+### 实现状态
+- ✅ 本地存储架构完成
+- ✅ 版本管理系统完成
+- ✅ Markdown 编辑器集成
+- 🚧 云端适配器开发中
+- 📋 Supabase 集成计划中
+- 📋 MongoDB 集成计划中
