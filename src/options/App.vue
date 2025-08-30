@@ -49,17 +49,44 @@
           </div>
         </div>
         
-        <div class="flex items-center justify-center gap-6 flex-wrap">
-          <div class="flex items-center gap-3">
-            <label class="text-sm font-medium text-gray-600 whitespace-nowrap">分类:</label>
-            <select v-model="selectedCategory" class="px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-              <option value="">全部分类</option>
-              <option v-for="category in categories" :key="category.id" :value="category.id">
-                {{ category.name }}
-              </option>
-            </select>
+        <div class="space-y-4">
+          <div class="flex items-center justify-center gap-2 flex-wrap">
+            <button
+              @click="toggleCategory('')"
+              :class="['flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.length === 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
+            >
+              <span>全部分类</span>
+            </button>
+            <button
+              v-for="category in availableCategories"
+              :key="category.id"
+              @click="toggleCategory(category.id)"
+              :class="['flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.includes(category.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
+            >
+              <div v-if="category.icon" :class="[category.icon]"></div>
+              <span>{{ category.name }}</span>
+            </button>
           </div>
-          
+
+          <div v-if="selectedCategories.length > 0 && availableTags.length > 0" class="flex items-center justify-center gap-2 flex-wrap border-t border-gray-200 pt-4">
+            <button
+              @click="toggleTag('')"
+              :class="['px-3 py-1 text-sm rounded-md transition-colors', selectedTags.length === 0 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300']"
+            >
+              全部
+            </button>
+            <button
+              v-for="tag in availableTags"
+              :key="tag.id"
+              @click="toggleTag(tag.id)"
+              :class="['px-3 py-1 text-sm rounded-md transition-colors', selectedTags.includes(tag.id) ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300']"
+            >
+              {{ tag.name }}
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-center gap-6 flex-wrap">
           <div class="flex items-center gap-3">
             <label class="text-sm font-medium text-gray-600 whitespace-nowrap">排序:</label>
             <select v-model="sortBy" class="px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -148,6 +175,13 @@
                 >
                   {{ getCategoryName(categoryId) }}
                 </span>
+                <span 
+                  v-for="tagId in prompt.tagIds" 
+                  :key="tagId" 
+                  class="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-green-100 text-green-800"
+                >
+                  {{ getTagNames([tagId])[0] }}
+                </span>
               </div>
             </div>
           </div>
@@ -204,26 +238,38 @@
           <div class="flex-1 p-6 space-y-6 overflow-y-auto">
             <!-- 基本信息区域 -->
             <div class="space-y-4">
-              <div class="flex gap-4 items-end">
-                <div class="flex-1 space-y-2 flex-[2]">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">标题</label>
-                  <input
-                    v-model="editingPrompt.title"
-                    type="text"
-                    class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="为你的 Prompt 起个好名字..."
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">标题</label>
+                <input
+                  v-model="editingPrompt.title"
+                  type="text"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="为你的 Prompt 起个好名字..."
+                >
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">分类 (可多选)</label>
+                <div class="flex flex-wrap gap-2 p-2 border border-gray-200 rounded-lg">
+                  <button
+                    v-for="category in availableCategories"
+                    :key="category.id"
+                    @click="selectedCategoriesForEdit.includes(category.id) ? selectedCategoriesForEdit = selectedCategoriesForEdit.filter(id => id !== category.id) : selectedCategoriesForEdit.push(category.id)"
+                    :class="['px-3 py-1 rounded-full text-sm', selectedCategoriesForEdit.includes(category.id) ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']"
                   >
+                    {{ category.name }}
+                  </button>
                 </div>
-                
-                <div class="flex-1 space-y-2">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">分类</label>
-                  <select v-model="selectedCategoryForEdit" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">选择分类</option>
-                    <option v-for="category in availableCategories" :key="category.id" :value="category.id">
-                      {{ category.name }}
-                    </option>
-                  </select>
-                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">标签 (用逗号或 | 分隔)</label>
+                <input
+                  v-model="editingTags"
+                  type="text"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="例如: gpt-4, 翻译, ..."
+                >
               </div>
               
               <div class="flex gap-4 items-end">
@@ -407,7 +453,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ui, useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
-import type { Prompt, Category } from '@/types/prompt'
+import type { Prompt, Category, Tag } from '@/types/prompt'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
 import { createVersion, getLatestVersion } from '@/utils/versionUtils'
@@ -427,12 +473,15 @@ const vFocus = {
 // 响应式数据
 const prompts = ref<Prompt[]>([])
 const categories = ref<Category[]>([])
+const tags = ref<Tag[]>([])
 const searchQuery = ref('')
-const selectedCategory = ref('')
+const selectedCategories = ref<string[]>([])
+const selectedTags = ref<string[]>([])
 const showFavoriteOnly = ref(false)
 const sortBy = ref<'updatedAt' | 'createdAt' | 'title'>('updatedAt')
 const editingPrompt = ref<Partial<Prompt> | null>(null)
-const selectedCategoryForEdit = ref('')
+const selectedCategoriesForEdit = ref<string[]>([])
+const editingTags = ref('')
 const showCategoryManager = ref(false)
 const newCategoryName = ref('')
 const editingCategoryId = ref<string | null>(null)
@@ -443,22 +492,35 @@ const hasContentChanged = ref(false)
 const showSettings = ref(false)
 
 // 计算属性
+const getTagNames = (tagIds: string[]): string[] => {
+  return tagIds.map(id => tags.value.find(t => t.id === id)?.name || '').filter(Boolean)
+}
+
 const filteredPrompts = computed(() => {
   let filtered = prompts.value
   
   // 搜索过滤
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(p =>
-      p.title.toLowerCase().includes(query) ||
-      p.content.toLowerCase().includes(query)
-    )
+    filtered = filtered.filter(p => {
+      const tagNames = getTagNames(p.tagIds).join(' ').toLowerCase()
+      return p.title.toLowerCase().includes(query) ||
+             p.content.toLowerCase().includes(query) ||
+             tagNames.includes(query)
+    })
   }
   
   // 分类过滤
-  if (selectedCategory.value) {
+  if (selectedCategories.value.length > 0) {
     filtered = filtered.filter(p => 
-      p.categoryIds && p.categoryIds.includes(selectedCategory.value)
+      p.categoryIds && selectedCategories.value.some(catId => p.categoryIds.includes(catId))
+    )
+  }
+
+  // 标签过滤
+  if (selectedTags.value.length > 0) {
+    filtered = filtered.filter(p =>
+      p.tagIds && selectedTags.value.every(tagId => p.tagIds.includes(tagId))
     )
   }
   
@@ -485,6 +547,46 @@ const availableCategories = computed(() => {
   return categories.value.sort((a: Category, b: Category) => (a.sort || 0) - (b.sort || 0))
 })
 
+const availableTags = computed(() => {
+  if (selectedCategories.value.length === 0) {
+    return []
+  }
+  
+  const tagIds = new Set<string>()
+  prompts.value.forEach(p => {
+    if (p.categoryIds.some(catId => selectedCategories.value.includes(catId))) {
+      p.tagIds.forEach(tagId => tagIds.add(tagId))
+    }
+  })
+  
+  return tags.value.filter(t => tagIds.has(t.id))
+})
+
+function toggleCategory(categoryId: string) {
+  const index = selectedCategories.value.indexOf(categoryId)
+  if (categoryId === '') {
+    selectedCategories.value = []
+  } else if (index > -1) {
+    selectedCategories.value.splice(index, 1)
+  } else {
+    selectedCategories.value.push(categoryId)
+  }
+  selectedTags.value = [] // Reset tags when category changes
+}
+
+function toggleTag(tagId: string) {
+  if (tagId === '') {
+    selectedTags.value = []
+    return
+  }
+  const index = selectedTags.value.indexOf(tagId)
+  if (index > -1) {
+    selectedTags.value.splice(index, 1)
+  } else {
+    selectedTags.value.push(tagId)
+  }
+}
+
 // 操作函数
 async function loadPrompts() {
   try {
@@ -509,12 +611,9 @@ async function loadCategories() {
     
     if (categories.value.length === 0) {
       const defaultCategories: Category[] = [
-        { id: 'work', name: '工作', sort: 1 },
-        { id: 'study', name: '学习', sort: 2 },
-        { id: 'creative', name: '创作', sort: 3 },
-        { id: 'life', name: '生活', sort: 4 },
-        { id: 'coding', name: '编程', sort: 5 },
-        { id: 'writing', name: '写作', sort: 6 }
+        { id: 'work', name: '工作', sort: 1, icon: 'i-carbon-briefcase', color: 'blue' },
+        { id: 'coding', name: '编程', sort: 2, icon: 'i-carbon-code', color: 'purple' },
+        { id: 'study', name: '学习', sort: 3, icon: 'i-carbon-book', color: 'green' },
       ]
       
       await db.categories.bulkPut(defaultCategories)
@@ -525,23 +624,39 @@ async function loadCategories() {
   }
 }
 
+async function loadTags() {
+  try {
+    tags.value = await db.tags.toArray()
+  } catch (error) {
+    console.error('Failed to load tags:', error)
+  }
+}
+
 function getCategoryName(categoryId: string): string {
   const category = categories.value.find(c => c.id === categoryId)
   return category?.name || categoryId
+}
+
+function getTagsString(tagIds: string[]): string {
+  return getTagNames(tagIds).join(', ')
 }
 
 function createNewPrompt() {
   editingPrompt.value = createSafePrompt({
     title: '',
     content: '',
-    favorite: false
+    favorite: false,
+    categoryIds: [],
+    tagIds: []
   })
-  selectedCategoryForEdit.value = ''
+  selectedCategoriesForEdit.value = []
+  editingTags.value = ''
 }
 
 function editPrompt(prompt: Prompt) {
   editingPrompt.value = clonePrompt(prompt)
-  selectedCategoryForEdit.value = prompt.categoryIds?.[0] || ''
+  selectedCategoriesForEdit.value = prompt.categoryIds || []
+  editingTags.value = getTagsString(prompt.tagIds || [])
 }
 
 async function toggleFavorite(prompt: Prompt) {
@@ -568,16 +683,33 @@ async function savePrompt() {
   }
   
   try {
-    const categoryIds = selectedCategoryForEdit.value 
-      ? [selectedCategoryForEdit.value] 
-      : []
-    
+    // Handle tags
+    const tagNames = editingTags.value.split(/[,|]/).map(t => t.trim()).filter(Boolean)
+    const tagIds: string[] = []
+    if (tagNames.length > 0) {
+      const existingTags = await db.tags.where('name').anyOf(tagNames).toArray()
+      const existingTagNames = new Set(existingTags.map(t => t.name))
+      
+      for (const name of tagNames) {
+        const existingTag = existingTags.find(t => t.name === name)
+        if (existingTag) {
+          tagIds.push(existingTag.id)
+        } else {
+          const newTag = { id: nanoid(), name }
+          await db.tags.put(newTag)
+          tagIds.push(newTag.id)
+        }
+      }
+      await loadTags() // Reload tags to include new ones
+    }
+
     const isNewPrompt = !editingPrompt.value.id
     const now = Date.now()
     
     const promptData = {
       ...editingPrompt.value,
-      categoryIds,
+      categoryIds: selectedCategoriesForEdit.value,
+      tagIds,
       updatedAt: now
     }
     
@@ -640,7 +772,8 @@ async function copyPrompt(prompt: Prompt) {
 
 function closeEditor() {
   editingPrompt.value = null
-  selectedCategoryForEdit.value = ''
+  selectedCategoriesForEdit.value = []
+  editingTags.value = ''
   showVersionHistory.value = true
   changeNote.value = ''
   hasContentChanged.value = false
@@ -756,6 +889,7 @@ function formatDate(timestamp: number): string {
 onMounted(() => {
   loadPrompts()
   loadCategories()
+  loadTags()
 })
 </script>
 
