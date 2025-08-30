@@ -1,25 +1,36 @@
 <template>
-  <PromptSelector
-    v-if="visible"
-    ref="selectorRef"
-    :prompts="displayedPrompts"
-    :categories="categoryOptions"
-    :selectedCategory="selectedCategory"
-    :highlightIndex="highlightIndex"
-    :searchQuery="searchQuery"
-    @update:selectedCategory="(v: string) => selectedCategory = v"
-    @update:searchQuery="(v: string) => searchQuery = v"
-    @select="handleSelect"
-    @copy="handleCopy"
-    @close="closePanel"
-  />
+  <div>
+    <PromptSelector
+      v-if="visible"
+      ref="selectorRef"
+      :prompts="displayedPrompts"
+      :categories="categoryOptions"
+      :selectedCategory="selectedCategory"
+      :highlightIndex="highlightIndex"
+      :searchQuery="searchQuery"
+      @update:selectedCategory="(v: string) => selectedCategory = v"
+      @update:searchQuery="(v: string) => searchQuery = v"
+      @select="handleSelect"
+      @copy="handleCopy"
+      @close="closePanel"
+    />
+    <UiToast
+      v-if="ui.toast"
+      :message="ui.toast.message"
+      :type="ui.toast.type"
+      @close="hideToast"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
+import { ui, useUI } from '@/stores/ui'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
+
+const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
 
 const selectorRef = ref<InstanceType<typeof PromptSelector> | null>(null)
 const visible = ref(false)
@@ -195,6 +206,7 @@ async function handleSelect(p: PromptDTO) {
 
 async function handleCopy(p: PromptDTO) {
   try { await navigator.clipboard.writeText(p.content) } catch {}
+  showToast('复制成功！', 'success')
 }
 
 function onGlobalKeydown(e: KeyboardEvent) {
