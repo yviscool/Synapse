@@ -6,7 +6,7 @@
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-3">
             <div class="i-carbon-ai-results text-2xl text-blue-600"></div>
-            <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">AI Prompt Studio</h1>
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Synapse</h1>
           </div>
           <div class="flex items-center gap-3">
             <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium">{{ prompts.length }} 个 Prompts</span>

@@ -1,7 +1,7 @@
 {
-  "name": "ai-prompt-manager",
+  "name": "synapse",
   "version": "1.0.0",
-  "description": "AI Prompt管理Chrome插件",
+  "description": "激发创造力，延伸你的智慧。你的思想催化剂。",
   "type": "module",
   "scripts": {
     "dev": "vite",

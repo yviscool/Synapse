@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "AI Prompt Manager",
+  "name": "Synapse",
   "version": "1.0.0",
-  "description": "智能AI对话助手 - 快速调用和管理您的Prompt模板",
+  "description": "激发创造力，延伸你的智慧。你的思想催化剂。",
   "permissions": [
     "storage",
     "unlimitedStorage",
@@ -56,7 +56,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "AI Prompt Manager",
+    "default_title": "Synapse",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",
@@ -77,10 +77,10 @@
   "commands": {
     "open_panel": {
       "suggested_key": {
-        "default": "Alt+K",
-        "mac": "Alt+K"
+        "default": "Alt+S",
+        "mac": "Alt+S"
       },
-      "description": "打开 APM Prompt 面板"
+      "description": "打开 Synapse 面板"
     }
   },
   "web_accessible_resources": [
