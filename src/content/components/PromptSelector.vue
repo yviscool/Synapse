@@ -11,12 +11,13 @@
     >
       <!-- Header with Search and Close button -->
       <div class="p-3 border-b border-black/10 dark:border-white/10 flex items-center gap-3 flex-shrink-0">
-        <div class="relative flex-1">
-          <div class="i-carbon-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+        <div class="flex-1 flex items-center gap-3 px-3 border border-gray-300/70 dark:border-gray-700/70 rounded-lg bg-white dark:bg-gray-900/50 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
+          <div class="i-carbon-search text-gray-400 flex-shrink-0" />
           <input
+            ref="searchInput"
             v-model="query"
             placeholder="搜索提示..."
-            class="w-full pl-10 pr-3 py-2 border border-gray-300/70 dark:border-gray-700/70 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900/50"
+            class="w-full py-2 outline-none bg-transparent"
             @keydown.stop
           />
         </div>
@@ -118,6 +119,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
+import { useFocus } from '@vueuse/core'
 import type { PromptDTO } from '@/utils/messaging'
 
 const props = defineProps<{
@@ -135,6 +137,9 @@ const emit = defineEmits<{
   (e: 'update:selectedCategory', v: string): void
   (e: 'update:searchQuery', v: string): void
 }>()
+
+const searchInput = ref<HTMLInputElement | null>(null)
+useFocus(searchInput, { initialValue: true })
 
 const query = computed({
   get: () => props.searchQuery,
