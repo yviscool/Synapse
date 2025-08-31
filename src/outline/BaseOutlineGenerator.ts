@@ -1398,30 +1398,34 @@ export class BaseOutlineGenerator {
 
         this.observer = new MutationObserver((mutations) => {
             let shouldUpdate = false;
+            let majorDomChange = false; // 标志位，表示是否发生剧烈变化
 
-            // 检查是否有新增的节点
             for (const mutation of mutations) {
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    // 检查新增节点中是否包含用户消息
-                    for (const node of mutation.addedNodes) {
-                        if (node.nodeType === Node.ELEMENT_NODE) {
-                            const hasUserMessage = node.matches?.(this.config.selectors.userMessage) ||
-                                node.querySelector?.(this.config.selectors.userMessage);
-                            if (hasUserMessage) {
-                                shouldUpdate = true;
-                                break;
-                            }
+                // 检查是否有大量的节点被移除
+                if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                    for (const removedNode of mutation.removedNodes) {
+                        // 如果被移除的节点是聊天容器，或者包含了很多消息，就可以认为是切换了
+                        if (removedNode.nodeType === Node.ELEMENT_NODE && removedNode.querySelector(this.config.selectors.userMessage)) {
+                            majorDomChange = true;
+                            break;
                         }
                     }
-                    if (shouldUpdate) break;
+                }
+
+                // 检查是否有新的用户消息节点被添加
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    // ... (你原来的逻辑) ...
+                    shouldUpdate = true;
                 }
             }
 
-            if (shouldUpdate) {
-                // 延迟更新，避免频繁重建
-                setTimeout(() => {
-                    this.generateOutlineItems();
-                }, 500);
+            if (majorDomChange) {
+                console.log('Major DOM change detected, likely a conversation switch. Re-initializing.');
+                // 剧烈变化，直接重新初始化
+                setTimeout(() => this.init(true), 100);
+            } else if (shouldUpdate) {
+                // 只是小更新，增量生成
+                setTimeout(() => this.generateOutlineItems(), 100);
             }
         });
 
@@ -1471,31 +1475,36 @@ export class BaseOutlineGenerator {
      * 观察URL变化
      * 支持单页应用的路由变化
      */
+    // 在 BaseOutlineGenerator 类中
     _observeUrlChanges() {
-        const handleUrlChange = () => {
-            setTimeout(() => {
-                if (window.location.href !== this.lastUrl) {
-                    this.lastUrl = window.location.href;
-                    this.init(true);
-                }
-            }, 100);
-        };
+        // 检查浏览器是否支持 Navigation API
+        if (window.navigation) {
+            // 'navigate' 事件会在任何导航开始时触发
+            window.navigation.addEventListener('navigate', (event) => {
+                // event.destination.url 是导航的目标 URL
+                const destinationUrl = event.destination.url;
 
-        // 拦截 history API
-        const originalPushState = history.pushState;
-        history.pushState = function (...args) {
-            originalPushState.apply(this, args);
-            handleUrlChange();
-        };
+                // 导航完成后，URL 会更新，我们可以设置一个短暂的延迟来执行刷新
+                // 使用 navigatesuccess 事件会更精确
+            });
 
-        const originalReplaceState = history.replaceState;
-        history.replaceState = function (...args) {
-            originalReplaceState.apply(this, args);
-            handleUrlChange();
-        };
+            // 'navigatesuccess' 事件在导航成功完成，且 DOM 更新后触发，更适合我们的场景
+            window.navigation.addEventListener('navigatesuccess', (event) => {
+                console.log(`Navigation successful to: ${event.target.currentEntry.url}`);
+                
+                setTimeout(() => {
+                    if (window.location.href !== this.lastUrl) {
+                        this.lastUrl = window.location.href;
+                        this.init(true); // 重新初始化大纲
+                    }
+                }, 100); // 稍微延迟，确保动态加载的组件渲染完毕
+            });
 
-        // 监听浏览器前进后退
-        window.addEventListener('popstate', handleUrlChange);
+        } else {
+            // 如果浏览器不支持，可以回退到之前的主世界注入方案
+            console.warn('Navigation API not supported. Falling back to other methods.');
+            // 这里可以调用你的主世界注入方案
+        }
     }
 
     /**
