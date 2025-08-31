@@ -51,7 +51,6 @@
         "https://www.doubao.com/*"
       ],
       "js": ["content.js"],
-      "css": ["content.css"],
       "run_at": "document_idle"
     }
   ],
@@ -86,7 +85,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["assets/*"],
+      "resources": ["assets/*", "content.css"],
       "matches": ["<all_urls>"]
     }
   ]

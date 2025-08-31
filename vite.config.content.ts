@@ -21,7 +21,6 @@ export default defineConfig({
         content: resolve(__dirname, 'src/content/index.ts'),
       },
       output: {
-        inlineDynamicImports: true,
         entryFileNames: 'content.js',
         assetFileNames: 'content.css',
       },
