@@ -1,5 +1,6 @@
+import { nanoid } from 'nanoid'
 import { db, getSettings } from '@/stores/db'
-import type { Prompt, Category, Tag } from '@/types'
+import type { Prompt } from '@/types'
 import {
   MSG,
   type RequestMessage,
@@ -105,3 +106,90 @@ async function broadcastToTabs(msg: RequestMessage<DataUpdatedPayload>) {
     }
   }
 }
+
+// --- Quick Save Feature ---
+
+async function saveSelectionAsPrompt(text: string) {
+  if (!text || !text.trim())
+    return
+
+  try {
+    const now = Date.now()
+    const title = text.trim().slice(0, 40) + (text.trim().length > 40 ? '...' : '')
+
+    const newPrompt: Prompt = {
+      id: nanoid(),
+      title,
+      content: text,
+      categoryIds: [],
+      tagIds: [],
+      createdAt: now,
+      updatedAt: now,
+      currentVersionId: null,
+    }
+
+    await db.prompts.put(newPrompt)
+
+    // Notify user
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon-128.png',
+      title: 'Synapse',
+      message: '提示词已保存！',
+    })
+
+    // Notify other parts of the extension to update data
+    broadcastToTabs({
+      type: MSG.DATA_UPDATED,
+      data: { scope: 'prompts', version: Date.now().toString() },
+    })
+  }
+  catch (error) {
+    console.error('Failed to save prompt from selection:', error)
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon-128.png',
+      title: 'Synapse',
+      message: `保存失败: ${(error as Error).message}`,
+    })
+  }
+}
+
+// Setup context menu on installation
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: 'save-selection-as-prompt',
+    title: '保存为提示词',
+    contexts: ['selection'],
+  })
+})
+
+// Handle context menu click
+chrome.contextMenus.onClicked.addListener((info) => {
+  if (info.menuItemId === 'save-selection-as-prompt' && info.selectionText)
+    saveSelectionAsPrompt(info.selectionText)
+})
+
+// Handle keyboard shortcut
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === 'save_selection' && tab.id) {
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tab.id, allFrames: true },
+        func: () => window.getSelection()?.toString(),
+      },
+      (injectionResults) => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError)
+          return
+        }
+        for (const frameResult of injectionResults) {
+          if (frameResult.result) {
+            saveSelectionAsPrompt(frameResult.result)
+            break // Save only the first non-empty selection found
+          }
+        }
+      },
+    )
+  }
+})

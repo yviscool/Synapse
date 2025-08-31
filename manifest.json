@@ -10,7 +10,8 @@
     "scripting",
     "downloads",
     "contextMenus",
-    "tabs"
+    "tabs",
+    "notifications"
   ],
   "host_permissions": [
     "https://chatgpt.com/*",
@@ -75,12 +76,12 @@
     "128": "icons/icon-128.png"
   },
   "commands": {
-    "open_panel": {
+    "save_selection": {
       "suggested_key": {
         "default": "Alt+S",
         "mac": "Alt+S"
       },
-      "description": "打开 Synapse 面板"
+      "description": "快速保存为提示词"
     }
   },
   "web_accessible_resources": [
