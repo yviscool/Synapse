@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/build.js",
-    "pack:zip": "rimraf extension.zip && jszip-cli add dist/* -o ./dist.zip",
-    "pack:crx": "crx pack dist -o ./dist.crx",
+    "pack": "cross-env NODE_ENV=production run-p pack:*",
+    "pack:zip": "rimraf extension.zip && jszip-cli add dist/* -o dist/dist.zip",
+    "pack:crx": "crx pack dist -o dist/dist.crx",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -24,18 +25,20 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@ffflorian/jszip-cli": "^3.8.6",
     "@iconify-json/carbon": "^1.2.13",
     "@iconify-json/mdi": "^1.2.3",
     "@iconify-json/ph": "^1.2.2",
     "@iconify-json/simple-icons": "^1.2.49",
-    "@ffflorian/jszip-cli": "^3.8.6",
     "@types/chrome": "^0.1.4",
     "@types/diff-match-patch": "^1.0.36",
     "@types/node": "^24.3.0",
     "@unocss/preset-typography": "^66.4.2",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
+    "cross-env": "^10.0.0",
     "crx": "^5.0.1",
+    "npm-run-all": "^4.1.5",
     "typescript": "^5.9.2",
     "unocss": "^66.4.2",
     "unplugin-vue-components": "^29.0.0",
