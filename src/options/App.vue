@@ -787,10 +787,15 @@ async function savePrompt() {
 }
 
 async function deletePrompt(id: string) {
-  const ok = await askConfirm('确定要删除这个 Prompt 吗？', { type: 'danger' })
+  const ok = await askConfirm('确定要删除这个 Prompt 吗？其所有历史版本也将被删除。', { type: 'danger' })
   if (!ok) return
   try {
-    await db.prompts.delete(id)
+    await db.transaction('rw', db.prompts, db.prompt_versions, async () => {
+      // Delete all associated versions first
+      await db.prompt_versions.where('promptId').equals(id).delete()
+      // Then delete the prompt itself
+      await db.prompts.delete(id)
+    })
     await loadPrompts()
     showToast('删除成功', 'success')
     // Notify background about the update
