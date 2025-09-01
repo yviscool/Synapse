@@ -867,6 +867,7 @@ async function deletePrompt(id: string) {
 
 async function copyPrompt(prompt: Prompt) {
   try {
+    await db.prompts.update(prompt.id, { lastUsedAt: Date.now() })
     await navigator.clipboard.writeText(prompt.content)
     copiedId.value = prompt.id
     setTimeout(() => {
@@ -1065,6 +1066,11 @@ onMounted(async () => {
     loadPrompts()
     loadCategories()
     loadTags()
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('action') === 'new') {
+      createNewPrompt();
+    }
   }
   catch (error) {
     console.error('Failed to open database:', error)

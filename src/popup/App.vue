@@ -1,129 +1,378 @@
 <template>
-  <div class="w-[400px] h-[600px] text-sm flex flex-col bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans">
-    <header class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-      <div class="font-semibold text-lg flex items-center">
-        <img src="/icons/icon-32.png" alt="Synapse Logo" class="w-6 h-6 mr-2">
-        <span>Synapse</span>
+  <div
+    class="relative w-[420px] max-h-[550px] flex flex-col overflow-hidden rounded-lg bg-white font-sans text-gray-800 shadow-2xl dark:bg-gray-900 dark:text-gray-200"
+    @keydown="handleKeydown"
+    @mousemove="isKeyboardNavigating = false"
+  >
+    <div
+      v-if="closingState.active"
+      class="absolute z-20 bg-blue-500/10 backdrop-blur-sm"
+      :style="{
+        top: `${closingState.top}px`,
+        left: `${closingState.left}px`,
+        width: `${closingState.width}px`,
+        height: `${closingState.height}px`,
+        transition: 'all 500ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }"
+      :class="{
+        '!top-0 !left-0 !w-full !h-full !rounded-none': closingState.active
+      }"
+    >
+      <div class="flex h-full w-full items-center justify-center">
+        <div
+          class="i-carbon-checkmark-outline text-5xl text-blue-500 transition-all duration-300 ease-in-out"
+          :class="{
+            'opacity-100 scale-100 delay-200': closingState.active,
+            'opacity-0 scale-50': !closingState.active
+          }"
+        ></div>
       </div>
-      <button @click="openOptionsPage" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none rounded-full p-1">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94c0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.58-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.44.17-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.58.22L2.7 9.81a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.58.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.04.24.24.41.48.41h3.84c.24 0 .44-.17.48.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .58-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6s3.6 1.62 3.6 3.6s-1.62 3.6-3.6 3.6z"/></svg>
-      </button>
-    </header>
+    </div>
 
-    <main class="flex-1 flex flex-col p-6 overflow-y-auto">
-      <div v-if="isError" class="w-full flex flex-col items-center justify-center h-full">
-        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md w-full" role="alert">
-          <p class="font-bold">错误</p>
-          <p>{{ errorMessage }}</p>
-        </div>
-        <button
-          class="mt-6 w-full px-6 py-3 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors"
-          @click="isError = false"
-        >
-          再试一次
-        </button>
-      </div>
-
-      <div v-else class="w-full">
-        <!-- Primary Action -->
-        <div class="text-center">
-          <h1 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">启动 Synapse</h1>
-          <p class="text-gray-500 dark:text-gray-400 mb-5 text-sm">
-            点击下方按钮，在当前页面上启动面板。
-          </p>
+    <div
+      class="flex flex-1 flex-col overflow-y-auto transition-opacity duration-300"
+      :class="{ 'opacity-0': closingState.active || isNavigatingAway }"
+    >
+      <div class="sticky top-0 z-10 bg-white/80 p-3 backdrop-blur-sm dark:bg-gray-900/80">
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <div class="i-carbon-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></div>
+            <input
+              ref="searchInputRef"
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索或新建..."
+              class="w-full rounded-lg border-2 border-transparent bg-gray-100 py-2 pl-9 pr-4 text-base transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:bg-gray-800"
+            />
+          </div>
           <button
-            class="w-full px-6 py-3 rounded-lg bg-blue-600 text-white font-semibold text-base hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out transform hover:scale-105 disabled:bg-blue-400 disabled:cursor-not-allowed"
-            @click="openPanel"
-            :disabled="isLoading"
+            @click="openOptionsPage"
+            class="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+            aria-label="设置"
           >
-            <div v-if="isLoading" class="flex items-center justify-center">
-              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>正在启动...</span>
-            </div>
-            <span v-else>打开面板</span>
+            <div class="i-carbon-settings text-xl"></div>
           </button>
         </div>
-
-        <hr class="my-6 border-gray-200 dark:border-gray-600" />
-
-        <!-- Secondary Methods -->
-        <div class="text-left">
-          <h2 class="text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">更多启动方式</h2>
-          <div class="space-y-3 text-gray-600 dark:text-gray-400 text-sm">
-            <div class="flex items-center">
-              <svg class="w-5 h-5 mr-3 text-gray-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M21 18H3v-2h18v2M15 8H9v2h6V8M21 4H3v2h18V4Z"/></svg>
-              <span>在任意输入框输入 <code class="bg-gray-200 dark:bg-gray-700 font-mono px-1.5 py-0.5 rounded-md text-gray-800 dark:text-gray-200">/p</code> 即可唤出</span>
-            </div>
-            <div class="flex items-center">
-              <svg class="w-5 h-5 mr-3 text-gray-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M22 6H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1M7 13H4v-2h3v2m5 0h-3v-2h3v2m5 0h-3v-2h3v2Z"/></svg>
-              <span>使用快捷键 <code class="bg-gray-200 dark:bg-gray-700 font-mono px-1.5 py-0.5 rounded-md text-gray-800 dark:text-gray-200">Alt + K</code> 快速打开</span>
-            </div>
-            <div class="flex items-center">
-              <svg class="w-5 h-5 mr-3 text-gray-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M4.4 18.243q-.425.225-.913-.038t-.487-.805V6.6q0-.55.487-.805t.913-.038l10.4 5.4q.425.225.425.713t-.425.712zM14 6v12h2V6zm4 0v12h2V6z"/></svg>
-              <span>选中文本, 点击 <code class="bg-gray-200 dark:bg-gray-700 font-mono px-1.5 py-0.5 rounded-md text-gray-800 dark:text-gray-200">鼠标右键</code> 保存</span>
-            </div>
+      </div>
+      <div class="px-2 pb-2">
+        <div v-if="searchQuery">
+          <ul>
+            <li
+              :ref="el => setListItemRef(0, el)"
+              :class="['flex cursor-pointer items-center gap-3 rounded-lg p-3 transition-colors', { 'bg-blue-500/10': highlightIndex === 0 }]"
+              @click="createNewPromptFromSearch"
+              @mouseenter="!isKeyboardNavigating && (highlightIndex = 0)"
+            >
+              <div class="i-carbon-add-alt text-lg text-blue-500"></div>
+              <div class="font-medium">新建 “<span class="truncate font-bold">{{ searchQuery }}</span>”</div>
+            </li>
+            <li
+              v-for="(prompt, index) in filteredPrompts"
+              :key="`search-${prompt.id}`"
+              :ref="el => setListItemRef(index + 1, el)"
+              :class="['group cursor-pointer rounded-lg p-3 transition-colors', { 'bg-blue-500/10': index + 1 === highlightIndex }]"
+              @click="selectItem(prompt, $event.currentTarget as HTMLElement)"
+              @mouseenter="!isKeyboardNavigating && (highlightIndex = index + 1)"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex-1 overflow-hidden">
+                  <div class="truncate font-semibold">{{ prompt.title }}</div>
+                  <div class="mt-1 truncate text-sm text-gray-600 dark:text-gray-400">{{ prompt.content }}</div>
+                </div>
+                <button @click.stop="editItem(prompt)" class="ml-2 p-1 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100" aria-label="编辑">
+                  <div class="i-carbon-edit text-lg"></div>
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div v-else class="space-y-3">
+          <section v-if="favoritePrompts.length">
+            <h2 class="mb-1 flex items-center gap-2 px-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+              <div class="i-carbon-favorite-filled text-yellow-500"></div>
+              我的收藏
+            </h2>
+            <ul>
+              <li
+                v-for="(prompt, index) in favoritePrompts"
+                :key="`fav-${prompt.id}`"
+                :ref="el => setListItemRef(index, el)"
+                :class="['group cursor-pointer rounded-lg p-3 transition-colors', { 'bg-blue-500/10': index === highlightIndex }]"
+                @click="selectItem(prompt, $event.currentTarget as HTMLElement)"
+                @mouseenter="!isKeyboardNavigating && (highlightIndex = index)"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex-1 overflow-hidden">
+                    <div class="truncate font-semibold">{{ prompt.title }}</div>
+                    <div class="mt-1 truncate text-sm text-gray-600 dark:text-gray-400">{{ prompt.content }}</div>
+                  </div>
+                  <button @click.stop="editItem(prompt)" class="ml-2 p-1 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100" aria-label="编辑">
+                    <div class="i-carbon-edit text-lg"></div>
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </section>
+          <section v-if="recentPrompts.length">
+            <h2 class="mb-1 flex items-center gap-2 px-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+              <div class="i-carbon-time"></div>
+              最近使用
+            </h2>
+            <ul>
+              <li
+                v-for="(prompt, index) in recentPrompts"
+                :key="`rec-${prompt.id}`"
+                :ref="el => setListItemRef(favoritePrompts.length + index, el)"
+                :class="['group cursor-pointer rounded-lg p-3 transition-colors', { 'bg-blue-500/10': favoritePrompts.length + index === highlightIndex }]"
+                @click="selectItem(prompt, $event.currentTarget as HTMLElement)"
+                @mouseenter="!isKeyboardNavigating && (highlightIndex = favoritePrompts.length + index)"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex-1 overflow-hidden">
+                    <div class="truncate font-semibold">{{ prompt.title }}</div>
+                    <div class="mt-1 truncate text-sm text-gray-600 dark:text-gray-400">{{ prompt.content }}</div>
+                  </div>
+                  <button @click.stop="editItem(prompt)" class="ml-2 p-1 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100" aria-label="编辑">
+                    <div class="i-carbon-edit text-lg"></div>
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </section>
+          <div v-if="!favoritePrompts.length && !recentPrompts.length" class="py-8 text-center text-gray-500">
+            <p class="text-lg font-semibold">这里空空如也</p>
+            <p class="mt-2 text-sm">试试搜索或创建你的第一个 Prompt！</p>
           </div>
         </div>
       </div>
-    </main>
-
-    <footer class="py-3 px-4 text-center text-xs text-gray-400 dark:text-gray-500 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-      <p>Version {{ version }}</p>
-    </footer>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, onBeforeUpdate, watch } from 'vue'
+import { db } from '@/stores/db'
+import type { Prompt } from '@/types'
 import { MSG } from '@/utils/messaging'
-import manifest from '@/../manifest.json'
 
-const version = manifest.version
-const isLoading = ref(false)
-const isError = ref(false)
-const errorMessage = ref('发生未知错误。')
+// --- Refs & State ---
+const searchQuery = ref('')
+const allPrompts = ref<Prompt[]>([])
+const highlightIndex = ref(-1)
+const searchInputRef = ref<HTMLInputElement | null>(null)
+const listItemsRef = ref<HTMLElement[]>([])
+const isKeyboardNavigating = ref(false)
+const isNavigatingAway = ref(false) // [JOBS] New state for consistent navigation exits.
 
-async function openPanel() {
-  isLoading.value = true
-  isError.value = false
+const closingState = ref({
+  active: false,
+  top: 0,
+  left: 0,
+  width: 0,
+  height: 0,
+})
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+// --- Setup & Lifecycle ---
+onMounted(async () => {
+  searchInputRef.value?.focus()
+  try {
+    await db.open()
+    const promptsFromDB = await db.prompts.toArray()
+    allPrompts.value = promptsFromDB.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+  } catch (e) {
+    console.error("Failed to load prompts from DB:", e)
+  }
+  chrome.runtime.onMessage.addListener(handleMessage)
+})
 
-  if (tab?.id) {
-    try {
-      await chrome.tabs.sendMessage(tab.id, { type: MSG.OPEN_PANEL })
-      window.close()
-    } catch (error: any) {
-      console.error("Synapse Error:", error)
-      isError.value = true
-      if (error.message.includes('Receiving end does not exist')) {
-        errorMessage.value = 'Synapse 无法在此页面上运行，请尝试其他网站。'
-      } else {
-        errorMessage.value = '打开面板失败，请检查控制台获取详细信息。'
-      }
-      isLoading.value = false
-    }
-  } else {
-    isError.value = true
-    errorMessage.value = '无法找到用于打开面板的活动标签页。'
-    isLoading.value = false
+onUnmounted(() => {
+  chrome.runtime.onMessage.removeListener(handleMessage)
+})
+
+onBeforeUpdate(() => {
+  listItemsRef.value = []
+})
+
+// --- Computed Properties ---
+const filteredPrompts = computed(() => {
+  if (!searchQuery.value) return []
+  const query = searchQuery.value.toLowerCase()
+  return allPrompts.value.filter(p =>
+    p.title.toLowerCase().includes(query) ||
+    p.content.toLowerCase().includes(query)
+  )
+})
+
+const favoritePrompts = computed(() => {
+  return allPrompts.value.filter(p => p.favorite).slice(0, 5)
+})
+
+const recentPrompts = computed(() => {
+  const favoriteIds = new Set(favoritePrompts.value.map(p => p.id))
+  return allPrompts.value
+    .filter(p => p.lastUsedAt && !favoriteIds.has(p.id))
+    .sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0))
+    .slice(0, 5)
+})
+
+const activeList = computed(() => {
+  if (searchQuery.value) return filteredPrompts.value
+  return [...favoritePrompts.value, ...recentPrompts.value]
+})
+
+// --- Actions & Methods ---
+function handleMessage(msg: any) {
+  if (msg?.type === MSG.DATA_UPDATED) {
+    db.prompts.toArray().then(prompts => {
+      allPrompts.value = prompts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    })
   }
 }
 
-function openOptionsPage() {
-  chrome.runtime.openOptionsPage()
+// --- [JOBS] REBUILT: Decoupled from mouse events. Accepts the element directly. Pure, simple, reliable.
+async function selectItem(prompt: Prompt, element: HTMLElement) {
+  if (!element) return; // Guard against errors
+
+  const rect = element.getBoundingClientRect();
+  closingState.value = {
+    active: true,
+    top: rect.top,
+    left: rect.left,
+    width: rect.width,
+    height: rect.height,
+  };
+
+  try {
+    await navigator.clipboard.writeText(prompt.content);
+    await db.prompts.update(prompt.id, { lastUsedAt: Date.now(), updatedAt: Date.now() });
+
+    // The magical animation is 500ms. We close shortly after.
+    setTimeout(() => window.close(), 600);
+  } catch (e) {
+    console.error("Failed to copy or update prompt:", e);
+    closingState.value.active = false; // If it fails, gracefully return to normal.
+  }
 }
+
+// --- [JOBS] NEW: A single, graceful way to handle all navigation-based exits.
+function closeWithNavigation(callback: () => void) {
+    isNavigatingAway.value = true;
+    setTimeout(() => {
+        callback();
+        window.close();
+    }, 300); // 300ms is enough for a quick, clean fade.
+}
+
+function createNewPromptFromSearch() {
+  closeWithNavigation(() => {
+    const url = `options.html?action=new&title=${encodeURIComponent(searchQuery.value)}`;
+    chrome.tabs.create({ url: chrome.runtime.getURL(url) });
+  });
+}
+
+function editItem(prompt: Prompt) {
+  closeWithNavigation(() => {
+    const url = `options.html?action=edit&id=${prompt.id}`;
+    chrome.tabs.create({ url: chrome.runtime.getURL(url) });
+  });
+}
+
+function openOptionsPage() {
+  closeWithNavigation(() => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
+  });
+}
+
+const setListItemRef = (index: number, el: any) => {
+  if (el) {
+    listItemsRef.value[index] = el as HTMLElement;
+  }
+}
+
+// --- [JOBS] REBUILT: Logic is simplified. No hacks. Keyboard is a first-class citizen.
+function handleKeydown(e: KeyboardEvent) {
+  isKeyboardNavigating.value = true
+  const list = activeList.value
+  const totalItems = searchQuery.value ? list.length + 1 : list.length;
+  if (totalItems === 0 && e.key !== 'Escape') return;
+
+  switch (e.key) {
+    case 'ArrowUp':
+      e.preventDefault()
+      if (highlightIndex.value > 0) {
+        highlightIndex.value--
+      } else if (!searchQuery.value && highlightIndex.value > -1) {
+        // Allow ArrowUp to deselect in non-search view
+        highlightIndex.value = -1;
+      }
+      break;
+
+    case 'ArrowDown':
+      e.preventDefault()
+      if (highlightIndex.value < totalItems - 1) {
+        highlightIndex.value++
+      }
+      break;
+
+    case 'Enter':
+      e.preventDefault()
+      if (highlightIndex.value === -1) return; // Do nothing if nothing is selected
+
+      const selectedEl = listItemsRef.value[highlightIndex.value];
+      if (!selectedEl) return; // Safety check
+
+      if (searchQuery.value) {
+        if (highlightIndex.value === 0) {
+          createNewPromptFromSearch()
+        } else {
+          const prompt = list[highlightIndex.value - 1];
+          if (prompt) selectItem(prompt, selectedEl)
+        }
+      } else {
+        const prompt = list[highlightIndex.value];
+        if (prompt) selectItem(prompt, selectedEl)
+      }
+      break;
+
+    case 'Escape':
+      window.close()
+      break;
+  }
+}
+
+// --- Watchers ---
+watch(searchQuery, (query) => {
+  // In search mode, the first item ("Create") should always be the default focus.
+  highlightIndex.value = query ? 0 : -1
+})
+
+watch(highlightIndex, (newIndex) => {
+  if (newIndex === -1) {
+    searchInputRef.value?.focus();
+  } else {
+    nextTick(() => {
+      const activeItem = listItemsRef.value[newIndex];
+      activeItem?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+}, { flush: 'post' });
 </script>
 
 <style>
-.font-sans {
+body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
-
-code {
-  @apply text-sm font-semibold;
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
 }
 </style>

@@ -257,18 +257,11 @@ export class BaseOutlineGenerator {
                   color: var(--outline-primary-hover);
               }
 
-              /* 关闭按钮特殊样式 */
-              .outline-control-btn.close-btn {
-                  color: var(--outline-danger);
-              }
-
-              .outline-control-btn.close-btn:hover {
-                  background-color: rgba(239, 68, 68, 0.1);
-                  color: #dc2626;
-              }
-
               /* 搜索框样式 */
               .outline-search {
+                  display: block;
+                  width: calc(100% - 32px);  
+                  box-sizing: border-box;
                   margin: 12px 16px;
                   padding: 10px 12px;
                   border: 1px solid var(--outline-border-light);
@@ -790,19 +783,8 @@ export class BaseOutlineGenerator {
             this.generateOutlineItems();
         });
 
-        // 关闭按钮 - 完全隐藏大纲
-        const closeButton = document.createElement('span');
-        closeButton.className = 'outline-control-btn close-btn';
-        closeButton.title = '关闭大纲 (完全隐藏)';
-        closeButton.textContent = '✖';
-        closeButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.hide();
-        });
-
         controls.appendChild(collapseButton);
         controls.appendChild(refreshButton);
-        // controls.appendChild(closeButton);
 
         header.appendChild(titleDiv);
         header.appendChild(controls);
@@ -1384,7 +1366,7 @@ export class BaseOutlineGenerator {
      * 观察DOM变化
      * 监听页面内容变化，自动更新大纲
      */
-    _observeMutations() {
+      _observeMutations() {
         const targetNode = document.querySelector(this.config.selectors.observeTarget);
         if (!targetNode) {
             console.warn("大纲生成器: 未找到观察目标节点");
@@ -1398,34 +1380,30 @@ export class BaseOutlineGenerator {
 
         this.observer = new MutationObserver((mutations) => {
             let shouldUpdate = false;
-            let majorDomChange = false; // 标志位，表示是否发生剧烈变化
 
+            // 检查是否有新增的节点
             for (const mutation of mutations) {
-                // 检查是否有大量的节点被移除
-                if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
-                    for (const removedNode of mutation.removedNodes) {
-                        // 如果被移除的节点是聊天容器，或者包含了很多消息，就可以认为是切换了
-                        if (removedNode.nodeType === Node.ELEMENT_NODE && removedNode.querySelector(this.config.selectors.userMessage)) {
-                            majorDomChange = true;
-                            break;
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    // 检查新增节点中是否包含用户消息
+                    for (const node of mutation.addedNodes) {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            const hasUserMessage = node.matches?.(this.config.selectors.userMessage) ||
+                                  node.querySelector?.(this.config.selectors.userMessage);
+                            if (hasUserMessage) {
+                                shouldUpdate = true;
+                                break;
+                            }
                         }
                     }
-                }
-
-                // 检查是否有新的用户消息节点被添加
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    // ... (你原来的逻辑) ...
-                    shouldUpdate = true;
+                    if (shouldUpdate) break;
                 }
             }
 
-            if (majorDomChange) {
-                console.log('Major DOM change detected, likely a conversation switch. Re-initializing.');
-                // 剧烈变化，直接重新初始化
-                setTimeout(() => this.init(true), 100);
-            } else if (shouldUpdate) {
-                // 只是小更新，增量生成
-                setTimeout(() => this.generateOutlineItems(), 100);
+            if (shouldUpdate) {
+                // 延迟更新，避免频繁重建
+                setTimeout(() => {
+                    this.generateOutlineItems();
+                }, 500);
             }
         });
 

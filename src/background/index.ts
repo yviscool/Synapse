@@ -39,6 +39,12 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
     broadcastToTabs(msg)
     return false // No response needed
   }
+
+  if (type === MSG.UPDATE_PROMPT_LAST_USED) {
+    db.prompts.update(data.promptId, { lastUsedAt: Date.now() })
+      .catch(e => console.error('Failed to update lastUsedAt:', e))
+    return false // No need to wait
+  }
 })
 
 async function handleGetPrompts(

@@ -29,6 +29,7 @@ export interface Prompt {
   favorite?: boolean
   createdAt: number
   updatedAt: number
+  lastUsedAt?: number
 }
 
 export interface Settings {

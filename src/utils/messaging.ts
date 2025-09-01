@@ -9,6 +9,7 @@ export const MSG = {
   GET_CATEGORIES: 'APM/GET_CATEGORIES',
   GET_SETTINGS: 'APM/GET_SETTINGS',
   DATA_UPDATED: 'APM/DATA_UPDATED',
+  UPDATE_PROMPT_LAST_USED: 'APM/UPDATE_PROMPT_LAST_USED',
 } as const
 
 export type MessageType = typeof MSG[keyof typeof MSG]
@@ -42,6 +43,10 @@ export interface GetPromptsPayload {
 export interface DataUpdatedPayload {
   scope: 'prompts' | 'categories' | 'tags' | 'settings'
   version: string
+}
+
+export interface UpdatePromptLastUsedPayload {
+  promptId: string
 }
 
 // A generic message type for use in listeners

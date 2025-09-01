@@ -19,7 +19,8 @@ export function createSafePrompt(data: Partial<Prompt>): Prompt {
       : [],
     favorite: Boolean(data.favorite),
     createdAt: Number(data.createdAt) || now,
-    updatedAt: Number(data.updatedAt) || now
+    updatedAt: Number(data.updatedAt) || now,
+    lastUsedAt: Number(data.lastUsedAt) || undefined
   }
 }
 
@@ -62,6 +63,10 @@ export function validatePrompt(prompt: any): string | null {
   if (typeof prompt.updatedAt !== 'number' || isNaN(prompt.updatedAt)) {
     return 'updatedAt 必须是有效的数字'
   }
+
+  if (prompt.lastUsedAt !== undefined && (typeof prompt.lastUsedAt !== 'number' || isNaN(prompt.lastUsedAt))) {
+    return 'lastUsedAt 必须是有效的数字或 undefined'
+  }
   
   return null // 验证通过
 }
@@ -78,6 +83,7 @@ export function clonePrompt(prompt: Prompt): Prompt {
     tagIds: [...prompt.tagIds],
     favorite: prompt.favorite,
     createdAt: prompt.createdAt,
-    updatedAt: prompt.updatedAt
+    updatedAt: prompt.updatedAt,
+    lastUsedAt: prompt.lastUsedAt
   })
 }

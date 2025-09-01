@@ -78,8 +78,8 @@
   "commands": {
     "save_selection": {
       "suggested_key": {
-        "default": "Alt+S",
-        "mac": "Alt+S"
+        "default": "Alt+Shift+S", 
+        "mac": "Alt+Shift+S"
       },
       "description": "快速保存为提示词"
     }
