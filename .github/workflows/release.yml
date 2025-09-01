@@ -14,12 +14,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 设置 Node.js 环境
+      # 2. 设置 Node.js 环境（自动检测 lock 文件，没有也能运行）
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: |
+            **/package-lock.json
+            **/yarn.lock
+            **/pnpm-lock.yaml
 
       # 3. 安装依赖
       - name: Install dependencies
@@ -38,7 +42,7 @@ jobs:
         run: mv dist/dist.zip extension.zip
 
       # 7. 创建 Release 并上传附件
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: extension.zip
