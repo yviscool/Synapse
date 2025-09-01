@@ -492,6 +492,14 @@ watch(searchQuery, (val) => {
   }, 200)
 })
 
+watch(() => editingPrompt.value || showSettings.value || showCategoryManager.value, (isModalOpen) => {
+  if (isModalOpen) {
+    document.body.style.overflow = 'hidden'
+  } else {
+    document.body.style.overflow = ''
+  }
+})
+
 // 计算属性
 const getTagNames = (tagIds: string[]): string[] => {
   return tagIds.map(id => tags.value.find(t => t.id === id)?.name || '').filter(Boolean)
@@ -1080,6 +1088,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  document.body.style.overflow = ''
 })
 </script>
 

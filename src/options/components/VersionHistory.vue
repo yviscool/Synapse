@@ -152,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { useUI } from '@/stores/ui'
 import type { PromptVersion } from '@/types/prompt'
@@ -347,9 +347,21 @@ function formatRelativeTime(timestamp: number): string {
   return '刚刚'
 }
 
+const handleEsc = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && showComparison.value) {
+    e.stopPropagation()
+    closeComparison()
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   loadVersions()
+  window.addEventListener('keydown', handleEsc, true)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEsc, true)
 })
 </script>
 
