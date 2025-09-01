@@ -58,9 +58,11 @@
         <textarea
           ref="textareaRef"
           v-model="localContent"
+          :readonly="readonly"
           @input="handleInput"
           @keydown="handleKeydown"
           class="flex-1 p-4 border-0 resize-none font-mono text-sm bg-white focus:outline-none dark:bg-gray-800 dark:text-gray-100"
+          :class="{ 'bg-gray-50 dark:bg-gray-800/50': readonly }"
           :placeholder="placeholder"
           spellcheck="false"
           style="line-height: 1.6; font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;"

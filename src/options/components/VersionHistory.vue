@@ -85,7 +85,7 @@
                 </button>
                 <button
                   @click.stop="revertToVersion(version)"
-                  title="恢复到此版本"
+                  title="设为当前版本"
                   :disabled="version.id === currentVersionId"
                   class="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                 >
@@ -179,6 +179,7 @@ interface Props {
 interface Emits {
   (e: 'version-restored', version: PromptVersion): void
   (e: 'version-deleted', versionId: string): void
+  (e: 'preview-version', payload: { version: PromptVersion, versionNumber: number }): void
 }
 
 const props = defineProps<Props>()
@@ -201,6 +202,11 @@ const comparisonData = ref<{
 watch(() => props.promptId, () => {
   loadVersions()
 }, { immediate: true })
+
+watch(() => props.currentVersionId, (newId) => {
+  selectedVersionId.value = newId
+})
+
 
 // Methods
 async function loadVersions() {
@@ -227,6 +233,7 @@ async function refreshVersions() {
 
 function selectVersion(version: PromptVersion) {
   selectedVersionId.value = version.id
+  emit('preview-version', { version, versionNumber: getVersionNumber(version) })
 }
 
 async function compareWithCurrent(version: PromptVersion) {
@@ -245,17 +252,17 @@ async function compareWithCurrent(version: PromptVersion) {
 }
 
 async function revertToVersion(version: PromptVersion) {
-  const confirmed = await askConfirm(`确定要恢复到版本 ${getVersionNumber(version)} 吗？当前内容将被保存为一个新版本。`)
+  const confirmed = await askConfirm(`确定要将 v${getVersionNumber(version)} 设为当前版本吗？您当前未保存的修改将被自动保存为一个新版本。`, { type: 'default' })
   if (!confirmed) return
   
   try {
-    await revertVersion(props.promptId, version.id)
+    const newVersion = await revertVersion(props.promptId, version.id, props.currentContent)
     await loadVersions()
-    emit('version-restored', version)
-    showToast(`已恢复到版本 ${getVersionNumber(version)}`, 'success')
+    emit('version-restored', newVersion)
+    showToast(`v${getVersionNumber(version)} 已设为当前版本`, 'success')
   } catch (error) {
     console.error('Failed to revert version:', error)
-    showToast('恢复版本失败', 'error')
+    showToast('操作失败', 'error')
   }
 }
 

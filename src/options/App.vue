@@ -262,15 +262,16 @@
           </div>
         </div>
         
-        <div class="flex">
+        <div class="flex h-[75vh]">
           <!-- 版本历史面板 -->
-          <div v-if="showVersionHistory && editingPrompt.id" class="w-80 border-l border-gray-200">
+          <div v-if="showVersionHistory && editingPrompt.id" class="w-80 border-l border-gray-200 flex flex-col flex-shrink-0 min-w-0">
             <VersionHistory
               :prompt-id="editingPrompt.id"
               :current-version-id="editingPrompt.currentVersionId"
               :current-content="editingPrompt.content || ''"
               @version-restored="handleVersionRestored"
               @version-deleted="handleVersionDeleted"
+              @preview-version="handleVersionPreview"
             />
           </div>
       
@@ -358,9 +359,23 @@
             <!-- 右侧编辑器区域 -->
             <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50">
               <label class="block text-sm font-medium text-gray-700">Prompt 内容</label>
-              <div class="h-[70vh] relative border border-gray-200 rounded-lg overflow-hidden shadow-inner bg-white flex flex-col">
+
+              <!-- Time Machine Banner -->
+              <div v-if="isReadonly && previewingVersion" class="p-2 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm flex items-center justify-between">
+                <span class="font-medium">正在预览 v{{ previewingVersion.versionNumber }} (只读模式)</span>
+                <button @click="handleEditFromPreview" class="px-3 py-1 bg-white border border-yellow-400 rounded-md hover:bg-yellow-50 transition-colors">✍️ 基于此版本编辑</button>
+              </div>
+              <div v-if="!isReadonly && baseVersionForEdit" class="p-2 rounded-lg bg-blue-100 border border-blue-300 text-blue-800 text-sm flex items-center justify-between">
+                <span class="font-medium">正在编辑 (基于 v{{ baseVersionForEdit.versionNumber }})</span>
+              </div>
+              <div v-if="!isReadonly && !baseVersionForEdit" class="p-2 rounded-lg bg-green-100 border border-green-300 text-green-800 text-sm flex items-center">
+                <span class="font-medium">正在编辑新版本</span>
+              </div>
+
+              <div class="flex-1 relative border border-gray-200 rounded-lg overflow-hidden shadow-inner bg-white flex flex-col">
                 <MarkdownEditor
                   v-model="editingPrompt.content"
+                  :readonly="isReadonly"
                   placeholder="在这里编写你的 AI Prompt..."
                   @change="handleContentChange"
                 />
@@ -435,7 +450,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ui, useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
 import { MSG } from '@/utils/messaging'
-import type { Prompt, Category, Tag } from '@/types/prompt'
+import type { Prompt, Category, Tag, PromptVersion } from '@/types/prompt'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
 import { createVersion, getLatestVersion } from '@/utils/versionUtils'
@@ -484,6 +499,11 @@ const menuOpenId = ref<string | null>(null)
 const copiedId = ref<string | null>(null)
 const draggingCategoryId = ref<string | null>(null)
 const dragOverCategoryId = ref<string | null>(null)
+
+// Time Machine state
+const isReadonly = ref(false)
+const previewingVersion = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
+const baseVersionForEdit = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
 
 watch(searchQuery, (val) => {
   if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
@@ -684,6 +704,9 @@ function createNewPrompt() {
   selectedCategoriesForEdit.value = []
   editingTags.value = []
   tagInput.value = ''
+  isReadonly.value = false
+  previewingVersion.value = null
+  baseVersionForEdit.value = null
 }
 
 function editPrompt(prompt: Prompt) {
@@ -691,6 +714,9 @@ function editPrompt(prompt: Prompt) {
   selectedCategoriesForEdit.value = prompt.categoryIds || []
   editingTags.value = getTagNames(prompt.tagIds || [])
   tagInput.value = ''
+  isReadonly.value = false // Default to editable
+  previewingVersion.value = null
+  baseVersionForEdit.value = null
 }
 
 async function toggleFavorite(prompt: Prompt) {
@@ -758,12 +784,18 @@ async function savePrompt() {
       showToast(`数据验证失败: ${validationError}`, 'error')
       return
     }
+
+    let finalChangeNote = changeNote.value
+    if (!finalChangeNote && baseVersionForEdit.value) {
+      const versionNumber = await db.prompt_versions.where('promptId').equals(baseVersionForEdit.value.version.promptId).count()
+      finalChangeNote = `基于 v${versionNumber} 的修改` // This is an approximation
+    }
     
     if (!isNewPrompt && hasContentChanged.value) {
       const version = await createVersion(
         safePrompt.id,
         safePrompt.content,
-        changeNote.value || '内容更新',
+        finalChangeNote || '内容更新',
         safePrompt.currentVersionId
       )
       safePrompt.currentVersionId = version.id
@@ -832,23 +864,55 @@ function closeEditor() {
   showVersionHistory.value = true
   changeNote.value = ''
   hasContentChanged.value = false
+  // Reset Time Machine state
+  isReadonly.value = false
+  previewingVersion.value = null
+  baseVersionForEdit.value = null
 }
 
 function handleContentChange() {
+  if (isReadonly.value) return
   hasContentChanged.value = true
 }
 
-function handleVersionRestored(version: any) {
-  if (editingPrompt.value) {
-    editingPrompt.value.content = version.content
-    editingPrompt.value.currentVersionId = version.id
-    hasContentChanged.value = true
-  }
-  showToast('版本已恢复', 'success')
+// --- Time Machine Handlers ---
+function handleVersionPreview(payload: { version: PromptVersion, versionNumber: number }) {
+  if (!editingPrompt.value) return
+  editingPrompt.value.content = payload.version.content
+  previewingVersion.value = payload
+  baseVersionForEdit.value = null
+  isReadonly.value = true
+  hasContentChanged.value = false // Viewing, not changing
 }
 
-function handleVersionDeleted(versionId: string) {
+function handleEditFromPreview() {
+  if (!previewingVersion.value) return
+  baseVersionForEdit.value = previewingVersion.value
+  previewingVersion.value = null
+  isReadonly.value = false
+  // Maybe focus the editor here
+}
+
+async function handleVersionRestored(version: any) {
+  showToast('版本已恢复', 'success')
+  await loadPrompts()
+  const updatedPrompt = prompts.value.find(p => p.id === editingPrompt.value?.id)
+  if (updatedPrompt) {
+    editPrompt(updatedPrompt)
+  }
+}
+
+async function handleVersionDeleted(versionId: string) {
   showToast('版本已删除', 'success')
+
+  // If the deleted version is the one being previewed, reset the editor state.
+  if (previewingVersion.value && previewingVersion.value.version.id === versionId) {
+    await loadPrompts() 
+    const updatedPrompt = prompts.value.find(p => p.id === editingPrompt.value?.id)
+    if (updatedPrompt) {
+      editPrompt(updatedPrompt)
+    }
+  }
 }
 
 function toggleCategoryForEdit(categoryId: string) {
@@ -1049,6 +1113,11 @@ function formatDate(timestamp: number): string {
 
 // 全局键盘事件
 const handleKeydown = (event: KeyboardEvent) => {
+  // If a confirm dialog is active, let it handle the event first.
+  if (ui.confirm.visible) {
+    return
+  }
+
   // Ctrl/Cmd + K 聚焦搜索
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
