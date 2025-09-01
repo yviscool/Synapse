@@ -411,117 +411,7 @@
       </div>
     </div>
 
-    <!-- 优化的分类管理模态框 -->
-    <div v-if="showCategoryManager" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" @click="showCategoryManager = false">
-      <div class="bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden max-w-xl w-full" @click.stop>
-        <div class="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50">
-          <h2 class="flex items-center gap-3 text-lg font-semibold text-gray-800">
-            <div class="i-carbon-folder-details-reference text-xl"></div>
-            分类管理
-          </h2>
-          <button @click="showCategoryManager = false" class="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-200 transition-colors">
-            <div class="i-carbon-close"></div>
-          </button>
-        </div>
-        
-        <div class="p-6">
-          <!-- 添加新分类 -->
-          <div class="grid grid-cols-3 gap-3 mb-6">
-            <input 
-              v-model="newCategoryName" 
-              type="text" 
-              placeholder="新分类名称..." 
-              class="col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            >
-            <input 
-              v-model="newCategoryIcon"
-              type="text" 
-              placeholder="图标 (e.g. i-carbon-cat)" 
-              class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            >
-            <button @click="addCategory" class="col-span-3 flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow hover:shadow-md">
-              <div class="i-carbon-add"></div>
-              <span>添加新分类</span>
-            </button>
-          </div>
-
-          <!-- 分类列表 -->
-          <div
-            class="space-y-2 max-h-[50vh] overflow-y-auto pr-2 -mr-2"
-            @dragover.prevent
-            @drop="handleCategoryDrop"
-          >
-            <div
-              v-for="category in availableCategories"
-              :key="category.id"
-              class="group flex items-center justify-between p-3 rounded-lg transition-all duration-200"
-              :class="{
-                'bg-gray-100': editingCategoryId !== category.id,
-                'opacity-50 scale-95': draggingCategoryId === category.id,
-                'bg-blue-100 border-blue-400 border-dashed border-2': dragOverCategoryId === category.id
-              }"
-              :draggable="editingCategoryId === null"
-              :data-category-id="category.id"
-              @dragstart="handleCategoryDragStart(category)"
-              @dragend="handleCategoryDragEnd"
-              @dragover="handleCategoryDragOver($event, category)"
-            >
-              <!-- 编辑状态 -->
-              <template v-if="editingCategoryId === category.id">
-                <div class="flex-1 w-0 flex gap-2">
-                  <input
-                    v-model="editingCategoryName"
-                    type="text"
-                    class="flex-1 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
-                    @keyup.enter="saveCategoryEdit"
-                    @keyup.esc="cancelCategoryEdit"
-                    v-focus
-                  />
-                  <input
-                    v-model="editingCategoryIcon"
-                    type="text"
-                    placeholder="图标"
-                    class="flex-1 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
-                    @keyup.enter="saveCategoryEdit"
-                    @keyup.esc="cancelCategoryEdit"
-                  />
-                </div>
-                <div class="flex items-center gap-2 ml-4">
-                  <button @click="saveCategoryEdit" title="保存" class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors">
-                    <div class="i-carbon-checkmark"></div>
-                  </button>
-                  <button @click="cancelCategoryEdit" title="取消" class="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors">
-                    <div class="i-carbon-close"></div>
-                  </button>
-                </div>
-              </template>
-
-              <!-- 显示状态 -->
-              <template v-else>
-                <div class="flex items-center gap-3 flex-1 min-w-0">
-                  <div class="i-carbon-draggable text-gray-400 cursor-grab group-hover:opacity-100 opacity-0 transition-opacity"></div>
-                  <div v-if="category.icon" :class="[category.icon, 'text-lg text-gray-600']"></div>
-                  <div class="flex-1">
-                    <div class="font-medium text-gray-800 truncate">{{ category.name }}</div>
-                    <div class="text-sm text-gray-500">
-                      {{ prompts.filter(p => p.categoryIds?.includes(category.id)).length }} 个 Prompts
-                    </div>
-                  </div>
-                </div>
-                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <button @click="editCategory(category)" title="编辑" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
-                    <div class="i-carbon-edit"></div>
-                  </button>
-                  <button @click="deleteCategory(category.id)" title="删除" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors">
-                    <div class="i-carbon-trash-can"></div>
-                  </button>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <CategoryManager v-model:visible="showCategoryManager" @updated="loadCategories" />
 
     <!-- 全局 UI 组件 -->
     <UiToast
@@ -552,6 +442,7 @@ import { createVersion, getLatestVersion } from '@/utils/versionUtils'
 import MarkdownEditor from '@/options/components/MarkdownEditor.vue'
 import VersionHistory from '@/options/components/VersionHistory.vue'
 import Settings from './components/Settings.vue'
+import CategoryManager from './components/CategoryManager.vue'
 
 const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
 
