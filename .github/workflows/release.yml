@@ -3,18 +3,17 @@ name: Release Extension
 on:
   push:
     tags:
-      - 'v*.*.*'   # 例如 v1.0.0
+      - 'v*.*.*'   # 自动触发: 推送 tag 时
+  workflow_dispatch:   # ✅ 手动触发: 在 Actions 页面点击 Run workflow
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 检出代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 设置 Node.js 环境（自动检测 lock 文件，没有也能运行）
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -25,23 +24,18 @@ jobs:
             **/yarn.lock
             **/pnpm-lock.yaml
 
-      # 3. 安装依赖
       - name: Install dependencies
         run: npm install
 
-      # 4. 构建项目
       - name: Build project
         run: npm run build
 
-      # 5. 打包 ZIP
       - name: Pack extension
         run: npm run pack:zip
 
-      # 6. 重命名为 extension.zip（方便 Release 上传）
       - name: Rename zip
         run: mv dist/dist.zip extension.zip
 
-      # 7. 创建 Release 并上传附件
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
