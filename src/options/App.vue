@@ -5,8 +5,16 @@
       <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-3">
-            <div class="i-carbon-ai-results text-2xl text-blue-600"></div>
-            <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Synapse</h1>
+            <!-- <img src="/icons/icon-128.png" alt="Synapse" class="h-8 w-8"> -->
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent relative inline-block" style="background-image: linear-gradient(135deg, #00D5FF 0%, #00A6FF 12%, #0066FF 24%, #3B3BFF 34%, #6A00FF 46%, #8B00FF 56%, #FF00B8 66%, #FF1744 76%, #FF7A00 88%, #FFC107 100%);">Synapse
+              <span class="pointer-events-none absolute rounded-full bg-white" style="width: 0.75rem; height: 0.75rem; top: -0.4rem; left: -0.4rem; box-shadow: 0 0 12px rgba(255,255,255,0.9);"></span>
+              <span class="pointer-events-none absolute rounded-full bg-white" style="width: 0.75rem; height: 0.75rem; bottom: -0.4rem; right: -0.4rem; box-shadow: 0 0 12px rgba(255,255,255,0.9);"></span>
+              <span class="pointer-events-none absolute" style="left: -0.6rem; bottom: -0.25rem;">
+                <span class="absolute rounded-full" style="width: 0.4rem; height: 0.4rem; left: -0.2rem; bottom: 0; background-color: #5B21B6; opacity: 0.95;"></span>
+                <span class="absolute rounded-full" style="width: 0.3rem; height: 0.3rem; left: -0.55rem; bottom: 0.35rem; background-color: #7C3AED; opacity: 0.85;"></span>
+                <span class="absolute rounded-full" style="width: 0.2rem; height: 0.2rem; left: -0.8rem; bottom: 0.8rem; background-color: #A78BFA; opacity: 0.8;"></span>
+              </span>
+            </h1>
           </div>
           <div class="flex items-center gap-3">
             <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium">{{ prompts.length }} 个 Prompts</span>
@@ -39,8 +47,10 @@
             <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg i-carbon-search z-45"></div>
             <input
               v-model="searchQuery"
+              ref="searchInputRef"
               type="text"
-              placeholder="搜索 Prompts 标题或内容..."
+              aria-label="搜索 Prompts"
+              placeholder="搜索 Prompts 标题或内容...（Ctrl+K）"
               class="w-full pl-12 pr-12 py-4 text-lg border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
             >
             <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1">
@@ -531,7 +541,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ui, useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
 import { MSG } from '@/utils/messaging'
@@ -557,6 +567,10 @@ const prompts = ref<Prompt[]>([])
 const categories = ref<Category[]>([])
 const tags = ref<Tag[]>([])
 const searchQuery = ref('')
+const searchInputRef = ref<HTMLInputElement | null>(null)
+const searchQueryDebounced = ref('')
+
+let searchDebounceTimer: number | undefined
 const selectedCategories = ref<string[]>([])
 const selectedTags = ref<string[]>([])
 const showFavoriteOnly = ref(false)
@@ -580,6 +594,13 @@ const copiedId = ref<string | null>(null)
 const draggingCategoryId = ref<string | null>(null)
 const dragOverCategoryId = ref<string | null>(null)
 
+watch(searchQuery, (val) => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = window.setTimeout(() => {
+    searchQueryDebounced.value = val
+  }, 200)
+})
+
 // 计算属性
 const getTagNames = (tagIds: string[]): string[] => {
   return tagIds.map(id => tags.value.find(t => t.id === id)?.name || '').filter(Boolean)
@@ -589,8 +610,8 @@ const filteredPrompts = computed(() => {
   let filtered = prompts.value
   
   // 搜索过滤
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
+  if (searchQueryDebounced.value) {
+    const query = searchQueryDebounced.value.toLowerCase()
     filtered = filtered.filter(p => {
       const tagNames = getTagNames(p.tagIds).join(' ').toLowerCase()
       return p.title.toLowerCase().includes(query) ||
@@ -1124,6 +1145,12 @@ function formatDate(timestamp: number): string {
 
 // 全局键盘事件
 const handleKeydown = (event: KeyboardEvent) => {
+  // Ctrl/Cmd + K 聚焦搜索
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    searchInputRef.value?.focus()
+    return
+  }
   if (event.key === 'Escape') {
     if (editingPrompt.value) {
       closeEditor()
