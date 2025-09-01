@@ -209,6 +209,7 @@ async function handleCopy(p: PromptDTO) {
   chrome.runtime.sendMessage({ type: MSG.UPDATE_PROMPT_LAST_USED, data: { promptId: p.id } })
   try { await navigator.clipboard.writeText(p.content) } catch {}
   showToast('复制成功！', 'success')
+  closePanel();
 }
 
 function onGlobalKeydown(e: KeyboardEvent) {
