@@ -436,28 +436,45 @@
           </div>
 
           <!-- 分类列表 -->
-          <div class="space-y-2 max-h-[50vh] overflow-y-auto pr-2 -mr-2">
-            <div v-for="category in categories" :key="category.id" class="group flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 transition-colors">
-              
+          <div
+            class="space-y-2 max-h-[50vh] overflow-y-auto pr-2 -mr-2"
+            @dragover.prevent
+            @drop="handleCategoryDrop"
+          >
+            <div
+              v-for="category in availableCategories"
+              :key="category.id"
+              class="group flex items-center justify-between p-3 rounded-lg transition-all duration-200"
+              :class="{
+                'bg-gray-100': editingCategoryId !== category.id,
+                'opacity-50 scale-95': draggingCategoryId === category.id,
+                'bg-blue-100 border-blue-400 border-dashed border-2': dragOverCategoryId === category.id
+              }"
+              :draggable="editingCategoryId === null"
+              :data-category-id="category.id"
+              @dragstart="handleCategoryDragStart(category)"
+              @dragend="handleCategoryDragEnd"
+              @dragover="handleCategoryDragOver($event, category)"
+            >
               <!-- 编辑状态 -->
               <template v-if="editingCategoryId === category.id">
                 <div class="flex-1 w-0 flex gap-2">
-                  <input 
+                  <input
                     v-model="editingCategoryName"
                     type="text"
                     class="flex-1 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
                     @keyup.enter="saveCategoryEdit"
                     @keyup.esc="cancelCategoryEdit"
                     v-focus
-                  >
-                  <input 
+                  />
+                  <input
                     v-model="editingCategoryIcon"
                     type="text"
                     placeholder="图标"
                     class="flex-1 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
                     @keyup.enter="saveCategoryEdit"
                     @keyup.esc="cancelCategoryEdit"
-                  >
+                  />
                 </div>
                 <div class="flex items-center gap-2 ml-4">
                   <button @click="saveCategoryEdit" title="保存" class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors">
@@ -472,6 +489,7 @@
               <!-- 显示状态 -->
               <template v-else>
                 <div class="flex items-center gap-3 flex-1 min-w-0">
+                  <div class="i-carbon-draggable text-gray-400 cursor-grab group-hover:opacity-100 opacity-0 transition-opacity"></div>
                   <div v-if="category.icon" :class="[category.icon, 'text-lg text-gray-600']"></div>
                   <div class="flex-1">
                     <div class="font-medium text-gray-800 truncate">{{ category.name }}</div>
@@ -489,7 +507,6 @@
                   </button>
                 </div>
               </template>
-
             </div>
           </div>
         </div>
@@ -560,6 +577,8 @@ const hasContentChanged = ref(false)
 const showSettings = ref(false)
 const menuOpenId = ref<string | null>(null)
 const copiedId = ref<string | null>(null)
+const draggingCategoryId = ref<string | null>(null)
+const dragOverCategoryId = ref<string | null>(null)
 
 // 计算属性
 const getTagNames = (tagIds: string[]): string[] => {
@@ -614,7 +633,7 @@ const filteredPrompts = computed(() => {
 })
 
 const availableCategories = computed(() => {
-  return categories.value.sort((a: Category, b: Category) => (a.sort || 0) - (b.sort || 0))
+  return categories.value.slice().sort((a: Category, b: Category) => (a.sort || 0) - (b.sort || 0))
 })
 
 const availableTags = computed(() => {
@@ -1026,6 +1045,67 @@ async function deleteCategory(id: string) {
   } catch (error) {
     console.error('Failed to delete category:', error)
     showToast('删除分类失败', 'error')
+  }
+}
+
+// 分类排序
+function handleCategoryDragStart(category: Category) {
+  draggingCategoryId.value = category.id
+}
+
+function handleCategoryDragEnd() {
+  draggingCategoryId.value = null
+  dragOverCategoryId.value = null
+}
+
+function handleCategoryDragOver(event: DragEvent, category: Category) {
+  event.preventDefault()
+  if (category.id !== draggingCategoryId.value) {
+    dragOverCategoryId.value = category.id
+  }
+}
+
+async function handleCategoryDrop(event: DragEvent) {
+  if (!draggingCategoryId.value) return
+
+  const targetElement = (event.target as HTMLElement).closest('[data-category-id]')
+  if (!targetElement) return
+
+  const targetCategoryId = (targetElement as HTMLElement).dataset.categoryId
+  if (!targetCategoryId || targetCategoryId === draggingCategoryId.value) {
+    return
+  }
+
+  const reorderedCategories = [...availableCategories.value]
+  const draggedItem = reorderedCategories.find(c => c.id === draggingCategoryId.value)
+  if (!draggedItem) return
+
+  const targetIndex = reorderedCategories.findIndex(c => c.id === targetCategoryId)
+  const originalIndex = reorderedCategories.findIndex(c => c.id === draggingCategoryId.value)
+
+  reorderedCategories.splice(originalIndex, 1)
+  reorderedCategories.splice(targetIndex, 0, draggedItem)
+
+  const updatedCategories = reorderedCategories.map((c, index) => ({
+    ...c,
+    sort: index + 1,
+  }))
+
+  await updateCategoryOrder(updatedCategories)
+}
+
+async function updateCategoryOrder(updatedCategories: Category[]) {
+  try {
+    await db.categories.bulkPut(updatedCategories)
+    await loadCategories()
+    showToast('分类顺序已更新', 'success')
+    chrome.runtime.sendMessage({
+      type: MSG.DATA_UPDATED,
+      data: { scope: 'categories', version: Date.now().toString() },
+    })
+  } catch (error) {
+    console.error('Failed to update category order:', error)
+    showToast('更新分类顺序失败', 'error')
   }
 }
 
