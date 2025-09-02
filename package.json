@@ -12,6 +12,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@milkdown/crepe": "^7.15.5",
+    "@milkdown/kit": "^7.15.5",
+    "@milkdown/vue": "^7.15.5",
     "@vueuse/core": "^13.8.0",
     "dexie": "^4.2.0",
     "diff-match-patch": "^1.0.5",

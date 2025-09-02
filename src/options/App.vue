@@ -233,7 +233,7 @@
     <div v-if="editingPrompt" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" @click="closeEditor">
       <div 
         class="bg-white rounded-2xl shadow-2xl max-h-[100vh] overflow-hidden w-full" 
-        :class="{ 'max-w-6xl': !showVersionHistory, 'max-w-7xl': showVersionHistory }" 
+        :class="{ 'max-w-[80vw]': !showVersionHistory, 'max-w-[90vw]': showVersionHistory }"
         @click.stop
       >
         <div class="flex items-center justify-between p-2 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
@@ -263,7 +263,7 @@
         </div>
         
         <div class="flex h-[75vh]">
-          <!-- 版本历史面板 -->
+          <!-- 左侧版本历史面板 -->
           <div v-if="showVersionHistory && editingPrompt.id" class="w-80 border-l border-gray-200 flex flex-col flex-shrink-0 min-w-0">
             <VersionHistory
               :prompt-id="editingPrompt.id"
@@ -276,7 +276,7 @@
           </div>
       
           <div class="flex-1 flex overflow-hidden">
-            <!-- 左侧元数据面板 -->
+            <!-- 中间元数据面板 -->
             <div class="w-96 border-r border-gray-200 p-4 flex flex-col space-y-4 overflow-y-auto">
               <h3 class="text-lg font-semibold text-gray-800 tracking-wide">元数据</h3>
               
@@ -357,7 +357,7 @@
             </div>
             
             <!-- 右侧编辑器区域 -->
-            <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50">
+            <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50 min-w-0">
               <label class="block text-sm font-medium text-gray-700">Prompt 内容</label>
 
               <!-- Time Machine Banner -->
