@@ -375,12 +375,12 @@ onUnmounted(() => {
 <style scoped>
 /* Markdown Diff Styles */
 .markdown-diff :deep(.diff-addition) {
-  @apply bg-green-50 border-l-4 border-green-400 px-3 py-2 my-2 rounded-r-md text-green-800 dark:bg-green-900/40 dark:border-green-500 dark:text-green-200;
+  @apply bg-green-50 border-l-4 border-green-400 px-3 my-2 rounded-r-md text-green-800 dark:bg-green-900/40 dark:border-green-500 dark:text-green-200;
 }
 .markdown-diff :deep(.diff-deletion) {
-  @apply bg-red-50 border-l-4 border-red-400 px-3 py-2 my-2 rounded-r-md text-red-800 dark:bg-red-900/40 dark:border-red-500 dark:text-red-200 line-through;
+  @apply bg-red-50 border-l-4 border-red-400 px-3 my-2 rounded-r-md text-red-800 dark:bg-red-900/40 dark:border-red-500 dark:text-red-200 line-through;
 }
 .markdown-diff :deep(.diff-unchanged) {
-  @apply bg-transparent border-l-4 border-gray-300 px-3 py-2 my-2 rounded-r-md text-gray-600 dark:border-gray-600 dark:text-gray-400 opacity-70;
+  @apply bg-transparent border-l-4 border-gray-300 px-3 my-2 rounded-r-md text-gray-600 dark:border-gray-600 dark:text-gray-400 opacity-70;
 }
 </style>
