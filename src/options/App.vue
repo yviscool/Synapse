@@ -1118,6 +1118,13 @@ const handleKeydown = (event: KeyboardEvent) => {
     return
   }
 
+  // Ctrl/Cmd + Enter to save when editing
+  if (editingPrompt.value && (event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    event.preventDefault()
+    savePrompt()
+    return
+  }
+
   // Ctrl/Cmd + K 聚焦搜索
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
