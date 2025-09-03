@@ -21,9 +21,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: npm ci
-
       # 同步 manifest.json 版本号
       - name: Sync manifest version
         run: node scripts/bump-version.js
