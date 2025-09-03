@@ -49,9 +49,11 @@ jobs:
           files: extension-${{ steps.version.outputs.new_version }}.zip
           generate_release_notes: true
 
+  # 预留：Chrome Web Store 发布（暂时禁用）
   publish-chrome:
+    if: false                          # 占位，不执行
     runs-on: ubuntu-latest
-    needs: build-and-release
+    needs: release
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,7 +64,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build project
         run: npm run build
@@ -73,11 +75,10 @@ jobs:
       - name: Rename zip
         run: mv dist/dist.zip extension.zip
 
-      # 发布到 Chrome 商店
       - name: Publish to Chrome Web Store
         uses: mobilefirstllc/cws-publish@latest
         with:
-          action: 'publish'
+          action: publish
           client_id: ${{ secrets.CWS_CLIENT_ID }}
           client_secret: ${{ secrets.CWS_CLIENT_SECRET }}
           refresh_token: ${{ secrets.CWS_REFRESH_TOKEN }}
