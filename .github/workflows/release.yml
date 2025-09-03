@@ -20,6 +20,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          
+      - name: Install dependencies
+        run: npm install
 
       # 同步 manifest.json 版本号
       - name: Sync manifest version
