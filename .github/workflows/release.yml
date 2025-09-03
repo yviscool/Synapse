@@ -16,7 +16,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write   # 创建 tag / release
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,17 +28,26 @@ jobs:
 
       - run: npm install
 
+      # 修复 git commit 身份问题 + 去掉 CRLF 警告
       - name: Setup Git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global core.autocrlf false
 
+      # 自动 bump 版本 & 同步 manifest.json
       - name: Bump version & sync manifest
         id: version
         run: |
-          NEW_VER=$(npm version ${{ inputs.level }})
-          CLEAN_VER=${NEW_VER#v}
+          npm version ${{ inputs.level }}
+          CLEAN_VER=$(node -p "require('./package.json').version")
           echo "new_version=$CLEAN_VER" >> $GITHUB_OUTPUT
+
+      # 推送 commit 和 tag 到远程
+      - name: Push changes & tags
+        run: |
+          git push origin HEAD
+          git push origin --tags
 
       - name: Build & pack
         run: |
@@ -53,6 +62,7 @@ jobs:
           name: Release v${{ steps.version.outputs.new_version }}
           files: extension-${{ steps.version.outputs.new_version }}.zip
           generate_release_notes: true
+
 
   # 预留：Chrome Web Store 发布（暂时禁用）
   publish-chrome:
