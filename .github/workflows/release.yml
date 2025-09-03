@@ -28,11 +28,20 @@ jobs:
 
       - run: npm install
 
+      # 修复 Author identity unknown
+      - name: Setup Git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Bump version & sync manifest
         id: version
         run: |
+          # npm version 会自动 commit + tag
           NEW_VER=$(npm version ${{ inputs.level }})
-          echo "new_version=$NEW_VER" >> $GITHUB_OUTPUT
+          # 去掉前缀 v
+          CLEAN_VER=${NEW_VER#v}
+          echo "new_version=$CLEAN_VER" >> $GITHUB_OUTPUT
           node scripts/sync-version.js
 
       - name: Build & pack
@@ -44,14 +53,14 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.new_version }}
-          name: Release ${{ steps.version.outputs.new_version }}
+          tag_name: v${{ steps.version.outputs.new_version }}
+          name: Release v${{ steps.version.outputs.new_version }}
           files: extension-${{ steps.version.outputs.new_version }}.zip
           generate_release_notes: true
 
   # 预留：Chrome Web Store 发布（暂时禁用）
   publish-chrome:
-    if: false                          # 占位，不执行
+    if: false
     runs-on: ubuntu-latest
     needs: release
     steps:
