@@ -16,16 +16,6 @@
               </span>
             </h1>
           </div>
-          <div class="flex items-center gap-4 text-gray-500 border-l border-gray-200 pl-4 ml-2">
-            <div class="flex items-center gap-1.5" title="Prompts 数量">
-              <div class="i-carbon-document text-base"></div>
-              <span class="font-mono font-medium tracking-tighter">{{ prompts.length }}</span>
-            </div>
-            <div class="flex items-center gap-1.5" title="分类数量">
-              <div class="i-carbon-folder text-base"></div>
-              <span class="font-mono font-medium tracking-tighter">{{ categories.length }}</span>
-            </div>
-          </div>
         </div>
         
         <div class="flex items-center gap-2">
@@ -242,180 +232,23 @@
     </main>
 
     <!-- 现代化编辑模态框 -->
-    <div v-if="editingPrompt" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" @click="closeEditor">
-      <div 
-        class="bg-white rounded-2xl shadow-2xl max-h-[100vh] overflow-hidden w-full" 
-        :class="{ 'max-w-[80vw]': !showVersionHistory, 'max-w-[90vw]': showVersionHistory }"
-        @click.stop
-      >
-        <div class="flex items-center justify-between p-2 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
-          <div class="flex-1">
-            <h2 class="flex items-center gap-3 text-xl font-semibold text-gray-900">
-              <div class="i-carbon-edit"></div>
-              {{ editingPrompt.id ? '编辑 Prompt' : '新建 Prompt' }}
-            </h2>
-            <div class="text-sm text-gray-500 mt-1" v-if="editingPrompt.id">
-              ID: {{ editingPrompt.id }}
-            </div>
-          </div>
-          
-          <div class="flex items-center gap-2">
-            <button 
-              v-if="editingPrompt.id" 
-              @click="showVersionHistory = !showVersionHistory" 
-              :class="['p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/50 transition-colors', { 'text-blue-600 bg-blue-100': showVersionHistory }]"
-              title="版本历史"
-            >
-              <div class="i-carbon-time"></div>
-            </button>
-            <button @click="closeEditor" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/50 transition-colors">
-              <div class="i-carbon-close"></div>
-            </button>
-          </div>
-        </div>
-        
-        <div class="flex h-[75vh]">
-          <!-- 左侧版本历史面板 -->
-          <div v-if="showVersionHistory && editingPrompt.id" class="w-80 border-l border-gray-200 flex flex-col flex-shrink-0 min-w-0">
-            <VersionHistory
-              :prompt-id="editingPrompt.id"
-              :current-version-id="editingPrompt.currentVersionId"
-              :current-content="editingPrompt.content || ''"
-              @version-restored="handleVersionRestored"
-              @version-deleted="handleVersionDeleted"
-              @preview-version="handleVersionPreview"
-            />
-          </div>
-      
-          <div class="flex-1 flex overflow-hidden">
-            <!-- 中间元数据面板 -->
-            <div class="w-96 border-r border-gray-200 p-4 flex flex-col space-y-4 overflow-y-auto">
-              <h3 class="text-lg font-semibold text-gray-800 tracking-wide">元数据</h3>
-              
-              <div class="space-y-5">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">标题</label>
-                  <input
-                    v-model="editingPrompt.title"
-                    type="text"
-                    class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="为你的 Prompt 起个好名字..."
-                  >
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">分类 (可多选)</label>
-                  <div class="w-full p-2 border border-gray-200 rounded-lg flex flex-wrap gap-2">
-                    <button
-                      v-for="category in availableCategories"
-                      :key="category.id"
-                      @click="toggleCategoryForEdit(category.id)"
-                      :class="[
-                        'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border',
-                        selectedCategoriesForEdit.includes(category.id)
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                      ]"
-                    >
-                      {{ category.name }}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">标签</label>
-                  <div class="w-full px-3 py-2 border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent flex flex-wrap items-center gap-2">
-                    <span
-                      v-for="tag in editingTags"
-                      :key="tag"
-                      class="flex items-center gap-1.5 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm font-medium"
-                    >
-                      {{ tag }}
-                      <button @click="removeTag(tag)" class="text-blue-600 hover:text-blue-800 -mr-1 rounded-full hover:bg-blue-200">
-                        <div class="i-carbon-close text-xs"></div>
-                      </button>
-                    </span>
-                    <input
-                      v-model="tagInput"
-                      type="text"
-                      class="flex-1 bg-transparent outline-none min-w-[80px] h-8"
-                      placeholder="添加标签后回车..."
-                      @keydown.enter.prevent="addCurrentTag"
-                      @keydown.backspace="handleTagBackspace"
-                    >
-                  </div>
-                </div>
-                
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">变更说明</label>
-                  <input
-                    v-model="changeNote"
-                    type="text"
-                    class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="描述本次修改的内容 (可选)..."
-                  >
-                </div>
-                
-                <div>
-                  <label class="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input type="checkbox" v-model="editingPrompt.favorite" class="rounded text-blue-600 focus:ring-blue-500">
-                    <span class="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <div class="i-carbon-favorite"></div>
-                      标记为收藏
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 右侧编辑器区域 -->
-            <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50 min-w-0">
-              <label class="block text-sm font-medium text-gray-700">Prompt 内容</label>
-
-              <!-- Time Machine Banner -->
-              <div v-if="isReadonly && previewingVersion" class="p-2 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm flex items-center justify-between">
-                <span class="font-medium">正在预览 v{{ previewingVersion.versionNumber }} (只读模式)</span>
-                <button @click="handleEditFromPreview" class="px-3 py-1 bg-white border border-yellow-400 rounded-md hover:bg-yellow-50 transition-colors">✍️ 基于此版本编辑</button>
-              </div>
-              <div v-if="!isReadonly && baseVersionForEdit" class="p-2 rounded-lg bg-blue-100 border border-blue-300 text-blue-800 text-sm flex items-center justify-between">
-                <span class="font-medium">正在编辑 (基于 v{{ baseVersionForEdit.versionNumber }})</span>
-              </div>
-              <div v-if="!isReadonly && !baseVersionForEdit" class="p-2 rounded-lg bg-green-100 border border-green-300 text-green-800 text-sm flex items-center">
-                <span class="font-medium">正在编辑新版本</span>
-              </div>
-
-              <div class="flex-1 relative border border-gray-200 rounded-lg overflow-hidden shadow-inner bg-white flex flex-col">
-                <MarkdownEditor
-                  v-model="editingPrompt.content"
-                  :readonly="isReadonly"
-                  placeholder="在这里编写你的 AI Prompt..."
-                  @change="handleContentChange"
-                />
-              </div>
-            </div>
-          </div>
-
-        </div>
-        
-        <div class="flex items-center justify-between p-2 border-t border-gray-200 bg-gray-50">
-          <div class="text-sm text-gray-500">
-            <span v-if="editingPrompt.content">
-              {{ editingPrompt.content.length }} 字符
-            </span>
-          </div>
-          <div class="flex items-center gap-3">
-            <button @click="closeEditor" class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50">
-              <div class="i-carbon-close"></div>
-              取消
-            </button>
-            <button @click="savePrompt" class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg">
-              <div class="i-carbon-save"></div>
-              保存 Prompt
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PromptEditorModal
+      v-if="editingPrompt"
+      v-model="editingPrompt"
+      :available-categories="availableCategories"
+      v-model:editingTags="editingTags"
+      v-model:changeNote="changeNote"
+      :isReadonly="isReadonly"
+      :previewingVersion="previewingVersion"
+      :baseVersionForEdit="baseVersionForEdit"
+      @close="closeEditor"
+      @save="savePrompt"
+      @content-change="handleContentChange"
+      @edit-from-preview="handleEditFromPreview"
+      @version-restored="handleVersionRestored"
+      @version-deleted="handleVersionDeleted"
+      @preview-version="handleVersionPreview"
+    />
 
     <!-- 设置模态框 -->
     <div v-if="showSettings" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" @click="showSettings = false">
@@ -466,19 +299,11 @@ import type { Prompt, Category, Tag, PromptVersion } from '@/types/prompt'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
 import { createVersion, getLatestVersion } from '@/utils/versionUtils'
-import MarkdownEditor from '@/options/components/MarkdownEditor.vue'
-import VersionHistory from '@/options/components/VersionHistory.vue'
+import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
 import CategoryManager from './components/CategoryManager.vue'
 
 const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
-
-// 自定义 v-focus 指令
-const vFocus = {
-  mounted: (el: HTMLInputElement) => {
-    el.focus()
-  }
-}
 
 // 响应式数据
 const prompts = ref<Prompt[]>([])
@@ -494,23 +319,16 @@ const selectedTags = ref<string[]>([])
 const showFavoriteOnly = ref(false)
 const sortBy = ref<'updatedAt' | 'createdAt' | 'title'>('updatedAt')
 const editingPrompt = ref<Partial<Prompt> | null>(null)
-const selectedCategoriesForEdit = ref<string[]>([])
+
 const editingTags = ref<string[]>([])
-const tagInput = ref('')
+
 const showCategoryManager = ref(false)
-const newCategoryName = ref('')
-const newCategoryIcon = ref('')
-const editingCategoryId = ref<string | null>(null)
-const editingCategoryName = ref<string>('')
-const editingCategoryIcon = ref<string>('')
-const showVersionHistory = ref(true)
+
 const changeNote = ref('')
 const hasContentChanged = ref(false)
 const showSettings = ref(false)
 const menuOpenId = ref<string | null>(null)
 const copiedId = ref<string | null>(null)
-const draggingCategoryId = ref<string | null>(null)
-const dragOverCategoryId = ref<string | null>(null)
 
 // Time Machine state
 const isReadonly = ref(false)
@@ -544,7 +362,7 @@ const filteredPrompts = computed(() => {
   if (searchQueryDebounced.value) {
     const query = searchQueryDebounced.value.toLowerCase()
     filtered = filtered.filter(p => {
-      const tagNames = getTagNames(p.tagIds).join(' ').toLowerCase()
+      const tagNames = getTagNames(p.tagIds || []).join(' ').toLowerCase()
       return p.title.toLowerCase().includes(query) ||
              p.content.toLowerCase().includes(query) ||
              tagNames.includes(query)
@@ -701,9 +519,6 @@ function getCategoryName(categoryId: string): string {
   return category?.name || categoryId
 }
 
-function getTagsString(tagIds: string[]): string {
-  return getTagNames(tagIds).join(', ')
-}
 
 function createNewPrompt() {
   editingPrompt.value = createSafePrompt({
@@ -713,9 +528,8 @@ function createNewPrompt() {
     categoryIds: [],
     tagIds: []
   })
-  selectedCategoriesForEdit.value = []
+
   editingTags.value = []
-  tagInput.value = ''
   isReadonly.value = false
   previewingVersion.value = null
   baseVersionForEdit.value = null
@@ -723,9 +537,9 @@ function createNewPrompt() {
 
 function editPrompt(prompt: Prompt) {
   editingPrompt.value = clonePrompt(prompt)
-  selectedCategoriesForEdit.value = prompt.categoryIds || []
+
   editingTags.value = getTagNames(prompt.tagIds || [])
-  tagInput.value = ''
+
   isReadonly.value = false // Default to editable
   previewingVersion.value = null
   baseVersionForEdit.value = null
@@ -779,7 +593,7 @@ async function savePrompt() {
     
     const promptData = {
       ...editingPrompt.value,
-      categoryIds: selectedCategoriesForEdit.value,
+      categoryIds: editingPrompt.value?.categoryIds || [],
       tagIds,
       updatedAt: now
     }
@@ -870,11 +684,7 @@ async function copyPrompt(prompt: Prompt) {
 
 function closeEditor() {
   editingPrompt.value = null
-  selectedCategoriesForEdit.value = []
-  editingTags.value = []
-  tagInput.value = ''
-  showVersionHistory.value = true
-  changeNote.value = ''
+
   hasContentChanged.value = false
   // Reset Time Machine state
   isReadonly.value = false
@@ -927,188 +737,6 @@ async function handleVersionDeleted(versionId: string) {
   }
 }
 
-function toggleCategoryForEdit(categoryId: string) {
-  const index = selectedCategoriesForEdit.value.indexOf(categoryId)
-  if (index > -1) {
-    selectedCategoriesForEdit.value.splice(index, 1)
-  } else {
-    selectedCategoriesForEdit.value.push(categoryId)
-  }
-}
-
-function addCurrentTag() {
-  const tagName = tagInput.value.trim()
-  if (tagName && !editingTags.value.includes(tagName)) {
-    editingTags.value.push(tagName)
-  }
-  tagInput.value = ''
-}
-
-function removeTag(tagToRemove: string) {
-  editingTags.value = editingTags.value.filter(tag => tag !== tagToRemove)
-}
-
-function handleTagBackspace() {
-  if (tagInput.value === '' && editingTags.value.length > 0) {
-    editingTags.value.pop()
-  }
-}
-
-// 分类管理功能
-async function addCategory() {
-  const name = newCategoryName.value.trim()
-  if (!name) {
-    showToast('请输入分类名称', 'error')
-    return
-  }
-  
-  try {
-    const category: Category = {
-      id: nanoid(),
-      name,
-      icon: newCategoryIcon.value.trim(),
-      sort: (categories.value.length > 0 ? Math.max(...categories.value.map(c => c.sort || 0)) : 0) + 1
-    }
-    
-    await db.categories.put(category)
-    await loadCategories()
-    newCategoryName.value = ''
-    newCategoryIcon.value = ''
-    showToast('分类添加成功', 'success')
-    chrome.runtime.sendMessage({
-      type: MSG.DATA_UPDATED,
-      data: { scope: 'categories', version: Date.now().toString() },
-    })
-  } catch (error) {
-    console.error('Failed to add category:', error)
-    showToast('添加分类失败', 'error')
-  }
-}
-
-function editCategory(category: Category) {
-  editingCategoryId.value = category.id
-  editingCategoryName.value = category.name
-  editingCategoryIcon.value = category.icon ?? ''
-}
-
-function cancelCategoryEdit() {
-  editingCategoryId.value = null
-  editingCategoryName.value = ''
-  editingCategoryIcon.value = ''
-}
-
-async function saveCategoryEdit() {
-  const id = editingCategoryId.value
-  const name = editingCategoryName.value.trim()
-  const icon = editingCategoryIcon.value.trim()
-
-  if (!id || !name) {
-    cancelCategoryEdit()
-    return
-  }
-  
-  const originalCategory = categories.value.find(c => c.id === id)
-  if (originalCategory && (originalCategory.name !== name || originalCategory.icon !== icon)) {
-    await updateCategory(id, { name, icon })
-  }
-  cancelCategoryEdit()
-}
-
-async function updateCategory(id: string, data: { name: string, icon?: string }) {
-  try {
-    const category = categories.value.find(c => c.id === id)
-    if (category) {
-      await db.categories.update(id, data)
-      await loadCategories()
-      showToast('分类更新成功', 'success')
-      chrome.runtime.sendMessage({
-        type: MSG.DATA_UPDATED,
-        data: { scope: 'categories', version: Date.now().toString() },
-      })
-    }
-  } catch (error) {
-    console.error('Failed to update category:', error)
-    showToast('更新分类失败', 'error')
-  }
-}
-
-async function deleteCategory(id: string) {
-  const ok = await askConfirm('确定要删除这个分类吗？相关的 Prompts 不会被删除。', { type: 'danger' })
-  if (!ok) return
-  try {
-    await db.categories.delete(id)
-    await loadCategories()
-    showToast('分类删除成功', 'success')
-    chrome.runtime.sendMessage({
-      type: MSG.DATA_UPDATED,
-      data: { scope: 'categories', version: Date.now().toString() },
-    })
-  } catch (error) {
-    console.error('Failed to delete category:', error)
-    showToast('删除分类失败', 'error')
-  }
-}
-
-// 分类排序
-function handleCategoryDragStart(category: Category) {
-  draggingCategoryId.value = category.id
-}
-
-function handleCategoryDragEnd() {
-  draggingCategoryId.value = null
-  dragOverCategoryId.value = null
-}
-
-function handleCategoryDragOver(event: DragEvent, category: Category) {
-  event.preventDefault()
-  if (category.id !== draggingCategoryId.value) {
-    dragOverCategoryId.value = category.id
-  }
-}
-
-async function handleCategoryDrop(event: DragEvent) {
-  if (!draggingCategoryId.value) return
-
-  const targetElement = (event.target as HTMLElement).closest('[data-category-id]')
-  if (!targetElement) return
-
-  const targetCategoryId = (targetElement as HTMLElement).dataset.categoryId
-  if (!targetCategoryId || targetCategoryId === draggingCategoryId.value) {
-    return
-  }
-
-  const reorderedCategories = [...availableCategories.value]
-  const draggedItem = reorderedCategories.find(c => c.id === draggingCategoryId.value)
-  if (!draggedItem) return
-
-  const targetIndex = reorderedCategories.findIndex(c => c.id === targetCategoryId)
-  const originalIndex = reorderedCategories.findIndex(c => c.id === draggingCategoryId.value)
-
-  reorderedCategories.splice(originalIndex, 1)
-  reorderedCategories.splice(targetIndex, 0, draggedItem)
-
-  const updatedCategories = reorderedCategories.map((c, index) => ({
-    ...c,
-    sort: index + 1,
-  }))
-
-  await updateCategoryOrder(updatedCategories)
-}
-
-async function updateCategoryOrder(updatedCategories: Category[]) {
-  try {
-    await db.categories.bulkPut(updatedCategories)
-    await loadCategories()
-    showToast('分类顺序已更新', 'success')
-    chrome.runtime.sendMessage({
-      type: MSG.DATA_UPDATED,
-      data: { scope: 'categories', version: Date.now().toString() },
-    })
-  } catch (error) {
-    console.error('Failed to update category order:', error)
-    showToast('更新分类顺序失败', 'error')
-  }
-}
 
 function getPreview(content: string): string {
   return content.length > 150 ? content.substring(0, 150) + '...' : content
