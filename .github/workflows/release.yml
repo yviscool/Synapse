@@ -16,7 +16,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # 创建 tag / release
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,7 +28,6 @@ jobs:
 
       - run: npm install
 
-      # 修复 Author identity unknown
       - name: Setup Git identity
         run: |
           git config --global user.name "github-actions[bot]"
@@ -37,12 +36,9 @@ jobs:
       - name: Bump version & sync manifest
         id: version
         run: |
-          # npm version 会自动 commit + tag
           NEW_VER=$(npm version ${{ inputs.level }})
-          # 去掉前缀 v
           CLEAN_VER=${NEW_VER#v}
           echo "new_version=$CLEAN_VER" >> $GITHUB_OUTPUT
-          node scripts/sync-version.js
 
       - name: Build & pack
         run: |
