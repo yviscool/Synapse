@@ -1,49 +1,53 @@
-name: Release & Publish Extension
+name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'   # 例如 v1.0.1
   workflow_dispatch:
+    inputs:
+      level:
+        description: '版本级别'
+        required: true
+        type: choice
+        options: [patch, minor, major]
 
-permissions:
-  contents: write   # 允许创建/修改 release
+env:
+  NODE_VERSION: 20
 
 jobs:
-  build-and-release:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # 创建 tag / release
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
         with:
-          node-version: '20'
-          
-      - name: Install dependencies
-        run: npm install
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 同步 manifest.json 版本号
-      - name: Sync manifest version
-        run: node scripts/bump-version.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Build project
-        run: npm run build
+      - run: npm install
 
-      - name: Pack extension
-        run: npm run pack:zip
+      - name: Bump version & sync manifest
+        id: version
+        run: |
+          NEW_VER=$(npm version ${{ inputs.level }})
+          echo "new_version=$NEW_VER" >> $GITHUB_OUTPUT
+          node scripts/sync-version.js
 
-      - name: Rename zip
-        run: mv dist/dist.zip extension.zip
+      - name: Build & pack
+        run: |
+          npm run build
+          npm run pack:zip
+          mv dist/dist.zip extension-${{ steps.version.outputs.new_version }}.zip
 
-      # 发布到 GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: extension.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ steps.version.outputs.new_version }}
+          name: Release ${{ steps.version.outputs.new_version }}
+          files: extension-${{ steps.version.outputs.new_version }}.zip
+          generate_release_notes: true
 
   publish-chrome:
     runs-on: ubuntu-latest
@@ -58,7 +62,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build project
         run: npm run build
