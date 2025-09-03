@@ -30,6 +30,8 @@ export const DEFAULT_SETTINGS: Settings = {
   panelPos: null,
   theme: 'auto',
   outlineEnabled: true,
+  // Sync settings
+  syncEnabled: false,
 }
 
 export async function getSettings(): Promise<Settings> {

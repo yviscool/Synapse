@@ -40,4 +40,14 @@ export interface Settings {
   panelPos: { x: number; y: number } | null
   theme: 'light' | 'dark' | 'auto'
   outlineEnabled: boolean
+  
+  // Cloud Sync Settings
+  syncProvider?: 'google-drive' | 'onedrive'
+  syncEnabled: boolean
+  lastSyncTimestamp?: number
+  userProfile?: {
+    name: string
+    email: string
+    picture?: string
+  }
 }
