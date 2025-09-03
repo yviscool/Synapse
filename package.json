@@ -9,6 +9,7 @@
     "pack": "cross-env NODE_ENV=production run-p pack:*",
     "pack:zip": "rimraf extension.zip && jszip-cli add dist/* -o dist/dist.zip",
     "pack:crx": "crx pack dist -o dist/dist.crx",
+    "version": "node scripts/bump-version.js && git add extension/manifest.json",
     "preview": "vite preview"
   },
   "dependencies": {
