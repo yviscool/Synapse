@@ -16,25 +16,37 @@
               </span>
             </h1>
           </div>
-          <div class="flex items-center gap-3">
-            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium">{{ prompts.length }} 个 Prompts</span>
-            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium">{{ categories.length }} 个分类</span>
+          <div class="flex items-center gap-4 text-gray-500 border-l border-gray-200 pl-4 ml-2">
+            <div class="flex items-center gap-1.5" title="Prompts 数量">
+              <div class="i-carbon-document text-base"></div>
+              <span class="font-mono font-medium tracking-tighter">{{ prompts.length }}</span>
+            </div>
+            <div class="flex items-center gap-1.5" title="分类数量">
+              <div class="i-carbon-folder text-base"></div>
+              <span class="font-mono font-medium tracking-tighter">{{ categories.length }}</span>
+            </div>
           </div>
         </div>
         
-        <div class="flex items-center gap-3">
-          <button @click="showSettings = true" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300">
-            <div class="i-carbon-settings"></div>
-            <span>设置</span>
+        <div class="flex items-center gap-2">
+          <button @click="showSettings = true" class="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900" title="设置">
+            <div class="i-carbon-settings text-lg"></div>
+            <span class="hidden sm:inline">设置</span>
           </button>
-          <button @click="showCategoryManager = true" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300">
-            <div class="i-carbon-folder"></div>
-            <span>分类管理</span>
+          <button @click="showCategoryManager = true" class="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900" title="分类管理">
+            <div class="i-carbon-folder text-lg"></div>
+            <span class="hidden sm:inline">分类管理</span>
           </button>
           <button @click="createNewPrompt" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-105">
             <div class="i-carbon-add"></div>
             <span>新建 Prompt</span>
           </button>
+
+          <div class="w-px h-6 bg-gray-200/80 ml-3 mr-1"></div>
+
+          <a href="https://github.com/yviscool/Synapse" target="_blank" rel="noopener noreferrer" title="反馈问题或贡献代码" class="p-2 rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900">
+            <div class="i-carbon-logo-github text-xl"></div>
+          </a>
         </div>
       </div>
     </header>
