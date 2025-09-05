@@ -23,10 +23,6 @@
             <div class="i-carbon-settings text-lg"></div>
             <span class="hidden sm:inline">设置</span>
           </button>
-          <button @click="showCategoryManager = true" class="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900" title="分类管理">
-            <div class="i-carbon-folder text-lg"></div>
-            <span class="hidden sm:inline">分类管理</span>
-          </button>
           <button @click="createNewPrompt" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-105">
             <div class="i-carbon-add"></div>
             <span>新建 Prompt</span>
@@ -62,63 +58,83 @@
         </div>
         
         <div class="space-y-4">
-          <div class="flex items-center justify-between gap-6 flex-wrap">
-            <!-- Category Filters -->
-            <div class="flex items-center justify-start gap-2 flex-wrap">
-              <button
-                @click="toggleCategory('')"
-                :class="['flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.length === 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
-              >
-                <div class="i-ph-books"></div>
-                <span>全部分类</span>
-              </button>
-              <button
-                v-for="category in availableCategories"
-                :key="category.id"
-                @click="toggleCategory(category.id)"
-                :class="['flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.includes(category.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
-              >
-                <div v-if="category.icon" :class="[category.icon]"></div>
-                <span>{{ category.name }}</span>
-              </button>
-            </div>
+          <!-- The new Control Shelf -->
+          <div class="p-4 bg-gray-50/80 backdrop-blur-sm rounded-xl border border-gray-200/60 space-y-4">
+            <div class="flex items-center justify-between gap-4 flex-wrap">
+              <!-- Category Filters -->
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <button
+                  @click="toggleCategory('')"
+                  :class="['flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.length === 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
+                >
+                  <div class="i-ph-books"></div>
+                  <span>全部分类</span>
+                </button>
 
-            <!-- Sort and Favorite Filters -->
-            <div class="flex items-center gap-3">
-              <div class="flex items-center gap-3">
-                <label class="text-sm font-medium text-gray-600 whitespace-nowrap">排序:</label>
-                <select v-model="sortBy" class="px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                  <option value="updatedAt">最近更新</option>
-                  <option value="createdAt">创建时间</option>
-                  <option value="title">标题排序</option>
-                </select>
+                <div class="relative group flex-1 min-w-0">
+                  <div class="overflow-hidden" ref="shelfViewportRef">
+                    <div class="flex items-center gap-2 transition-transform duration-300 ease-in-out" ref="shelfContentRef" :style="{ transform: `translateX(-${scrollOffset}px)` }">
+                      <button
+                        v-for="category in availableCategories"
+                        :key="category.id"
+                        @click="toggleCategory(category.id)"
+                        :class="['flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.includes(category.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
+                      >
+                        <div v-if="category.icon" :class="[category.icon]"></div>
+                        <span>{{ category.name }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <button v-if="canScrollLeft" @click="scrollShelf('left')" class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 h-8 w-8 rounded-full bg-white/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div class="i-carbon-chevron-left"></div>
+                  </button>
+                  <button v-if="canScrollRight" @click="scrollShelf('right')" class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 h-8 w-8 rounded-full bg-white/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div class="i-carbon-chevron-right"></div>
+                  </button>
+                </div>
+
+                <button @click="showCategoryManager = true" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="分类管理">
+                  <div class="i-carbon-edit text-lg"></div>
+                </button>
               </div>
-              <button 
-                @click="showFavoriteOnly = !showFavoriteOnly" 
-                :class="['flex items-center gap-2 px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors', { 'bg-blue-100 border-blue-300 text-blue-700': showFavoriteOnly }]"
+
+              <!-- Sort and Favorite Filters -->
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                  <label class="text-sm font-medium text-gray-600 whitespace-nowrap">排序:</label>
+                  <select v-model="sortBy" class="px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="updatedAt">最近更新</option>
+                    <option value="createdAt">创建时间</option>
+                    <option value="title">标题排序</option>
+                  </select>
+                </div>
+                <button 
+                  @click="showFavoriteOnly = !showFavoriteOnly" 
+                  :class="['flex items-center gap-2 px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors', { 'bg-blue-100 border-blue-300 text-blue-700': showFavoriteOnly }]"
+                >
+                  <div class="i-carbon-favorite"></div>
+                  <span>仅收藏</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tag Filters (now inside the shelf) -->
+            <div v-if="selectedCategories.length > 0 && availableTags.length > 0" class="flex items-center justify-start gap-2 flex-wrap border-t border-gray-200 pt-4">
+              <button
+                @click="toggleTag('')"
+                :class="['px-3 py-1 text-sm rounded-md transition-colors', selectedTags.length === 0 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300']"
               >
-                <div class="i-carbon-favorite"></div>
-                <span>仅收藏</span>
+                全部
+              </button>
+              <button
+                v-for="tag in availableTags"
+                :key="tag.id"
+                @click="toggleTag(tag.id)"
+                :class="['px-3 py-1 text-sm rounded-md transition-colors', selectedTags.includes(tag.id) ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300']"
+              >
+                {{ tag.name }}
               </button>
             </div>
-          </div>
-
-          <!-- Tag Filters -->
-          <div v-if="selectedCategories.length > 0 && availableTags.length > 0" class="flex items-center justify-center gap-2 flex-wrap border-t border-gray-200 pt-4">
-            <button
-              @click="toggleTag('')"
-              :class="['px-3 py-1 text-sm rounded-md transition-colors', selectedTags.length === 0 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300']"
-            >
-              全部
-            </button>
-            <button
-              v-for="tag in availableTags"
-              :key="tag.id"
-              @click="toggleTag(tag.id)"
-              :class="['px-3 py-1 text-sm rounded-md transition-colors', selectedTags.includes(tag.id) ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300']"
-            >
-              {{ tag.name }}
-            </button>
           </div>
         </div>
       </div>
@@ -291,7 +307,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ui, useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
 import { MSG } from '@/utils/messaging'
@@ -420,6 +436,43 @@ const availableTags = computed(() => {
   
   return tags.value.filter(t => tagIds.has(t.id))
 })
+
+// --- Category Shelf Pagination ---
+const shelfViewportRef = ref<HTMLElement | null>(null)
+const shelfContentRef = ref<HTMLElement | null>(null)
+const scrollOffset = ref(0)
+const maxScroll = ref(0)
+const canScrollLeft = computed(() => scrollOffset.value > 0)
+const canScrollRight = computed(() => scrollOffset.value < maxScroll.value)
+let shelfObserver: ResizeObserver | null = null
+
+function updateShelfDimensions() {
+  if (shelfViewportRef.value && shelfContentRef.value) {
+    const viewportWidth = shelfViewportRef.value.offsetWidth
+    const contentWidth = shelfContentRef.value.scrollWidth
+    maxScroll.value = Math.max(0, contentWidth - viewportWidth)
+    // Ensure scrollOffset is not out of bounds
+    if (scrollOffset.value > maxScroll.value) {
+      scrollOffset.value = maxScroll.value
+    }
+  }
+}
+
+function scrollShelf(direction: 'left' | 'right') {
+  if (!shelfViewportRef.value) return
+  const scrollAmount = shelfViewportRef.value.offsetWidth * 0.8
+  if (direction === 'right') {
+    scrollOffset.value = Math.min(scrollOffset.value + scrollAmount, maxScroll.value)
+  } else {
+    scrollOffset.value = Math.max(scrollOffset.value - scrollAmount, 0)
+  }
+}
+
+watch(availableCategories, async () => {
+  await nextTick()
+  updateShelfDimensions()
+})
+// --- End Pagination ---
 
 function toggleCategory(categoryId: string) {
   const index = selectedCategories.value.indexOf(categoryId)
@@ -715,31 +768,32 @@ function handleEditFromPreview() {
   // Maybe focus the editor here
 }
 
-async function handleVersionRestored(version: any) {
-  showToast('版本已恢复', 'success')
-  await loadPrompts()
-  const updatedPrompt = prompts.value.find(p => p.id === editingPrompt.value?.id)
+async function reloadAndReEditCurrentPrompt() {
+  if (!editingPrompt.value?.id) return;
+  const promptId = editingPrompt.value.id;
+  await loadPrompts();
+  const updatedPrompt = prompts.value.find(p => p.id === promptId);
   if (updatedPrompt) {
-    editPrompt(updatedPrompt)
+    editPrompt(updatedPrompt);
   }
 }
 
-async function handleVersionDeleted(versionId: string) {
-  showToast('版本已删除', 'success')
+async function handleVersionRestored(version: any) {
+  showToast('版本已恢复', 'success');
+  await reloadAndReEditCurrentPrompt();
+}
 
-  // If the deleted version is the one being previewed, reset the editor state.
+async function handleVersionDeleted(versionId: string) {
+  showToast('版本已删除', 'success');
   if (previewingVersion.value && previewingVersion.value.version.id === versionId) {
-    await loadPrompts() 
-    const updatedPrompt = prompts.value.find(p => p.id === editingPrompt.value?.id)
-    if (updatedPrompt) {
-      editPrompt(updatedPrompt)
-    }
+    await reloadAndReEditCurrentPrompt();
   }
 }
 
 
 function getPreview(content: string): string {
-  return content.length > 150 ? content.substring(0, 150) + '...' : content
+  const textContent = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  return textContent.length > 120 ? textContent.substring(0, 120) + '...' : textContent
 }
 
 function formatDate(timestamp: number): string {
@@ -790,9 +844,16 @@ onMounted(async () => {
     await db.open()
     console.log('Database connection successful.')
     // Load data only after DB is confirmed open
-    loadPrompts()
-    loadCategories()
-    loadTags()
+    await Promise.all([loadPrompts(), loadCategories(), loadTags()])
+
+    // Setup shelf observer
+    await nextTick()
+    if (shelfViewportRef.value) {
+      shelfObserver = new ResizeObserver(updateShelfDimensions)
+      shelfObserver.observe(shelfViewportRef.value)
+    }
+    updateShelfDimensions()
+
 
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('action') === 'new') {
@@ -810,6 +871,9 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   document.body.style.overflow = ''
+  if (shelfObserver) {
+    shelfObserver.disconnect()
+  }
 })
 </script>
 

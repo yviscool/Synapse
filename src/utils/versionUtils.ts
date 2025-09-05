@@ -101,7 +101,7 @@ async function renderDiffAsMarkdown(diffs: any[]): Promise<string> {
 /**
  * 恢复到指定版本
  */
-export async function revertToVersion(promptId: string, versionId: string): Promise<void> {
+export async function revertToVersion(promptId: string, versionId: string, currentUnsavedContent: string): Promise<void> {
   const version = await db.prompt_versions.get(versionId)
   if (!version || version.promptId !== promptId) {
     throw new Error('版本不存在或不匹配')
@@ -113,7 +113,9 @@ export async function revertToVersion(promptId: string, versionId: string): Prom
   }
   
   // 创建当前状态的备份版本
-  await createVersion(promptId, prompt.content, '自动备份：恢复前状态', prompt.currentVersionId)
+  await createVersion(promptId, currentUnsavedContent, '自动备份：恢复前状态', prompt.currentVersionId)
+  // await createVersion(promptId, prompt.content, '自动备份：恢复前状态', prompt.currentVersionId)
+
   
   // 更新 Prompt 内容
   const updatedPrompt: Prompt = {

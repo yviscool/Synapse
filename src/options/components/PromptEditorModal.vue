@@ -160,13 +160,9 @@
           </span>
         </div>
         <div class="flex items-center gap-3">
-          <button @click="$emit('close')" class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50">
-            <div class="i-carbon-close"></div>
-            取消
-          </button>
           <button @click="$emit('save')" class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg">
             <div class="i-carbon-save"></div>
-            保存 Prompt
+            保存 
           </button>
         </div>
       </div>

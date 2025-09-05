@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue' // <-- 1. 确保引入 ref
+import { ref, watch, nextTick } from 'vue' // <-- 1. 确保引入 ref
 import { Milkdown, useEditor } from '@milkdown/vue'
 import { Crepe } from '@milkdown/crepe'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
@@ -38,6 +38,9 @@ const editorRef = useEditor((root) => {
   const crepe = new Crepe({
     root,
     defaultValue: props.modelValue,
+    features: {
+ 
+    },
     featureConfigs: {
       placeholder: {
         text: props.placeholder,
@@ -127,7 +130,10 @@ const editorRef = useEditor((root) => {
   return crepe
 })
 
-// --- 修正后的 watch 监听器 ---
+
+// 1. 预览历史版本 (Previewing a Historical Version)
+// 2. 恢复某个版本 (Restoring a Version)
+// 3. 删除正在预览的版本 (Deleting the Previewed Version)
 watch(() => props.modelValue, (newValue) => {
   // <-- 3. 检查标志位
   // 如果这次更新是由编辑器内部的 emit 触发的，则忽略它，并重置标志位
@@ -147,4 +153,6 @@ watch(() => props.modelValue, (newValue) => {
     editor.action(replaceAll(newValue));
   }
 });
+
+
 </script>
