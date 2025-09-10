@@ -147,7 +147,8 @@ function resetState() {
   fileName.value = ''
   promptsToImport.value = []
   targetCategoryIds.value = []
-  additionalTags.value = ''
+  additionalTags.value = []
+  tagInputLocal.value = ''
   if (fileInput.value) {
     fileInput.value.value = ''
   }
@@ -199,9 +200,7 @@ async function processFile(file: File) {
 
   fileName.value = file.name
   // Do not reset selections, allow user to use the same selections for a new file
-  // promptsToImport.value = []
-  // targetCategoryIds.value = []
-  // additionalTags.value = ''
+  promptsToImport.value = []
 
   try {
     const text = await file.text()
