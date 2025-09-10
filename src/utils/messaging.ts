@@ -38,6 +38,8 @@ export interface PromptDTO {
 export interface GetPromptsPayload {
   q?: string
   category?: string
+  page?: number
+  limit?: number
 }
 
 export interface DataUpdatedPayload {

@@ -144,14 +144,14 @@
       </div>
 
       <!-- 美化的 Prompt 网格 -->
-      <div class="min-h-96">
-        <div v-if="filteredPrompts.length === 0" class="flex flex-col items-center justify-center py-16 text-center">
+      <div class="min-h-96 relative">
+        <div v-if="prompts.length === 0 && !isLoading" class="flex flex-col items-center justify-center py-16 text-center">
           <div class="mb-6">
             <div class="i-carbon-document-blank text-6xl text-gray-300"></div>
           </div>
           <h3 class="text-xl font-semibold text-gray-900 mb-2">暂无 Prompts</h3>
           <p class="text-gray-600 mb-6 max-w-md">
-            {{ searchQuery ? '没有找到匹配的 Prompts' : '开始创建你的第一个 AI Prompt 吧！' }}
+            {{ searchQueryDebounced ? '没有找到匹配的 Prompts' : '开始创建你的第一个 AI Prompt 吧！' }}
           </p>
           <button v-if="!searchQuery" @click="createNewPrompt" class="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
             <div class="i-carbon-add"></div>
@@ -159,9 +159,9 @@
           </button>
         </div>
         
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div
-            v-for="prompt in filteredPrompts"
+            v-for="prompt in prompts"
             :key="prompt.id"
             class="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 p-6 hover:shadow-lg transition-transform duration-200 hover:-translate-y-1"
             @dblclick="editPrompt(prompt)"
@@ -248,6 +248,17 @@
             </div>
           </div>
         </div>
+
+        <!-- Loader and Sentinel -->
+        <div ref="loaderRef" class="col-span-full mt-6 flex justify-center items-center h-10">
+          <div v-if="isLoading && prompts.length > 0" class="flex items-center gap-2 text-gray-500">
+            <div class="i-carbon-circle-dash w-6 h-6 animate-spin"></div>
+            <span>加载中...</span>
+          </div>
+          <div v-if="!hasMore && prompts.length > 0" class="text-gray-500">
+            --- 已加载全部 ---
+          </div>
+        </div>
       </div>
     </main>
 
@@ -315,12 +326,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ui, useUI } from '@/stores/ui'
-import { db } from '@/stores/db'
+import { db, queryPrompts } from '@/stores/db'
 import { MSG } from '@/utils/messaging'
 import type { Prompt, Category, Tag, PromptVersion } from '@/types/prompt'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
-import { createVersion, getLatestVersion } from '@/utils/versionUtils'
+import { createVersion } from '@/utils/versionUtils'
 import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
 import CategoryManager from './components/CategoryManager.vue'
@@ -328,122 +339,123 @@ import MergeImportModal from './components/MergeImportModal.vue'
 
 const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
 
-// 响应式数据
+// --- State for Data and Filters ---
 const prompts = ref<Prompt[]>([])
 const categories = ref<Category[]>([])
 const tags = ref<Tag[]>([])
+const availableTags = ref<Tag[]>([])
 const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const searchQueryDebounced = ref('')
-
-let searchDebounceTimer: number | undefined
 const selectedCategories = ref<string[]>([])
 const selectedTags = ref<string[]>([])
 const showFavoriteOnly = ref(false)
 const sortBy = ref<'updatedAt' | 'createdAt' | 'title'>('updatedAt')
+
+// --- State for Pagination and Loading ---
+const totalPrompts = ref(0)
+const currentPage = ref(1)
+const isLoading = ref(false)
+const loaderRef = ref<HTMLElement | null>(null)
+const hasMore = computed(() => prompts.value.length < totalPrompts.value)
+
+// --- State for UI Modals and Menus ---
 const editingPrompt = ref<Partial<Prompt> | null>(null)
-
 const editingTags = ref<string[]>([])
-
 const showCategoryManager = ref(false)
 const showMergeImport = ref(false)
-
 const changeNote = ref('')
 const hasContentChanged = ref(false)
 const showSettings = ref(false)
 const menuOpenId = ref<string | null>(null)
 const copiedId = ref<string | null>(null)
 
-// Time Machine state
+// --- State for Time Machine Feature ---
 const isReadonly = ref(false)
 const previewingVersion = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
 const baseVersionForEdit = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
 
+// --- Debounce Search Query ---
+let searchDebounceTimer: number | undefined
 watch(searchQuery, (val) => {
   if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
   searchDebounceTimer = window.setTimeout(() => {
     searchQueryDebounced.value = val
-  }, 200)
+  }, 300)
 })
 
+// --- Body Overflow Lock for Modals ---
 watch(() => editingPrompt.value || showSettings.value || showCategoryManager.value, (isModalOpen) => {
-  if (isModalOpen) {
-    document.body.style.overflow = 'hidden'
-  } else {
-    document.body.style.overflow = ''
-  }
+  document.body.style.overflow = isModalOpen ? 'hidden' : ''
 })
 
-// 计算属性
+// --- Data Fetching Logic ---
+async function fetchPrompts() {
+  if (isLoading.value) return
+  isLoading.value = true
+
+  try {
+    const { prompts: newPrompts, total } = await queryPrompts({
+      page: currentPage.value,
+      limit: 20,
+      sortBy: sortBy.value,
+      favoriteOnly: showFavoriteOnly.value,
+      searchQuery: searchQueryDebounced.value,
+      categories: selectedCategories.value,
+      tags: selectedTags.value,
+    })
+
+    if (currentPage.value === 1) {
+      prompts.value = newPrompts
+    } else {
+      prompts.value.push(...newPrompts)
+    }
+    totalPrompts.value = total
+  } catch (error) {
+    console.error('Failed to fetch prompts:', error)
+    showToast('加载 Prompts 失败', 'error')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// --- Watch for Filter Changes to Reset and Refetch ---
+watch(
+  [searchQueryDebounced, selectedCategories, selectedTags, showFavoriteOnly, sortBy],
+  () => {
+    currentPage.value = 1
+    totalPrompts.value = 0
+    // prompts.value = [] // Do not clear here, it causes a flicker. Let fetchPrompts replace it.
+    fetchPrompts()
+  },
+  { deep: true },
+)
+
+// --- Computed Properties ---
 const getTagNames = (tagIds: string[]): string[] => {
   return tagIds.map(id => tags.value.find(t => t.id === id)?.name || '').filter(Boolean)
 }
-
-const filteredPrompts = computed(() => {
-  let filtered = prompts.value
-  
-  // 搜索过滤
-  if (searchQueryDebounced.value) {
-    const query = searchQueryDebounced.value.toLowerCase()
-    filtered = filtered.filter(p => {
-      const tagNames = getTagNames(p.tagIds || []).join(' ').toLowerCase()
-      return p.title.toLowerCase().includes(query) ||
-             p.content.toLowerCase().includes(query) ||
-             tagNames.includes(query)
-    })
-  }
-  
-  // 分类过滤
-  if (selectedCategories.value.length > 0) {
-    filtered = filtered.filter(p => 
-      p.categoryIds && selectedCategories.value.some(catId => p.categoryIds.includes(catId))
-    )
-  }
-
-  // 标签过滤
-  if (selectedTags.value.length > 0) {
-    filtered = filtered.filter(p =>
-      p.tagIds && selectedTags.value.every(tagId => p.tagIds.includes(tagId))
-    )
-  }
-  
-  // 收藏过滤
-  if (showFavoriteOnly.value) {
-    filtered = filtered.filter(p => p.favorite)
-  }
-  
-  // 排序
-  return filtered.sort((a, b) => {
-    switch (sortBy.value) {
-      case 'title':
-        return a.title.localeCompare(b.title)
-      case 'createdAt':
-        return b.createdAt - a.createdAt
-      case 'updatedAt':
-      default:
-        return b.updatedAt - a.updatedAt
-    }
-  })
-})
 
 const availableCategories = computed(() => {
   return categories.value.slice().sort((a: Category, b: Category) => (a.sort || 0) - (b.sort || 0))
 })
 
-const availableTags = computed(() => {
-  if (selectedCategories.value.length === 0) {
-    return []
+// --- Category & Tag Management ---
+watch(selectedCategories, async (newCategories) => {
+  if (newCategories.length === 0) {
+    availableTags.value = []
+    return
   }
-  
+  // This is an expensive operation but necessary to provide context-aware tag filtering.
+  // It's efficient because of the multi-entry index on `categoryIds`.
+  const relevantPrompts = await db.prompts.where('categoryIds').anyOf(newCategories).toArray()
   const tagIds = new Set<string>()
-  prompts.value.forEach(p => {
-    if (p.categoryIds.some(catId => selectedCategories.value.includes(catId))) {
-      p.tagIds.forEach(tagId => tagIds.add(tagId))
-    }
+  relevantPrompts.forEach((p) => {
+    p.tagIds.forEach(tagId => tagIds.add(tagId))
   })
-  
-  return tags.value.filter(t => tagIds.has(t.id))
-})
+  availableTags.value = tags.value.filter(t => tagIds.has(t.id))
+}, { deep: true })
+
 
 // --- Category Shelf Pagination ---
 const shelfViewportRef = ref<HTMLElement | null>(null)
@@ -459,7 +471,6 @@ function updateShelfDimensions() {
     const viewportWidth = shelfViewportRef.value.offsetWidth
     const contentWidth = shelfContentRef.value.scrollWidth
     maxScroll.value = Math.max(0, contentWidth - viewportWidth)
-    // Ensure scrollOffset is not out of bounds
     if (scrollOffset.value > maxScroll.value) {
       scrollOffset.value = maxScroll.value
     }
@@ -477,25 +488,11 @@ function scrollShelf(direction: 'left' | 'right') {
 }
 
 function handleShelfScroll(event: WheelEvent) {
-  // If the shelf isn't scrollable, do nothing and let the page scroll normally.
-  if (maxScroll.value <= 0) {
-    return
-  }
-
-  // The shelf is scrollable, so we will handle the scroll.
-  // This PREVENTS the page from scrolling up/down as long as the cursor is over the shelf.
+  if (maxScroll.value <= 0) return
   event.preventDefault()
-
-  // Prioritize horizontal scroll if available, otherwise use vertical.
   const scrollDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
-  
   if (scrollDelta === 0) return
-
-  const currentScroll = scrollOffset.value
-  const max = maxScroll.value
-  
-  // Apply the scroll.
-  scrollOffset.value = Math.max(0, Math.min(currentScroll + scrollDelta, max))
+  scrollOffset.value = Math.max(0, Math.min(scrollOffset.value + scrollDelta, maxScroll.value))
 }
 
 watch(availableCategories, async () => {
@@ -505,15 +502,18 @@ watch(availableCategories, async () => {
 // --- End Pagination ---
 
 function toggleCategory(categoryId: string) {
-  const index = selectedCategories.value.indexOf(categoryId)
   if (categoryId === '') {
     selectedCategories.value = []
-  } else if (index > -1) {
-    selectedCategories.value.splice(index, 1)
   } else {
-    selectedCategories.value.push(categoryId)
+    const index = selectedCategories.value.indexOf(categoryId)
+    if (index > -1) {
+      selectedCategories.value.splice(index, 1)
+    } else {
+      // For now, allow multi-select in UI, but query logic might be limited
+      selectedCategories.value.push(categoryId)
+    }
   }
-  selectedTags.value = [] // Reset tags when category changes
+  selectedTags.value = []
 }
 
 function toggleTag(tagId: string) {
@@ -529,71 +529,34 @@ function toggleTag(tagId: string) {
   }
 }
 
-// 操作函数
-async function loadPrompts() {
-  try {
-    console.log('Attempting to load prompts...');
-    const allPrompts = await db.prompts.toArray();
-    console.log(`Loaded ${allPrompts.length} prompts from DB:`, JSON.parse(JSON.stringify(allPrompts)));
-    
-    if (allPrompts.length === 0) {
-      console.warn('db.prompts.toArray() returned an empty array. If you see data in IndexedDB via DevTools, this might indicate a schema or connection issue.');
-    }
-
-    prompts.value = allPrompts.map(prompt => ({
-      ...prompt,
-      categoryIds: Array.isArray(prompt.categoryIds) ? prompt.categoryIds : [],
-      tagIds: Array.isArray(prompt.tagIds) ? prompt.tagIds : [],
-      favorite: Boolean(prompt.favorite),
-      createdAt: Number(prompt.createdAt),
-      updatedAt: Number(prompt.updatedAt)
-    }));
-  } catch (error) {
-    console.error('Failed to load prompts:', error);
-    showToast('加载 Prompts 失败', 'error');
-  }
+async function loadInitialData() {
+  await db.open()
+  await Promise.all([loadCategories(), loadTags(), fetchPrompts()])
 }
 
 async function loadCategories() {
   try {
-    console.log('Attempting to load categories...');
-    const allCategories = await db.categories.toArray();
-    console.log(`Loaded ${allCategories.length} categories from DB:`, JSON.parse(JSON.stringify(allCategories)));
-    categories.value = allCategories;
-    
+    const allCategories = await db.categories.toArray()
+    categories.value = allCategories
     if (categories.value.length === 0) {
-      console.log('No categories found, creating default set...');
       const defaultCategories: Category[] = [
-        { id: 'work', name: '工作', sort: 1, icon: 'i-mdi-work' },
-        { id: 'coding', name: '编程', sort: 2, icon: 'i-carbon-code' },
-        { id: 'study', name: '学习', sort: 3, icon: 'i-carbon-book' },
-        { id: 'writing', name: '写作', sort: 4, icon: 'i-carbon-pen' },
-        { id: 'creation', name: '创作', sort: 5, icon: 'i-carbon-idea' },
-        { id: 'teaching', name: '教学', sort: 6, icon: 'i-carbon-presentation-file' },
-        { id: 'yijing', name: '易经', sort: 7, icon: 'i-simple-icons:taichilang' },
-        { id: 'life', name: '生活', sort: 8, icon: 'i-carbon-home' },
-        { id: 'other', name: '其他', sort: 9, icon: 'i-mdi-question-mark-circle' },
-      ];
-
-      await db.categories.bulkPut(defaultCategories);
-      categories.value = defaultCategories;
-      console.log('Default categories created and loaded.');
+        { id: 'work', name: '工作', sort: 1, icon: 'i-mdi-work' }, { id: 'coding', name: '编程', sort: 2, icon: 'i-carbon-code' }, { id: 'study', name: '学习', sort: 3, icon: 'i-carbon-book' }, { id: 'writing', name: '写作', sort: 4, icon: 'i-carbon-pen' }, { id: 'creation', name: '创作', sort: 5, icon: 'i-carbon-idea' }, { id: 'teaching', name: '教学', sort: 6, icon: 'i-carbon-presentation-file' }, { id: 'yijing', name: '易经', sort: 7, icon: 'i-simple-icons:taichilang' }, { id: 'life', name: '生活', sort: 8, icon: 'i-carbon-home' }, { id: 'other', name: '其他', sort: 9, icon: 'i-mdi-question-mark-circle' },
+      ]
+      await db.categories.bulkPut(defaultCategories)
+      categories.value = defaultCategories
     }
   } catch (error) {
-    console.error('Failed to load categories:', error);
-    showToast('加载 Categories 失败', 'error');
+    console.error('Failed to load categories:', error)
+    showToast('加载 Categories 失败', 'error')
   }
 }
 
 async function loadTags() {
   try {
-    console.log('Attempting to load tags...');
-    const allTags = await db.tags.toArray();
-    console.log(`Loaded ${allTags.length} tags from DB:`, JSON.parse(JSON.stringify(allTags)));
-    tags.value = allTags;
+    tags.value = await db.tags.toArray()
   } catch (error) {
-    console.error('Failed to load tags:', error);
-    showToast('加载 Tags 失败', 'error');
+    console.error('Failed to load tags:', error)
+    showToast('加载 Tags 失败', 'error')
   }
 }
 
@@ -602,16 +565,10 @@ function getCategoryName(categoryId: string): string {
   return category?.name || categoryId
 }
 
-
 function createNewPrompt() {
   editingPrompt.value = createSafePrompt({
-    title: '',
-    content: '',
-    favorite: false,
-    categoryIds: [],
-    tagIds: []
+    title: '', content: '', favorite: false, categoryIds: [], tagIds: [],
   })
-
   editingTags.value = []
   isReadonly.value = false
   previewingVersion.value = null
@@ -620,25 +577,24 @@ function createNewPrompt() {
 
 function editPrompt(prompt: Prompt) {
   editingPrompt.value = clonePrompt(prompt)
-
   editingTags.value = getTagNames(prompt.tagIds || [])
-
-  isReadonly.value = false // Default to editable
+  isReadonly.value = false
   previewingVersion.value = null
   baseVersionForEdit.value = null
 }
 
+async function triggerRefetch() {
+  currentPage.value = 1
+  await fetchPrompts()
+}
+
 async function toggleFavorite(prompt: Prompt) {
   try {
-    const updatedPrompt = createSafePrompt({
-      ...prompt,
-      favorite: !prompt.favorite,
-      updatedAt: Date.now()
-    })
-    
-    await db.prompts.put(updatedPrompt)
-    await loadPrompts()
-    showToast(updatedPrompt.favorite ? '已添加到收藏' : '已取消收藏', 'success')
+    await db.prompts.update(prompt.id, { favorite: !prompt.favorite, updatedAt: Date.now() })
+    showToast(!prompt.favorite ? '已添加到收藏' : '已取消收藏', 'success')
+    // Optimistic update
+    const p = prompts.value.find(p => p.id === prompt.id)
+    if (p) p.favorite = !p.favorite
   } catch (error) {
     console.error('Failed to toggle favorite:', error)
     showToast('操作失败', 'error')
@@ -650,14 +606,11 @@ async function savePrompt() {
     showToast('请输入标题', 'error')
     return
   }
-  
   try {
-    // Handle tags
     const tagNames = editingTags.value.map(t => t.trim()).filter(Boolean)
     const tagIds: string[] = []
     if (tagNames.length > 0) {
       const existingTags = await db.tags.where('name').anyOf(tagNames).toArray()
-      
       for (const name of tagNames) {
         const existingTag = existingTags.find(t => t.name === name)
         if (existingTag) {
@@ -668,59 +621,30 @@ async function savePrompt() {
           tagIds.push(newTag.id)
         }
       }
-      await loadTags() // Reload tags to include new ones
+      await loadTags()
     }
-
     const isNewPrompt = !editingPrompt.value.id
     const now = Date.now()
-    
-    const promptData = {
-      ...editingPrompt.value,
-      categoryIds: editingPrompt.value?.categoryIds || [],
-      tagIds,
-      updatedAt: now
-    }
-    
+    const promptData = { ...editingPrompt.value, categoryIds: editingPrompt.value?.categoryIds || [], tagIds, updatedAt: now }
     if (!promptData.id) {
       promptData.id = nanoid()
       promptData.createdAt = now
     }
-
     const safePrompt = createSafePrompt(promptData)
-    
     const validationError = validatePrompt(safePrompt)
     if (validationError) {
       showToast(`数据验证失败: ${validationError}`, 'error')
       return
     }
-
-    let finalChangeNote = changeNote.value
-    if (!finalChangeNote && baseVersionForEdit.value) {
-      const versionNumber = await db.prompt_versions.where('promptId').equals(baseVersionForEdit.value.version.promptId).count()
-      finalChangeNote = `基于 v${versionNumber} 的修改` // This is an approximation
-    }
-    
     if (!isNewPrompt && hasContentChanged.value) {
-      const version = await createVersion(
-        safePrompt.id,
-        safePrompt.content,
-        finalChangeNote || '内容更新',
-        safePrompt.currentVersionId
-      )
+      const version = await createVersion(safePrompt.id, safePrompt.content, changeNote.value || '内容更新', safePrompt.currentVersionId)
       safePrompt.currentVersionId = version.id
     }
-    
     await db.prompts.put(safePrompt)
-    await loadPrompts()
+    await triggerRefetch()
     closeEditor()
     showToast('保存成功', 'success')
-
-    // Notify background about the update
-    chrome.runtime.sendMessage({
-      type: MSG.DATA_UPDATED,
-      data: { scope: 'prompts', version: Date.now().toString() },
-    })
-    
+    chrome.runtime.sendMessage({ type: MSG.DATA_UPDATED, data: { scope: 'prompts', version: Date.now().toString() } })
   } catch (error) {
     console.error('Failed to save prompt:', error)
     showToast(`保存失败: ${(error as Error).message}`, 'error')
@@ -732,18 +656,12 @@ async function deletePrompt(id: string) {
   if (!ok) return
   try {
     await db.transaction('rw', db.prompts, db.prompt_versions, async () => {
-      // Delete all associated versions first
       await db.prompt_versions.where('promptId').equals(id).delete()
-      // Then delete the prompt itself
       await db.prompts.delete(id)
     })
-    await loadPrompts()
+    await triggerRefetch()
     showToast('删除成功', 'success')
-    // Notify background about the update
-    chrome.runtime.sendMessage({
-      type: MSG.DATA_UPDATED,
-      data: { scope: 'prompts', version: Date.now().toString() },
-    })
+    chrome.runtime.sendMessage({ type: MSG.DATA_UPDATED, data: { scope: 'prompts', version: Date.now().toString() } })
   } catch (error) {
     console.error('Failed to delete prompt:', error)
     showToast('删除失败', 'error')
@@ -755,9 +673,7 @@ async function copyPrompt(prompt: Prompt) {
     await db.prompts.update(prompt.id, { lastUsedAt: Date.now() })
     await navigator.clipboard.writeText(prompt.content)
     copiedId.value = prompt.id
-    setTimeout(() => {
-      if (copiedId.value === prompt.id) copiedId.value = null
-    }, 1500)
+    setTimeout(() => { if (copiedId.value === prompt.id) copiedId.value = null }, 1500)
     showToast('已复制到剪贴板', 'success')
   } catch (error) {
     console.error('Failed to copy prompt:', error)
@@ -767,9 +683,7 @@ async function copyPrompt(prompt: Prompt) {
 
 function closeEditor() {
   editingPrompt.value = null
-
   hasContentChanged.value = false
-  // Reset Time Machine state
   isReadonly.value = false
   previewingVersion.value = null
   baseVersionForEdit.value = null
@@ -780,14 +694,13 @@ function handleContentChange() {
   hasContentChanged.value = true
 }
 
-// --- Time Machine Handlers ---
 function handleVersionPreview(payload: { version: PromptVersion, versionNumber: number }) {
   if (!editingPrompt.value) return
   editingPrompt.value.content = payload.version.content
   previewingVersion.value = payload
   baseVersionForEdit.value = null
   isReadonly.value = true
-  hasContentChanged.value = false // Viewing, not changing
+  hasContentChanged.value = false
 }
 
 function handleEditFromPreview() {
@@ -795,31 +708,29 @@ function handleEditFromPreview() {
   baseVersionForEdit.value = previewingVersion.value
   previewingVersion.value = null
   isReadonly.value = false
-  // Maybe focus the editor here
 }
 
 async function reloadAndReEditCurrentPrompt() {
-  if (!editingPrompt.value?.id) return;
-  const promptId = editingPrompt.value.id;
-  await loadPrompts();
-  const updatedPrompt = prompts.value.find(p => p.id === promptId);
+  if (!editingPrompt.value?.id) return
+  const promptId = editingPrompt.value.id
+  await triggerRefetch() // This re-fetches the whole list
+  const updatedPrompt = prompts.value.find(p => p.id === promptId)
   if (updatedPrompt) {
-    editPrompt(updatedPrompt);
+    editPrompt(updatedPrompt)
   }
 }
 
 async function handleVersionRestored(version: any) {
-  showToast('版本已恢复', 'success');
-  await reloadAndReEditCurrentPrompt();
+  showToast('版本已恢复', 'success')
+  await reloadAndReEditCurrentPrompt()
 }
 
 async function handleVersionDeleted(versionId: string) {
-  showToast('版本已删除', 'success');
+  showToast('版本已删除', 'success')
   if (previewingVersion.value && previewingVersion.value.version.id === versionId) {
-    await reloadAndReEditCurrentPrompt();
+    await reloadAndReEditCurrentPrompt()
   }
 }
-
 
 function getPreview(content: string): string {
   const textContent = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
@@ -827,61 +738,51 @@ function getPreview(content: string): string {
 }
 
 function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(timestamp))
+  return new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp))
 }
 
 async function handleMergeSuccess() {
-  await loadPrompts()
+  await triggerRefetch()
   await loadTags()
 }
 
-// 全局键盘事件
 const handleKeydown = (event: KeyboardEvent) => {
-  // If a confirm dialog is active, let it handle the event first.
-  if (ui.confirm.visible) {
-    return
-  }
-
-  // Ctrl/Cmd + Enter to save when editing
+  if (ui.confirm.visible) return
   if (editingPrompt.value && (event.ctrlKey || event.metaKey) && event.key === 'Enter') {
     event.preventDefault()
     savePrompt()
     return
   }
-
-  // Ctrl/Cmd + K 聚焦搜索
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
     searchInputRef.value?.focus()
     return
   }
   if (event.key === 'Escape') {
-    if (editingPrompt.value) {
-      closeEditor()
-    } else if (showCategoryManager.value) {
-      showCategoryManager.value = false
-    } else if (showSettings.value) {
-      showSettings.value = false
-    } else if (menuOpenId.value) {
-      menuOpenId.value = null
-    }
+    if (editingPrompt.value) closeEditor()
+    else if (showCategoryManager.value) showCategoryManager.value = false
+    else if (showSettings.value) showSettings.value = false
+    else if (menuOpenId.value) menuOpenId.value = null
   }
 }
 
-// 生命周期
 onMounted(async () => {
   try {
-    await db.open()
-    console.log('Database connection successful.')
-    // Load data only after DB is confirmed open
-    await Promise.all([loadPrompts(), loadCategories(), loadTags()])
+    await loadInitialData()
 
-    // Setup shelf observer
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore.value && !isLoading.value) {
+          currentPage.value++
+          fetchPrompts()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    if (loaderRef.value) {
+      observer.observe(loaderRef.value)
+    }
+
     await nextTick()
     if (shelfViewportRef.value) {
       shelfObserver = new ResizeObserver(updateShelfDimensions)
@@ -889,13 +790,11 @@ onMounted(async () => {
     }
     updateShelfDimensions()
 
-
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('action') === 'new') {
-      createNewPrompt();
+      createNewPrompt()
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Failed to open database:', error)
     showToast('数据库连接失败，请检查控制台获取详细信息。', 'error')
   }
@@ -906,9 +805,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   document.body.style.overflow = ''
-  if (shelfObserver) {
-    shelfObserver.disconnect()
-  }
+  if (shelfObserver) shelfObserver.disconnect()
 })
 </script>
 

@@ -18,6 +18,10 @@ export class APMDB extends Dexie {
       tags: 'id, name',
       settings: 'id',
     })
+    // Version 2: Add multi-entry indexes for efficient filtering
+    this.version(2).stores({
+      prompts: 'id, title, *categoryIds, *tagIds, updatedAt, favorite, createdAt',
+    })
   }
 }
 
@@ -138,3 +142,89 @@ export async function mergePrompts(
   })
 }
 
+/**
+ * Defines the parameters for querying prompts.
+ */
+export interface QueryPromptsParams {
+  searchQuery?: string;
+  categories?: string[]; // Storing category IDs
+  tags?: string[]; // Storing tag IDs
+  favoriteOnly?: boolean;
+  sortBy?: 'updatedAt' | 'createdAt' | 'title';
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Defines the structure of the returned data from queryPrompts.
+ */
+export interface QueryPromptsResult {
+  prompts: Prompt[];
+  total: number;
+}
+
+/**
+ * Performs an advanced, paginated query for prompts.
+ * It leverages IndexedDB indexes for sorting and then applies filters efficiently
+ * before retrieving a single page of data from the database.
+ *
+ * @param params - The query parameters.
+ * @returns A promise that resolves to an object containing the prompts for the page and the total count of matching prompts.
+ */
+export async function queryPrompts(params: QueryPromptsParams = {}): Promise<QueryPromptsResult> {
+  const {
+    searchQuery,
+    categories,
+    tags,
+    favoriteOnly,
+    sortBy = 'updatedAt',
+    page = 1,
+    limit = 20,
+  } = params;
+
+  const offset = (page - 1) * limit;
+
+  // Start with a collection sorted in the desired order via index.
+  let collection = db.prompts.orderBy(sortBy);
+
+  if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
+    collection = collection.reverse();
+  }
+
+  const filterConditions: ((p: Prompt) => boolean)[] = [];
+
+  if (favoriteOnly) {
+    filterConditions.push(p => !!p.favorite);
+  }
+
+  if (categories && categories.length > 0) {
+    filterConditions.push(p => categories.some(catId => p.categoryIds.includes(catId)));
+  }
+
+  if (tags && tags.length > 0) {
+    filterConditions.push(p => tags.every(tagId => p.tagIds.includes(tagId)));
+  }
+
+  let finalCollection = collection;
+
+  if (filterConditions.length > 0) {
+    finalCollection = collection.filter(prompt => filterConditions.every(cond => cond(prompt)));
+  }
+
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase();
+    const tagMap = new Map((await db.tags.toArray()).map(t => [t.id, t.name]));
+
+    finalCollection = finalCollection.filter(p => {
+      const tagNames = (p.tagIds || []).map(tid => tagMap.get(tid) || '').join(' ').toLowerCase();
+      return p.title.toLowerCase().includes(query) ||
+             p.content.toLowerCase().includes(query) ||
+             tagNames.includes(query);
+    });
+  }
+
+  const total = await finalCollection.count();
+  const prompts = await finalCollection.offset(offset).limit(limit).toArray();
+
+  return { prompts, total };
+}
