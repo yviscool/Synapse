@@ -49,55 +49,59 @@
 
       <!-- Prompt List -->
       <div ref="scrollContainer" class="overflow-y-auto p-3 grid gap-3">
-        <div
-          v-for="(p, i) in prompts"
-          :key="p.id"
-          @click="$emit('select', p)"
-          :class="[
-            'p-4 rounded-lg border cursor-pointer group transition-all duration-150',
-            i === highlightIndex
-              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 shadow-lg'
-              : 'border-gray-300/50 dark:border-gray-700/50 hover:border-blue-500/50 hover:bg-gray-500/5',
-          ]"
-          title="回车使用"
-        >
-          <div class="flex items-start justify-between">
-            <div class="font-semibold text-base text-gray-800 dark:text-gray-100 truncate mr-4">
-              {{ p.title }}
+        <template v-if="prompts.length > 0">
+          <div
+            v-for="(p, i) in prompts"
+            :key="p.id"
+            @click="$emit('select', p)"
+            :class="[
+              'p-4 rounded-lg border cursor-pointer group transition-all duration-150',
+              i === highlightIndex
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 shadow-lg'
+                : 'border-gray-300/50 dark:border-gray-700/50 hover:border-blue-500/50 hover:bg-gray-500/5',
+            ]"
+            title="回车使用"
+          >
+            <div class="flex items-start justify-between">
+              <div class="font-semibold text-base text-gray-800 dark:text-gray-100 truncate mr-4">
+                {{ p.title }}
+              </div>
+              <button
+                class="p-2 rounded-full text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-500/10 flex-shrink-0"
+                @click.stop="$emit('copy', p)"
+                title="复制 (Ctrl+C)"
+              >
+                <div class="i-carbon-copy text-lg" />
+              </button>
             </div>
-            <button
-              class="p-2 rounded-full text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-500/10 flex-shrink-0"
-              @click.stop="$emit('copy', p)"
-              title="复制 (Ctrl+C)"
-            >
-              <div class="i-carbon-copy text-lg" />
-            </button>
-          </div>
-          <div class="mt-1 text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
-            {{ preview(p.content) }}
-          </div>
-          <div class="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
-            <div class="flex items-center gap-1.5">
-              <div class="i-carbon-folder" />
-              <span>{{ p.categoryName || '未分类' }}</span>
+            <div class="mt-1 text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
+              {{ preview(p.content) }}
             </div>
-            <div v-if="p.tags?.length" class="flex items-center gap-1.5">
-              <div class="i-carbon-tag" />
-              <div class="flex flex-wrap gap-1">
-                <span
-                  v-for="t in p.tags"
-                  :key="t"
-                  class="px-1.5 py-0.5 rounded-md bg-gray-200/70 dark:bg-gray-800/70 text-gray-600 dark:text-gray-300"
-                >
-                  {{ t }}
-                </span>
+            <div class="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
+              <div class="flex items-center gap-1.5">
+                <div class="i-carbon-folder" />
+                <span>{{ p.categoryName || '未分类' }}</span>
+              </div>
+              <div v-if="p.tags?.length" class="flex items-center gap-1.5">
+                <div class="i-carbon-tag" />
+                <div class="flex flex-wrap gap-1">
+                  <span
+                    v-for="t in p.tags"
+                    :key="t"
+                    class="px-1.5 py-0.5 rounded-md bg-gray-200/70 dark:bg-gray-800/70 text-gray-600 dark:text-gray-300"
+                  >
+                    {{ t }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div v-if="!prompts.length" class="text-center py-10 text-gray-500">
+        </template>
+        <div v-if="prompts.length === 0 && !isLoading" class="text-center py-10 text-gray-500">
           没有找到匹配的提示
         </div>
+        <!-- Sentinel for infinite scroll -->
+        <div ref="loaderRef" class="h-1"></div>
       </div>
 
       <!-- Footer -->
@@ -110,7 +114,13 @@
           <span class="font-semibold">Tab</span> 切换分类
         </div>
         <div class="text-gray-500">
-          共 {{ prompts.length }} 个提示
+          <span v-if="isLoading && prompts.length > 0" class="flex items-center gap-1">
+            <div class="i-carbon-circle-dash w-4 h-4 animate-spin"></div>
+            加载中...
+          </span>
+          <span v-else>
+            共 {{ prompts.length }} / {{ totalPrompts }} 个提示
+          </span>
         </div>
       </div>
     </div>
@@ -118,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useFocus } from '@vueuse/core'
 import type { PromptDTO } from '@/utils/messaging'
 
@@ -128,6 +138,9 @@ const props = defineProps<{
   selectedCategory: string
   highlightIndex: number
   searchQuery: string
+  isLoading: boolean
+  hasMore: boolean
+  totalPrompts: number
 }>()
 
 const emit = defineEmits<{
@@ -136,6 +149,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'update:selectedCategory', v: string): void
   (e: 'update:searchQuery', v: string): void
+  (e: 'load-more'): void
 }>()
 
 const searchInput = ref<HTMLInputElement | null>(null)
@@ -147,12 +161,31 @@ const query = computed({
 })
 
 const isMounted = ref(false)
+const loaderRef = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
 onMounted(() => {
-  // Use a timeout to ensure the transition is applied after the initial render
-  setTimeout(() => {
-    isMounted.value = true
-  }, 10)
+  setTimeout(() => { isMounted.value = true }, 10)
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && props.hasMore && !props.isLoading) {
+        emit('load-more')
+      }
+    },
+    { threshold: 0.5 },
+  )
+
+  watch(loaderRef, (newEl, oldEl) => {
+    if (oldEl) observer?.unobserve(oldEl)
+    if (newEl) observer?.observe(newEl)
+  }, { immediate: true })
 })
+
+onUnmounted(() => {
+  observer?.disconnect()
+})
+
 
 function preview(s: string) {
   const t = s || ''
