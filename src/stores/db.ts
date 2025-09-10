@@ -147,7 +147,7 @@ export async function mergePrompts(
  */
 export interface QueryPromptsParams {
   searchQuery?: string;
-  category?: string; // Storing category ID
+  categories?: string[]; // Storing category IDs
   tags?: string[]; // Storing tag IDs
   favoriteOnly?: boolean;
   sortBy?: 'updatedAt' | 'createdAt' | 'title';
@@ -174,7 +174,7 @@ export interface QueryPromptsResult {
 export async function queryPrompts(params: QueryPromptsParams = {}): Promise<QueryPromptsResult> {
   const {
     searchQuery,
-    category,
+    categories,
     tags,
     favoriteOnly,
     sortBy = 'updatedAt',
@@ -197,8 +197,8 @@ export async function queryPrompts(params: QueryPromptsParams = {}): Promise<Que
     filterConditions.push(p => !!p.favorite);
   }
 
-  if (category) {
-    filterConditions.push(p => p.categoryIds.includes(category));
+  if (categories && categories.length > 0) {
+    filterConditions.push(p => categories.some(catId => p.categoryIds.includes(catId)));
   }
 
   if (tags && tags.length > 0) {
