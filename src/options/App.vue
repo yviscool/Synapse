@@ -395,27 +395,28 @@ async function fetchPrompts() {
   isLoading.value = true
 
   try {
+    // ====== PR 代码：一次传多个品类 ======
     const { prompts: newPrompts, total } = await queryPrompts({
       page: currentPage.value,
       limit: 20,
       sortBy: sortBy.value,
       favoriteOnly: showFavoriteOnly.value,
       searchQuery: searchQueryDebounced.value,
-      categories: selectedCategories.value,
+      categories: selectedCategories.value,   // 多品类数组
       tags: selectedTags.value,
-    })
+    });
 
     if (currentPage.value === 1) {
-      prompts.value = newPrompts
+      prompts.value = newPrompts;
     } else {
-      prompts.value.push(...newPrompts)
+      prompts.value.push(...newPrompts);
     }
-    totalPrompts.value = total
+    totalPrompts.value = total;
   } catch (error) {
-    console.error('Failed to fetch prompts:', error)
-    showToast('加载 Prompts 失败', 'error')
+    console.error('Failed to fetch prompts:', error);
+    showToast('加载 Prompts 失败', 'error');
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
 }
 
