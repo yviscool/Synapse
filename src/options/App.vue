@@ -72,7 +72,7 @@
                 </button>
 
                 <div class="relative group flex-1 min-w-0">
-                  <div class="overflow-hidden" ref="shelfViewportRef">
+                  <div class="overflow-hidden" ref="shelfViewportRef" @wheel="handleShelfScroll">
                     <div class="flex items-center gap-2 transition-transform duration-300 ease-in-out" ref="shelfContentRef" :style="{ transform: `translateX(-${scrollOffset}px)` }">
                       <button
                         v-for="category in availableCategories"
@@ -466,6 +466,28 @@ function scrollShelf(direction: 'left' | 'right') {
   } else {
     scrollOffset.value = Math.max(scrollOffset.value - scrollAmount, 0)
   }
+}
+
+function handleShelfScroll(event: WheelEvent) {
+  // If the shelf isn't scrollable, do nothing and let the page scroll normally.
+  if (maxScroll.value <= 0) {
+    return
+  }
+
+  // The shelf is scrollable, so we will handle the scroll.
+  // This PREVENTS the page from scrolling up/down as long as the cursor is over the shelf.
+  event.preventDefault()
+
+  // Prioritize horizontal scroll if available, otherwise use vertical.
+  const scrollDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
+  
+  if (scrollDelta === 0) return
+
+  const currentScroll = scrollOffset.value
+  const max = maxScroll.value
+  
+  // Apply the scroll.
+  scrollOffset.value = Math.max(0, Math.min(currentScroll + scrollDelta, max))
 }
 
 watch(availableCategories, async () => {
