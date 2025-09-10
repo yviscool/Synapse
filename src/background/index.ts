@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import { db, getSettings } from '@/stores/db'
+import { db, getSettings, queryPrompts } from '@/stores/db'
 import type { Prompt } from '@/types'
 import {
   MSG,
@@ -49,54 +49,51 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
 
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
-): Promise<{ data: PromptDTO[]; version: string }> {
-  const [prompts, categories, tags] = await Promise.all([
-    db.prompts.toArray(),
-    db.categories.toArray(),
-    db.tags.toArray(),
-  ])
-
+): Promise<{ data: PromptDTO[]; total: number; version: string }> {
+  const [categories, allTags] = await Promise.all([db.categories.toArray(), db.tags.toArray()])
   const categoryMap = new Map(categories.map(c => [c.id, c.name]))
-  const tagMap = new Map(tags.map(t => [t.id, t.name]))
+  const tagMap = new Map(allTags.map(t => [t.id, t.name]))
 
-  let filteredPrompts = prompts
-
-  // Filtering logic
-  if (payload?.q) {
-    const q = payload.q.toLowerCase()
-    filteredPrompts = filteredPrompts.filter(p => {
-      const tagNames = p.tagIds.map(tid => tagMap.get(tid) || '').join(' ')
-      return (
-        p.title.toLowerCase().includes(q) ||
-        p.content.toLowerCase().includes(q) ||
-        tagNames.toLowerCase().includes(q)
-      )
-    })
-  }
+  let categoryId: string | undefined
+  let isUncategorized = false
 
   if (payload?.category && payload.category !== '全部') {
-    const catId = categories.find(c => c.name === payload.category)?.id
-    if (catId) {
-      filteredPrompts = filteredPrompts.filter(p => p.categoryIds.includes(catId))
-    } else if (payload.category === '未分类') {
-      filteredPrompts = filteredPrompts.filter(p => p.categoryIds.length === 0)
+    if (payload.category === '未分类') {
+      isUncategorized = true
+    } else {
+      categoryId = categories.find(c => c.name === payload.category)?.id
     }
   }
 
-  // Map to DTO
-  const data: PromptDTO[] = filteredPrompts.map(p => ({
+  // The `queryPrompts` function doesn't support a filter for uncategorized prompts.
+  // So we pass the categoryId only if it's not the "uncategorized" case.
+  const { prompts, total } = await queryPrompts({
+    searchQuery: payload?.q,
+    category: isUncategorized ? undefined : categoryId,
+    page: payload?.page,
+    limit: payload?.limit,
+    sortBy: 'updatedAt', // Default sort for content script
+  })
+
+  // Post-filter for the "uncategorized" case. This is a workaround.
+  const finalPrompts = isUncategorized
+    ? prompts.filter(p => p.categoryIds.length === 0)
+    : prompts
+
+  const data: PromptDTO[] = finalPrompts.map(p => ({
     id: p.id,
     title: p.title,
     content: p.content,
-    // For simplicity, we assign the first category name. Multi-category can be handled if needed.
     categoryName: p.categoryIds.length > 0 ? categoryMap.get(p.categoryIds[0]) || '未分类' : '未分类',
     tags: p.tagIds.map(tid => tagMap.get(tid) || '').filter(Boolean),
   }))
 
-  const latestUpdate = prompts.reduce((max, p) => Math.max(max, p.updatedAt), 0)
-  const version = latestUpdate.toString()
+  const latestUpdate = await db.prompts.orderBy('updatedAt').reverse().first()
+  const version = latestUpdate?.updatedAt.toString() || Date.now().toString()
 
-  return { data, version }
+  // Note: The `total` count will be inaccurate for the "uncategorized" filter.
+  // This is a known limitation of the current implementation.
+  return { data, total, version }
 }
 
 async function broadcastToTabs(msg: RequestMessage<DataUpdatedPayload>) {
