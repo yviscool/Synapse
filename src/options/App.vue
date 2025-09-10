@@ -93,9 +93,13 @@
                   </button>
                 </div>
 
-                <button @click="showCategoryManager = true" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="分类管理">
-                  <div class="i-carbon-edit text-lg"></div>
-                </button>
+                <button @click="showMergeImport = true" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="导入并合并">
+                    <div class="i-carbon-document-import text-lg"></div>
+                  </button>
+
+                  <button @click="showCategoryManager = true" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="分类管理">
+                    <div class="i-carbon-edit text-lg"></div>
+                  </button>
               </div>
 
               <!-- Sort and Favorite Filters -->
@@ -289,6 +293,8 @@
 
     <CategoryManager v-model:visible="showCategoryManager" @updated="loadCategories" />
 
+    <MergeImportModal v-model:visible="showMergeImport" :available-categories="availableCategories" :active-categories="selectedCategories" :active-tags="getTagNames(selectedTags)" @merged="handleMergeSuccess" />
+
     <!-- 全局 UI 组件 -->
     <UiToast
       v-if="ui.toast"
@@ -318,6 +324,7 @@ import { createVersion, getLatestVersion } from '@/utils/versionUtils'
 import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
 import CategoryManager from './components/CategoryManager.vue'
+import MergeImportModal from './components/MergeImportModal.vue'
 
 const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
 
@@ -339,6 +346,7 @@ const editingPrompt = ref<Partial<Prompt> | null>(null)
 const editingTags = ref<string[]>([])
 
 const showCategoryManager = ref(false)
+const showMergeImport = ref(false)
 
 const changeNote = ref('')
 const hasContentChanged = ref(false)
@@ -825,6 +833,11 @@ function formatDate(timestamp: number): string {
     hour: '2-digit',
     minute: '2-digit'
   }).format(new Date(timestamp))
+}
+
+async function handleMergeSuccess() {
+  await loadPrompts()
+  await loadTags()
 }
 
 // 全局键盘事件
