@@ -10,6 +10,7 @@
       :searchQuery="searchQuery"
       :isLoading="isLoading"
       :hasMore="hasMore"
+      :totalPrompts="totalPrompts"
       @update:selectedCategory="(v: string) => selectedCategory = v"
       @update:searchQuery="(v: string) => searchQuery = v"
       @select="handleSelect"
@@ -67,15 +68,16 @@ async function fetchData() {
       page: currentPage.value,
       limit: 50, // Load more items in content script for better scroll experience
     }
-    const res: ResponseMessage<{ data: PromptDTO[]; total: number }> = await chrome.runtime.sendMessage({ type: MSG.GET_PROMPTS, data: payload })
+    // The response from background script is { ok, data, total, version }
+    const res: ResponseMessage<PromptDTO[]> & { total?: number } = await chrome.runtime.sendMessage({ type: MSG.GET_PROMPTS, data: payload })
 
     if (res.ok && res.data) {
       if (currentPage.value === 1) {
-        allPrompts.value = res.data.data
+        allPrompts.value = res.data
       } else {
-        allPrompts.value.push(...res.data.data)
+        allPrompts.value.push(...res.data)
       }
-      totalPrompts.value = res.data.total
+      totalPrompts.value = res.total || 0
       dataVersion = res.version || '0'
     }
   } catch (e) {
