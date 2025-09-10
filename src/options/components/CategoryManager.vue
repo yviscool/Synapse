@@ -126,6 +126,7 @@ import { useUI } from '@/stores/ui'
 import { MSG } from '@/utils/messaging'
 import type { Category, Prompt } from '@/types/prompt'
 import { onClickOutside } from '@vueuse/core'
+import { useModal } from '@/composables/useModal'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'updated'): void }>()
@@ -157,19 +158,20 @@ const iconSearch = ref('')
 
 onClickOutside(iconPickerRef, () => closeIconPicker())
 
+const isOpen = computed({
+    get: () => props.visible,
+    set: val => emit('update:visible', val),
+})
+useModal(isOpen, close)
+
 // Prevent body scroll when modal is open
 watch(() => props.visible, (isVisible) => {
-    document.body.style.overflow = isVisible ? 'hidden' : ''
     if (isVisible) {
         // Load fresh data each time the modal is opened
         Promise.all([loadCategories(), loadPrompts()])
     } else {
         cancelCategoryEdit() // Clean up edit state when closing
     }
-});
-
-onUnmounted(() => {
-    document.body.style.overflow = ''
 });
 
 // --- Data & Computed ---

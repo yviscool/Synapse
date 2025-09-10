@@ -40,6 +40,9 @@
 </template>
 
 <script setup lang="ts">
+import { useModal } from '@/composables/useModal'
+import { computed } from 'vue'
+
 const props = withDefaults(defineProps<{
   modelValue: boolean
   title?: string
@@ -61,8 +64,13 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
+const isOpen = computed({
+  get: () => props.modelValue,
+  set: val => emit('update:modelValue', val),
+})
+
 function close() {
-  emit('update:modelValue', false)
+  isOpen.value = false
 }
 function onConfirm() {
   emit('confirm')
@@ -72,4 +80,6 @@ function onCancel() {
   emit('cancel')
   close()
 }
+
+useModal(isOpen, onCancel)
 </script>

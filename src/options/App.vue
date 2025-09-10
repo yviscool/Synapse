@@ -331,6 +331,7 @@ import type { Prompt, Category, Tag, PromptVersion } from '@/types/prompt'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
 import { createVersion } from '@/utils/versionUtils'
+import { useModal } from '@/composables/useModal'
 import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
 import CategoryManager from './components/CategoryManager.vue'
@@ -369,6 +370,8 @@ const showSettings = ref(false)
 const menuOpenId = ref<string | null>(null)
 const copiedId = ref<string | null>(null)
 
+useModal(showSettings, () => { showSettings.value = false })
+
 // --- State for Time Machine Feature ---
 const isReadonly = ref(false)
 const previewingVersion = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
@@ -381,11 +384,6 @@ watch(searchQuery, (val) => {
   searchDebounceTimer = window.setTimeout(() => {
     searchQueryDebounced.value = val
   }, 300)
-})
-
-// --- Body Overflow Lock for Modals ---
-watch(() => editingPrompt.value || showSettings.value || showCategoryManager.value, (isModalOpen) => {
-  document.body.style.overflow = isModalOpen ? 'hidden' : ''
 })
 
 // --- Data Fetching Logic ---
@@ -748,21 +746,13 @@ async function handleMergeSuccess() {
 
 const handleKeydown = (event: KeyboardEvent) => {
   if (ui.confirm.visible) return
-  if (editingPrompt.value && (event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-    event.preventDefault()
-    savePrompt()
-    return
-  }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
     searchInputRef.value?.focus()
     return
   }
   if (event.key === 'Escape') {
-    if (editingPrompt.value) closeEditor()
-    else if (showCategoryManager.value) showCategoryManager.value = false
-    else if (showSettings.value) showSettings.value = false
-    else if (menuOpenId.value) menuOpenId.value = null
+    if (menuOpenId.value) menuOpenId.value = null
   }
 }
 
@@ -804,7 +794,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  document.body.style.overflow = ''
   if (shelfObserver) shelfObserver.disconnect()
 })
 </script>

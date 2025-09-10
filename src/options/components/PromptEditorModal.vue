@@ -172,6 +172,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useModal } from '@/composables/useModal'
+import { useKey } from '@vueuse/core'
 import MarkdownEditor from '@/options/components/MarkdownEditor.vue'
 import VersionHistory from '@/options/components/VersionHistory.vue'
 import type { Prompt, Category, PromptVersion } from '@/types/prompt'
@@ -198,6 +200,12 @@ const emit = defineEmits<{
   (e: 'version-deleted', id: string): void
   (e: 'preview-version', payload: { version: PromptVersion, versionNumber: number }): void
 }>()
+
+const isOpen = computed(() => !!props.modelValue)
+useModal(isOpen, () => emit('close'))
+useKey(['Control+Enter', 'Meta+Enter'], () => {
+  if (isOpen.value) emit('save')
+}, { preventDefault: true })
 
 const titleProxy = computed({
   get: () => props.modelValue?.title || '',

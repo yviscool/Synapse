@@ -116,6 +116,7 @@ import { ref, computed, watch } from 'vue'
 import type { Category, Prompt } from '@/types/prompt'
 import { mergePrompts } from '@/stores/db'
 import { useUI } from '@/stores/ui'
+import { useModal } from '@/composables/useModal'
 
 const props = defineProps<{
   visible: boolean
@@ -130,6 +131,12 @@ const emit = defineEmits<{
 }>()
 
 const { showToast } = useUI()
+
+const isOpen = computed({
+  get: () => props.visible,
+  set: (val) => emit('update:visible', val),
+})
+useModal(isOpen, () => { isOpen.value = false })
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileName = ref('')
