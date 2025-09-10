@@ -42,18 +42,26 @@
       <div class="mb-8 space-y-6">
         <div class="flex justify-center">
           <div class="relative w-full max-w-2xl">
-            <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg i-carbon-search z-45"></div>
+            <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg i-carbon-search z-10"></div>
             <input
               v-model="searchQuery"
               ref="searchInputRef"
               type="text"
               aria-label="搜索 Prompts"
               placeholder="搜索 Prompts 标题或内容...（Ctrl+K）"
-              class="w-full pl-12 pr-12 py-4 text-lg border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+              class="w-full pl-12 pr-40 py-4 text-lg border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
             >
-            <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1">
+            <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-32 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1">
               <div class="i-carbon-close"></div>
             </button>
+            <div class="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center">
+              <div class="w-px h-6 bg-gray-200/80 mr-3"></div>
+              <select v-model="sortBy" class="text-base border-none bg-transparent focus:ring-0 text-gray-600 font-medium">
+                <option value="updatedAt">最近更新</option>
+                <option value="createdAt">创建时间</option>
+                <option value="title">标题排序</option>
+              </select>
+            </div>
           </div>
         </div>
         
@@ -93,6 +101,16 @@
                   </button>
                 </div>
 
+                <button 
+                  @click="showFavoriteOnly = !showFavoriteOnly" 
+                  :class="['flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', showFavoriteOnly ? 'bg-yellow-100 border-yellow-300 text-yellow-800' : 'bg-white border-gray-200 hover:bg-gray-50']"
+                >
+                  <div :class="showFavoriteOnly ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" class="text-yellow-500"></div>
+                  <span>仅收藏</span>
+                </button>
+
+                <div class="w-px h-6 bg-gray-200/80 ml-2 mr-1"></div>
+
                 <button @click="showMergeImport = true" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="导入并合并">
                     <div class="i-carbon-document-import text-lg"></div>
                   </button>
@@ -100,25 +118,6 @@
                   <button @click="showCategoryManager = true" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="分类管理">
                     <div class="i-carbon-edit text-lg"></div>
                   </button>
-              </div>
-
-              <!-- Sort and Favorite Filters -->
-              <div class="flex items-center gap-3 flex-shrink-0">
-                <div class="flex items-center gap-3">
-                  <label class="text-sm font-medium text-gray-600 whitespace-nowrap">排序:</label>
-                  <select v-model="sortBy" class="px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="updatedAt">最近更新</option>
-                    <option value="createdAt">创建时间</option>
-                    <option value="title">标题排序</option>
-                  </select>
-                </div>
-                <button 
-                  @click="showFavoriteOnly = !showFavoriteOnly" 
-                  :class="['flex items-center gap-2 px-4 py-2 h-10 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors', { 'bg-blue-100 border-blue-300 text-blue-700': showFavoriteOnly }]"
-                >
-                  <div class="i-carbon-favorite"></div>
-                  <span>仅收藏</span>
-                </button>
               </div>
             </div>
 
