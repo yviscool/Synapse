@@ -1,6 +1,9 @@
-import Dexie, { Table } from 'dexie'
+import Dexie, { type Table } from 'dexie'
+import type Fuse from 'fuse.js'
 import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
+import { MSG, type PerformSearchResult } from '@/utils/messaging'
 import { createSafePrompt } from '@/utils/promptUtils'
+import { searchService } from '@/services/SearchService'
 
 export class APMDB extends Dexie {
   prompts!: Table<Prompt, string>
@@ -26,6 +29,39 @@ export class APMDB extends Dexie {
 }
 
 export const db = new APMDB()
+
+// --- Dexie Hooks for real-time sync with SearchService ---
+
+// Update search index when prompts change
+db.prompts.hook('creating', (primKey, obj, trans) => {
+  searchService.add(obj) // No more N+1 query
+})
+
+db.prompts.hook('updating', (modifications, primKey, obj, trans) => {
+  searchService.update(obj) // No more N+1 query
+})
+
+db.prompts.hook('deleting', (primKey, obj, trans) => {
+  searchService.remove(primKey)
+})
+
+// Update the tag cache in SearchService when tags change
+async function updateTagCacheAndRebuildIndex() {
+  const allTags = await db.tags.toArray()
+  searchService.updateTagCache(allTags)
+  // Rebuild the entire prompt index because tag names might have changed
+  await searchService.buildIndex()
+}
+
+db.tags.hook('creating', async () => {
+  await updateTagCacheAndRebuildIndex()
+})
+db.tags.hook('updating', async () => {
+  await updateTagCacheAndRebuildIndex()
+})
+db.tags.hook('deleting', async () => {
+  await updateTagCacheAndRebuildIndex()
+})
 
 export const DEFAULT_SETTINGS: Settings = {
   id: 'global',
@@ -133,6 +169,8 @@ export async function mergePrompts(
 
     if (newPrompts.length > 0) {
       await db.prompts.bulkAdd(newPrompts)
+      // Manually trigger a search index rebuild as bulkAdd does not trigger hooks.
+      await searchService.buildIndex()
     }
 
     return {
@@ -146,27 +184,34 @@ export async function mergePrompts(
  * Defines the parameters for querying prompts.
  */
 export interface QueryPromptsParams {
-  searchQuery?: string;
-  categories?: string[]; // Storing category IDs
-  tags?: string[]; // Storing tag IDs
-  favoriteOnly?: boolean;
-  sortBy?: 'updatedAt' | 'createdAt' | 'title';
-  page?: number;
-  limit?: number;
+  searchQuery?: string
+  category?: string // Legacy from content script, will be merged into categoryNames
+  categoryNames?: string[]
+  tagNames?: string[]
+  favoriteOnly?: boolean
+  sortBy?: 'updatedAt' | 'createdAt' | 'title'
+  page?: number
+  limit?: number
+}
+
+/**
+ * Extends the Prompt type to include Fuse.js match details for highlighting.
+ */
+export type PromptWithMatches = Prompt & {
+  matches?: readonly Fuse.FuseResultMatch[]
 }
 
 /**
  * Defines the structure of the returned data from queryPrompts.
  */
 export interface QueryPromptsResult {
-  prompts: Prompt[];
+  prompts: PromptWithMatches[];
   total: number;
 }
 
 /**
- * Performs an advanced, paginated query for prompts.
- * It leverages IndexedDB indexes for sorting and then applies filters efficiently
- * before retrieving a single page of data from the database.
+ * Performs an advanced, paginated query for prompts, leveraging Fuse.js for efficient
+ * fuzzy searching and Dexie for filtering and retrieval.
  *
  * @param params - The query parameters.
  * @returns A promise that resolves to an object containing the prompts for the page and the total count of matching prompts.
@@ -174,57 +219,133 @@ export interface QueryPromptsResult {
 export async function queryPrompts(params: QueryPromptsParams = {}): Promise<QueryPromptsResult> {
   const {
     searchQuery,
-    categories,
-    tags,
+    category,
+    categoryNames: initialCategoryNames,
+    tagNames,
     favoriteOnly,
     sortBy = 'updatedAt',
     page = 1,
     limit = 20,
-  } = params;
+  } = params
 
-  const offset = (page - 1) * limit;
-
-  // Start with a collection sorted in the desired order via index.
-  let collection = db.prompts.orderBy(sortBy);
-
-  if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
-    collection = collection.reverse();
-  }
-
-  const filterConditions: ((p: Prompt) => boolean)[] = [];
-
-  if (favoriteOnly) {
-    filterConditions.push(p => !!p.favorite);
-  }
-
-  if (categories && categories.length > 0) {
-    filterConditions.push(p => categories.some(catId => p.categoryIds.includes(catId)));
-  }
-
-  if (tags && tags.length > 0) {
-    filterConditions.push(p => tags.every(tagId => p.tagIds.includes(tagId)));
-  }
-
-  let finalCollection = collection;
-
-  if (filterConditions.length > 0) {
-    finalCollection = collection.filter(prompt => filterConditions.every(cond => cond(prompt)));
-  }
+  const offset = (page - 1) * limit
+  let filteredPrompts: PromptWithMatches[] = []
 
   if (searchQuery) {
-    const query = searchQuery.toLowerCase();
-    const tagMap = new Map((await db.tags.toArray()).map(t => [t.id, t.name]));
+    // 1. Delegate search to the background script
+    const response = await chrome.runtime.sendMessage({
+      type: MSG.PERFORM_SEARCH,
+      data: { query: searchQuery },
+    })
 
-    finalCollection = finalCollection.filter(p => {
-      const tagNames = (p.tagIds || []).map(tid => tagMap.get(tid) || '').join(' ').toLowerCase();
-      return p.title.toLowerCase().includes(query) ||
-             p.content.toLowerCase().includes(query) ||
-             tagNames.includes(query);
-    });
+    if (!response.ok || !response.data) {
+      console.error('Failed to perform search via background script:', response.error)
+      return { prompts: [], total: 0 }
+    }
+
+    const searchResults = response.data as PerformSearchResult[]
+    if (searchResults.length === 0) {
+      return { prompts: [], total: 0 }
+    }
+
+    const resultIds = searchResults.map(res => res.item.id)
+    const matchesMap = new Map(searchResults.map(res => [res.item.id, res.matches]))
+
+    // 2. Fetch only the matching prompts from Dexie
+    const promptsFromDb = await db.prompts.where('id').anyOf(resultIds).toArray()
+
+    // Create a map for quick reordering based on search score
+    const promptsMap = new Map(promptsFromDb.map(p => [p.id, p]))
+
+    // 3. Reorder the prompts according to Fuse.js relevance score and attach matches
+    filteredPrompts = resultIds
+      .map((id) => {
+        const prompt = promptsMap.get(id)
+        if (!prompt) return null
+        return { ...prompt, matches: matchesMap.get(id) }
+      })
+      .filter(Boolean) as PromptWithMatches[]
+  }
+  else {
+    // No search query, start with a Dexie collection sorted as requested
+    let collection = db.prompts.orderBy(sortBy)
+    if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
+      collection = collection.reverse()
+    }
+    filteredPrompts = await collection.toArray()
   }
 
-  const total = await finalCollection.count();
-  const prompts = await finalCollection.offset(offset).limit(limit).toArray();
+  // 4. Resolve name-based filters to IDs before applying them
+  const categoryNames = [...(initialCategoryNames || [])]
+  if (category && category !== '全部') {
+    categoryNames.push(category)
+  }
 
-  return { prompts, total };
+  let categoryIds: string[] | undefined
+  if (categoryNames.length > 0) {
+    // Use a Set to handle potential duplicates
+    const uniqueNames = [...new Set(categoryNames)]
+    const categories = await db.categories.where('name').anyOf(uniqueNames).toArray()
+    categoryIds = categories.map(c => c.id)
+  }
+
+  let tagIds: string[] | undefined
+  if (tagNames && tagNames.length > 0) {
+    const tags = await db.tags.where('name').anyOf(tagNames).toArray()
+    tagIds = tags.map(t => t.id)
+  }
+
+  // 5. Apply additional filters (favorite, categories, tags) on the (potentially search-filtered) list
+  const filterConditions: ((p: Prompt) => boolean)[] = []
+  if (favoriteOnly) {
+    filterConditions.push(p => !!p.favorite)
+  }
+  if (categoryIds && categoryIds.length > 0) {
+    filterConditions.push(p => categoryIds.some(catId => p.categoryIds.includes(catId)))
+  }
+  if (tagIds && tagIds.length > 0) {
+    filterConditions.push(p => tagIds.every(tagId => p.tagIds.includes(tagId)))
+  }
+
+  if (filterConditions.length > 0) {
+    filteredPrompts = filteredPrompts.filter(p => filterConditions.every(cond => cond(p)))
+  }
+
+  // 5. Apply pagination
+  const total = filteredPrompts.length
+  const paginatedPrompts = filteredPrompts.slice(offset, offset + limit)
+
+  return { prompts: paginatedPrompts, total }
+}
+
+/**
+ * Imports data from a backup file, overwriting existing data.
+ * This function is designed to be called from the UI.
+ * @param importedData - The parsed data from the backup file.
+ */
+export async function importDataFromBackup(importedData: any): Promise<void> {
+  const currentSettings = await getSettings()
+
+  await db.transaction('rw', db.prompts, db.prompt_versions, db.categories, db.tags, db.settings, async () => {
+    await db.prompts.clear()
+    await db.prompt_versions.clear()
+    await db.categories.clear()
+    await db.tags.clear()
+
+    if (importedData.prompts) await db.prompts.bulkPut(importedData.prompts)
+    if (importedData.prompt_versions) await db.prompt_versions.bulkPut(importedData.prompt_versions)
+    if (importedData.categories) await db.categories.bulkPut(importedData.categories)
+    if (importedData.tags) await db.tags.bulkPut(importedData.tags)
+
+    const settingsToApply = importedData.settings || DEFAULT_SETTINGS
+    // Preserve current sync settings
+    settingsToApply.syncEnabled = currentSettings.syncEnabled
+    settingsToApply.syncProvider = currentSettings.syncProvider
+    settingsToApply.userProfile = currentSettings.userProfile
+    settingsToApply.lastSyncTimestamp = currentSettings.lastSyncTimestamp
+    await db.settings.put(settingsToApply)
+  })
+
+  // Manually trigger a search index rebuild after import.
+  await searchService.buildIndex()
 }

@@ -51,9 +51,10 @@
           >
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1 min-w-0">
-                <div class="font-semibold text-base text-gray-800 dark:text-gray-100 truncate">
-                  {{ p.title }}
-                </div>
+                <div
+                  class="font-semibold text-base text-gray-800 dark:text-gray-100 truncate"
+                  v-html="generateHighlightedHtml(p.title, p.matches, 'title')"
+                />
               </div>
               <button
                 class="p-2 rounded-full text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-500/10 flex-shrink-0"
@@ -63,9 +64,10 @@
                 <div class="i-carbon-copy text-lg" />
               </button>
             </div>
-            <div class="mt-1 text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
-              {{ preview(p.content) }}
-            </div>
+            <div
+              class="mt-1 text-gray-600 dark:text-gray-400 text-sm line-clamp-2"
+              v-html="generateHighlightedHtml(p.content, p.matches, 'content')"
+            />
             <div class="mt-3 flex items-center flex-wrap gap-x-4 gap-y-2 text-xs text-gray-500 dark:text-gray-500">
               <div v-if="p.categoryName" class="flex items-center gap-1.5">
                 <div class="i-carbon-folder" />
@@ -126,9 +128,11 @@
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useFocus, useVModel } from '@vueuse/core'
 import type { PromptDTO } from '@/utils/messaging'
+import { generateHighlightedHtml } from '@/utils/highlighter'
+import type Fuse from 'fuse.js'
 
 const props = defineProps<{
-  prompts: PromptDTO[]
+  prompts: (PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]
   categories: string[]
   selectedCategory: string
   highlightIndex: number
@@ -178,12 +182,6 @@ onMounted(() => {
 onUnmounted(() => {
   observer?.disconnect()
 })
-
-
-function preview(s: string) {
-  const t = s || ''
-  return t.length > 140 ? t.slice(0, 140) + '…' : t
-}
 
 const scrollContainer = ref<HTMLElement | null>(null)
 

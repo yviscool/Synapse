@@ -32,6 +32,7 @@ import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock }
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
+import type Fuse from 'fuse.js'
 
 const { showToast, hideToast } = useUI()
 
@@ -42,7 +43,7 @@ const isLocked = useScrollLock(document.body)
 watch(visible, (v) => isLocked.value = v)
 
 // --- Data & Filter State ---
-const allPrompts = ref<PromptDTO[]>([])
+const allPrompts = ref<(PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]>([])
 const categoryOptions = ref<string[]>(['全部'])
 const selectedCategory = ref<string>('全部')
 const searchQuery = ref('')
@@ -70,7 +71,7 @@ async function fetchData() {
       page: currentPage.value,
       limit: 50,
     }
-    const res: ResponseMessage<PromptDTO[]> & { total?: number } = await chrome.runtime.sendMessage({ type: MSG.GET_PROMPTS, data: payload })
+    const res: ResponseMessage<(PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]> & { total?: number } = await chrome.runtime.sendMessage({ type: MSG.GET_PROMPTS, data: payload })
 
     if (res.ok && res.data) {
       if (currentPage.value === 1) {

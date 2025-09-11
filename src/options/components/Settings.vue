@@ -111,7 +111,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useUI } from '@/stores/ui'
-import { db, getSettings, setSettings, DEFAULT_SETTINGS } from '@/stores/db'
+import { getSettings, importDataFromBackup } from '@/stores/db'
 import { syncManager } from '@/stores/sync'
 import type { Settings } from '@/types/prompt'
 
@@ -300,27 +300,7 @@ const importData = async (event: Event) => {
     const confirmed = await askConfirm('从备份恢复将覆盖此设备上的所有数据，但会保留当前的云同步设置。此操作不可撤销。是否继续？', { type: 'danger' })
     if (!confirmed) return
 
-    const currentSettings = await getSettings();
-
-    await db.transaction('rw', db.prompts, db.prompt_versions, db.categories, db.tags, db.settings, async () => {
-      await db.prompts.clear();
-      await db.prompt_versions.clear();
-      await db.categories.clear();
-      await db.tags.clear();
-      
-      if (importedData.prompts) await db.prompts.bulkPut(importedData.prompts);
-      if (importedData.prompt_versions) await db.prompt_versions.bulkPut(importedData.prompt_versions);
-      if (importedData.categories) await db.categories.bulkPut(importedData.categories);
-      if (importedData.tags) await db.tags.bulkPut(importedData.tags);
-      
-      const settingsToApply = importedData.settings || DEFAULT_SETTINGS;
-      // Preserve current sync settings
-      settingsToApply.syncEnabled = currentSettings.syncEnabled;
-      settingsToApply.syncProvider = currentSettings.syncProvider;
-      settingsToApply.userProfile = currentSettings.userProfile;
-      settingsToApply.lastSyncTimestamp = currentSettings.lastSyncTimestamp;
-      await db.settings.put(settingsToApply);
-    });
+    await importDataFromBackup(importedData)
 
     showToast('数据恢复成功！页面将刷新。', 'success')
     

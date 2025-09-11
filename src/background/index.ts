@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import { db, getSettings, queryPrompts } from '@/stores/db'
+import { searchService } from '@/services/SearchService'
 import type { Prompt } from '@/types'
 import {
   MSG,
@@ -8,7 +9,12 @@ import {
   type GetPromptsPayload,
   type PromptDTO,
   type DataUpdatedPayload,
+  type PerformSearchPayload,
+  type PerformSearchResult,
 } from '@/utils/messaging'
+
+// --- Initialize Search Index ---
+searchService.buildIndex().catch(console.error)
 
 chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
   const { type, data } = msg
@@ -45,40 +51,47 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
       .catch(e => console.error('Failed to update lastUsedAt:', e))
     return false // No need to wait
   }
+
+  if (type === MSG.PERFORM_SEARCH) {
+    const { query } = data as PerformSearchPayload
+    // This handler must be async to use `then`
+    Promise.resolve(searchService.search(query)).then((results) => {
+      // We need to cast because the result from searchService is technically Fuse.FuseResult[]
+      // but our PerformSearchResult is designed to be structurally compatible and serializable.
+      sendResponse({ ok: true, data: results as PerformSearchResult[] })
+    }).catch(error => {
+      sendResponse({ ok: false, error: error.message })
+    })
+    return true // Return true to indicate async response
+  }
 })
 
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
 ): Promise<{ data: PromptDTO[]; total: number; version: string }> {
+  // 1. Map `q` to `searchQuery` and then call the unified query logic
+  const { q, ...restPayload } = payload || {}
+  const { prompts, total } = await queryPrompts({ searchQuery: q, ...restPayload })
+
+  // 2. Map to DTOs, preserving matches data
   const [categories, allTags] = await Promise.all([db.categories.toArray(), db.tags.toArray()])
   const categoryMap = new Map(categories.map(c => [c.id, c.name]))
   const tagMap = new Map(allTags.map(t => [t.id, t.name]))
 
-  let categoryId: string | undefined
-
-  if (payload?.category && payload.category !== '全部') {
-    categoryId = categories.find(c => c.name === payload.category)?.id
-  }
-
-  const { prompts, total } = await queryPrompts({
-    searchQuery: payload?.q,
-    categories: categoryId ? [categoryId] : undefined,
-    page: payload?.page,
-    limit: payload?.limit,
-    sortBy: 'updatedAt', // Default sort for content script
+  const data: PromptDTO[] = prompts.map((p) => {
+    return {
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      categoryName: p.categoryIds.length > 0 ? categoryMap.get(p.categoryIds[0]) : undefined,
+      tags: p.tagIds.map(tid => tagMap.get(tid) || '').filter(Boolean),
+      matches: p.matches, // Pass through the matches data
+    }
   })
-
-  const data: PromptDTO[] = prompts.map(p => ({
-    id: p.id,
-    title: p.title,
-    content: p.content,
-    categoryName: p.categoryIds.length > 0 ? categoryMap.get(p.categoryIds[0]) : undefined,
-    tags: p.tagIds.map(tid => tagMap.get(tid) || '').filter(Boolean),
-  }))
 
   const latestUpdate = await db.prompts.orderBy('updatedAt').reverse().first()
   const version = latestUpdate?.updatedAt.toString() || Date.now().toString()
-  
+
   return { data, total, version }
 }
 
