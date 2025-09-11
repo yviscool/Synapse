@@ -69,6 +69,17 @@ export const repository = {
   events,
 
   // == Prompts ==
+  async updatePrompt(id: string, patch: Partial<Prompt>): Promise<{ ok: boolean; error?: any }> {
+    if (!patch.updatedAt) {
+      patch.updatedAt = Date.now()
+    }
+    return withCommitNotification(
+      ['prompts'],
+      () => db.prompts.update(id, patch),
+      'promptsChanged'
+    )
+  },
+
   async savePrompt(promptData: Partial<Prompt>, tagNames: string[], changeNote?: string): Promise<{ ok: boolean, error?: any }> {
     return withCommitNotification(
       ['prompts', 'tags', 'prompt_versions'],
