@@ -69,26 +69,51 @@ export const repository = {
   events,
 
   // == Prompts ==
-  async addPrompt(prompt: Partial<Prompt>): Promise<{ ok: boolean; data?: { id: string }, error?: any }> {
-    const newPrompt = createSafePrompt(prompt)
-    newPrompt.id = crypto.randomUUID()
-    const result = await withCommitNotification(
-      ['prompts'],
-      () => db.prompts.add(newPrompt),
-      'promptsChanged',
-      { action: 'add', data: newPrompt }
-    )
-    return { ...result, data: { id: newPrompt.id } }
-  },
-
-  async updatePrompt(id: string, patch: Partial<Prompt>): Promise<{ ok: boolean; error?: any }> {
-    if (!patch.updatedAt) {
-      patch.updatedAt = Date.now()
-    }
+  async savePrompt(promptData: Partial<Prompt>, tagNames: string[], changeNote?: string): Promise<{ ok: boolean, error?: any }> {
     return withCommitNotification(
-      ['prompts'],
-      () => db.prompts.update(id, patch),
-      'promptsChanged'
+      ['prompts', 'tags', 'prompt_versions'],
+      async () => {
+        // 1. Resolve Tags
+        const tagIds: string[] = []
+        if (tagNames.length > 0) {
+          const existingTags = await db.tags.where('name').anyOf(tagNames).toArray()
+          const existingTagsMap = new Map(existingTags.map(t => [t.name, t.id]))
+          for (const name of tagNames) {
+            if (existingTagsMap.has(name)) {
+              tagIds.push(existingTagsMap.get(name)!)
+            } else {
+              const newTag = { id: crypto.randomUUID(), name }
+              await db.tags.add(newTag)
+              tagIds.push(newTag.id)
+            }
+          }
+        }
+
+        // 2. Prepare Prompt
+        const isNewPrompt = !promptData.id
+        const safePrompt = createSafePrompt({ ...promptData, tagIds })
+
+        // 3. Handle Versioning
+        if (!isNewPrompt && promptData.content) {
+          const originalPrompt = await db.prompts.get(safePrompt.id!)
+          if (originalPrompt && originalPrompt.content !== promptData.content) {
+            const version: PromptVersion = {
+              id: crypto.randomUUID(),
+              promptId: safePrompt.id!,
+              content: originalPrompt.content, // Save the *old* content as a version
+              note: changeNote || '内容更新',
+              parentVersionId: originalPrompt.currentVersionId || null,
+              createdAt: Date.now()
+            }
+            await db.prompt_versions.add(version)
+            safePrompt.currentVersionId = version.id
+          }
+        }
+
+        // 4. Add or Update Prompt
+        await db.prompts.put(safePrompt)
+      },
+      'allChanged' // Use allChanged to ensure tags and prompts are updated everywhere
     )
   },
 
@@ -211,48 +236,9 @@ export const repository = {
   },
 
   // == Tags ==
-  async findOrCreateTags(tagNames: string[]): Promise<{ ok: boolean; data?: string[], error?: any }> {
-    const tagIds: string[] = []
-    if (tagNames.length === 0) {
-      return { ok: true, data: [] }
-    }
-    try {
-      await db.transaction('rw', db.tags, async () => {
-        const existingTags = await db.tags.where('name').anyOf(tagNames).toArray()
-        const existingTagsMap = new Map(existingTags.map(t => [t.name, t.id]))
-        for (const name of tagNames) {
-          if (existingTagsMap.has(name)) {
-            tagIds.push(existingTagsMap.get(name)!)
-          } else {
-            const newTag = { id: crypto.randomUUID(), name }
-            await db.tags.add(newTag)
-            tagIds.push(newTag.id)
-          }
-        }
-      })
-      return { ok: true, data: tagIds }
-    } catch (error) {
-      return { ok: false, error: error }
-    }
-  },
+  // findOrCreateTags is now internal to savePrompt
 
   // == Versions ==
-  async createVersion(promptId: string, content: string, note?: string, parentVersionId?: string | null): Promise<{ ok: boolean; data?: PromptVersion, error?: any }> {
-    const version: PromptVersion = {
-      id: crypto.randomUUID(),
-      promptId,
-      content,
-      note,
-      parentVersionId: parentVersionId || null,
-      createdAt: Date.now()
-    }
-    // This is an internal method called by other repository methods like savePrompt,
-    // so it doesn't need its own withCommitNotification wrapper.
-    // The calling method will handle the transaction and notification.
-    await db.prompt_versions.add(version)
-    return { ok: true, data: version }
-  },
-
   async revertToVersion(promptId: string, versionId: string, currentUnsavedContent: string): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
       ['prompts', 'prompt_versions'],
@@ -339,7 +325,11 @@ export const repository = {
         await db.categories.clear()
         await db.tags.clear()
         await db.settings.clear()
-        const newSettings = { ...db.DEFAULT_SETTINGS }
+
+        const newSettings: Settings = {
+          ...db.DEFAULT_SETTINGS,
+          id: 'global', // Explicitly set the key path
+        }
         if (currentSettings) {
             newSettings.syncEnabled = currentSettings.syncEnabled
             newSettings.syncProvider = currentSettings.syncProvider

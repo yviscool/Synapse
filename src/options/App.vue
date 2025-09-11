@@ -638,45 +638,22 @@ async function savePrompt() {
     showToast('请输入标题', 'error')
     return
   }
+
   try {
-    // 1. Find or create tags and get their IDs
     const tagNames = editingTags.value.map(t => t.trim()).filter(Boolean)
-    const tagsResult = await repository.findOrCreateTags(tagNames)
-    if (!tagsResult.ok || !tagsResult.data) {
-      throw new Error('Failed to create tags')
-    }
-    await loadTags() // Refresh tag list in UI
 
-    // 2. Prepare prompt data
-    const isNewPrompt = !editingPrompt.value.id
-    const promptData = { ...editingPrompt.value, tagIds: tagsResult.data }
-    const safePrompt = createSafePrompt(promptData)
-    const validationError = validatePrompt(safePrompt)
-    if (validationError) {
-      showToast(`数据验证失败: ${validationError}`, 'error')
-      return
-    }
+    // The content change detection for versioning is now implicitly handled inside the repo method
+    const note = hasContentChanged.value ? (changeNote.value || '内容更新') : undefined
 
-    // 3. Handle versioning (still uses old util, will be refactored next)
-    if (!isNewPrompt && hasContentChanged.value && safePrompt.id) {
-      const version = await createVersion(safePrompt.id, safePrompt.content, changeNote.value || '内容更新', safePrompt.currentVersionId)
-      safePrompt.currentVersionId = version.id
-    }
+    const { ok, error } = await repository.savePrompt(editingPrompt.value, tagNames, note)
 
-    // 4. Save prompt via repository
-    let result
-    if (isNewPrompt) {
-      result = await repository.addPrompt(safePrompt)
-    } else {
-      result = await repository.updatePrompt(safePrompt.id!, safePrompt)
-    }
-
-    if (result.ok) {
+    if (ok) {
       await triggerRefetch()
+      await loadTags() // Reload tags in case new ones were created
       closeEditor()
       showToast('保存成功', 'success')
     } else {
-      throw new Error(result.error)
+      throw error || new Error('保存 Prompt 时发生未知错误')
     }
   } catch (error) {
     console.error('Failed to save prompt:', error)

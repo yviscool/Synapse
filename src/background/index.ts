@@ -15,12 +15,15 @@ import {
 } from '@/utils/messaging'
 
 // --- Initialize Search Index & Repository Listeners ---
+console.log('[Background] Script loaded. Setting up repository listeners.')
 searchService.buildIndex().catch(console.error)
 
 // The new, disciplined way: listen for repository events after transactions are complete.
 repository.events.on('allChanged', () => {
-  console.log('[Background] Detected data change from repository, rebuilding search index.')
-  searchService.buildIndex().catch(console.error)
+  console.log('[Background] `allChanged` event received. Rebuilding search index.')
+  searchService.buildIndex().catch(error => {
+    console.error('[Background] Failed to rebuild search index after `allChanged` event:', error)
+  })
 })
 
 
