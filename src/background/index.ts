@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import { db, getSettings, queryPrompts } from '@/stores/db'
+import { searchService } from '@/services/SearchService'
 import type { Prompt } from '@/types'
 import {
   MSG,
@@ -9,6 +10,9 @@ import {
   type PromptDTO,
   type DataUpdatedPayload,
 } from '@/utils/messaging'
+
+// --- Initialize Search Index ---
+searchService.buildIndex().catch(console.error)
 
 chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
   const { type, data } = msg

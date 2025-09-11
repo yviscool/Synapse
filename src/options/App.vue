@@ -168,7 +168,7 @@
           >
             <div class="flex items-start justify-between mb-4">
               <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-gray-900 mb-2 line-clamp-2">{{ prompt.title }}</h3>
+                <h3 class="font-semibold text-gray-900 mb-2 line-clamp-2" v-html="generateHighlightedHtml(prompt.title, prompt.matches, 'title')"></h3>
                 <div class="flex items-center gap-3 text-sm text-gray-500">
                   <span class="card-date">{{ formatDate(prompt.updatedAt) }}</span>
 
@@ -215,7 +215,7 @@
             </div>
             
             <div class="mb-4">
-              <p class="text-gray-600 leading-relaxed line-clamp-3" @dblclick.stop>{{ getPreview(prompt.content) }}</p>
+              <p class="text-gray-600 leading-relaxed line-clamp-3" @dblclick.stop v-html="generateHighlightedHtml(prompt.content, prompt.matches, 'content')"></p>
             </div>
             
             <div class="flex items-center justify-between">
@@ -325,14 +325,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ui, useUI } from '@/stores/ui'
-import { db, queryPrompts } from '@/stores/db'
+import { db, queryPrompts, type PromptWithMatches } from '@/stores/db'
 import { MSG } from '@/utils/messaging'
 import type { Prompt, Category, Tag, PromptVersion } from '@/types/prompt'
+import { generateHighlightedHtml } from '@/utils/highlighter'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
 import { createVersion } from '@/utils/versionUtils'
 import { useModal } from '@/composables/useModal'
 import { onKeyStroke, refDebounced } from '@vueuse/core'
+import { parseQuery } from '@/utils/queryParser'
 import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
 import CategoryManager from './components/CategoryManager.vue'
@@ -341,13 +343,14 @@ import MergeImportModal from './components/MergeImportModal.vue'
 const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
 
 // --- State for Data and Filters ---
-const prompts = ref<Prompt[]>([])
+const prompts = ref<PromptWithMatches[]>([])
 const categories = ref<Category[]>([])
 const tags = ref<Tag[]>([])
 const availableTags = ref<Tag[]>([])
 const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const searchQueryDebounced = refDebounced(searchQuery, 300)
+const plainSearchQuery = ref('')
 const selectedCategories = ref<string[]>([])
 const selectedTags = ref<string[]>([])
 const showFavoriteOnly = ref(false)
@@ -391,38 +394,64 @@ async function fetchPrompts() {
   isLoading.value = true
 
   try {
-    // ====== PR 代码：一次传多个品类 ======
     const { prompts: newPrompts, total } = await queryPrompts({
       page: currentPage.value,
       limit: 20,
       sortBy: sortBy.value,
       favoriteOnly: showFavoriteOnly.value,
-      searchQuery: searchQueryDebounced.value,
-      categories: selectedCategories.value,   // 多品类数组
+      searchQuery: plainSearchQuery.value, // Use the plain text query
+      categories: selectedCategories.value,
       tags: selectedTags.value,
-    });
+    })
 
     if (currentPage.value === 1) {
-      prompts.value = newPrompts;
-    } else {
-      prompts.value.push(...newPrompts);
+      prompts.value = newPrompts
     }
-    totalPrompts.value = total;
-  } catch (error) {
-    console.error('Failed to fetch prompts:', error);
-    showToast('加载 Prompts 失败', 'error');
-  } finally {
-    isLoading.value = false;
+    else {
+      prompts.value.push(...newPrompts)
+    }
+    totalPrompts.value = total
+  }
+  catch (error) {
+    console.error('Failed to fetch prompts:', error)
+    showToast('加载 Prompts 失败', 'error')
+  }
+  finally {
+    isLoading.value = false
   }
 }
 
-// --- Watch for Filter Changes to Reset and Refetch ---
+// --- Watchers for Command Palette and Data Fetching ---
+
+// Watcher 1: Parses the raw search query and updates filter states
+watch(searchQueryDebounced, (newQuery) => {
+  const { text, categoryNames, tagNames } = parseQuery(newQuery)
+  plainSearchQuery.value = text
+
+  // Update selected categories based on parsed names
+  const categoryIds = categoryNames
+    .map(name => availableCategories.value.find(c => c.name.toLowerCase() === name.toLowerCase())?.id)
+    .filter(Boolean) as string[]
+  // Avoid self-triggering loop by checking for actual changes
+  if (JSON.stringify(categoryIds) !== JSON.stringify(selectedCategories.value)) {
+    selectedCategories.value = categoryIds
+  }
+
+  // Update selected tags based on parsed names
+  const tagIds = tagNames
+    .map(name => tags.value.find(t => t.name.toLowerCase() === name.toLowerCase())?.id)
+    .filter(Boolean) as string[]
+  if (JSON.stringify(tagIds) !== JSON.stringify(selectedTags.value)) {
+    selectedTags.value = tagIds
+  }
+})
+
+// Watcher 2: Triggers a refetch whenever any filter changes
 watch(
-  [searchQueryDebounced, selectedCategories, selectedTags, showFavoriteOnly, sortBy],
+  [plainSearchQuery, selectedCategories, selectedTags, showFavoriteOnly, sortBy],
   () => {
     currentPage.value = 1
     totalPrompts.value = 0
-    // prompts.value = [] // Do not clear here, it causes a flicker. Let fetchPrompts replace it.
     fetchPrompts()
   },
   { deep: true },
@@ -727,11 +756,6 @@ async function handleVersionDeleted(versionId: string) {
   if (previewingVersion.value && previewingVersion.value.version.id === versionId) {
     await reloadAndReEditCurrentPrompt()
   }
-}
-
-function getPreview(content: string): string {
-  const textContent = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
-  return textContent.length > 120 ? textContent.substring(0, 120) + '...' : textContent
 }
 
 function formatDate(timestamp: number): string {

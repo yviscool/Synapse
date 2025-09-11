@@ -1,6 +1,8 @@
-import Dexie, { Table } from 'dexie'
+import Dexie, { type Table } from 'dexie'
+import type Fuse from 'fuse.js'
 import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
 import { createSafePrompt } from '@/utils/promptUtils'
+import { searchService, type SearchablePrompt } from '@/services/SearchService'
 
 export class APMDB extends Dexie {
   prompts!: Table<Prompt, string>
@@ -26,6 +28,31 @@ export class APMDB extends Dexie {
 }
 
 export const db = new APMDB()
+
+// Helper function to convert a Prompt to a SearchablePrompt
+async function promptToSearchablePrompt(prompt: Prompt): Promise<SearchablePrompt> {
+  const tagMap = new Map((await db.tags.toArray()).map(t => [t.id, t.name]))
+  return {
+    ...prompt,
+    tagNames: prompt.tagIds.map(id => tagMap.get(id)).filter(Boolean) as string[],
+  }
+}
+
+// Dexie hooks for real-time sync with SearchService
+db.prompts.hook('creating', async (primKey, obj, trans) => {
+  const searchablePrompt = await promptToSearchablePrompt(obj)
+  searchService.add(searchablePrompt)
+})
+
+db.prompts.hook('updating', async (modifications, primKey, obj, trans) => {
+  // The hook gives us the modified prompt object directly
+  const searchablePrompt = await promptToSearchablePrompt(obj)
+  searchService.update(searchablePrompt)
+})
+
+db.prompts.hook('deleting', async (primKey, obj, trans) => {
+  searchService.remove(primKey)
+})
 
 export const DEFAULT_SETTINGS: Settings = {
   id: 'global',
@@ -156,17 +183,23 @@ export interface QueryPromptsParams {
 }
 
 /**
+ * Extends the Prompt type to include Fuse.js match details for highlighting.
+ */
+export type PromptWithMatches = Prompt & {
+  matches?: readonly Fuse.FuseResultMatch[]
+}
+
+/**
  * Defines the structure of the returned data from queryPrompts.
  */
 export interface QueryPromptsResult {
-  prompts: Prompt[];
+  prompts: PromptWithMatches[];
   total: number;
 }
 
 /**
- * Performs an advanced, paginated query for prompts.
- * It leverages IndexedDB indexes for sorting and then applies filters efficiently
- * before retrieving a single page of data from the database.
+ * Performs an advanced, paginated query for prompts, leveraging Fuse.js for efficient
+ * fuzzy searching and Dexie for filtering and retrieval.
  *
  * @param params - The query parameters.
  * @returns A promise that resolves to an object containing the prompts for the page and the total count of matching prompts.
@@ -180,51 +213,64 @@ export async function queryPrompts(params: QueryPromptsParams = {}): Promise<Que
     sortBy = 'updatedAt',
     page = 1,
     limit = 20,
-  } = params;
+  } = params
 
-  const offset = (page - 1) * limit;
-
-  // Start with a collection sorted in the desired order via index.
-  let collection = db.prompts.orderBy(sortBy);
-
-  if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
-    collection = collection.reverse();
-  }
-
-  const filterConditions: ((p: Prompt) => boolean)[] = [];
-
-  if (favoriteOnly) {
-    filterConditions.push(p => !!p.favorite);
-  }
-
-  if (categories && categories.length > 0) {
-    filterConditions.push(p => categories.some(catId => p.categoryIds.includes(catId)));
-  }
-
-  if (tags && tags.length > 0) {
-    filterConditions.push(p => tags.every(tagId => p.tagIds.includes(tagId)));
-  }
-
-  let finalCollection = collection;
-
-  if (filterConditions.length > 0) {
-    finalCollection = collection.filter(prompt => filterConditions.every(cond => cond(prompt)));
-  }
+  const offset = (page - 1) * limit
+  let filteredPrompts: PromptWithMatches[] = []
 
   if (searchQuery) {
-    const query = searchQuery.toLowerCase();
-    const tagMap = new Map((await db.tags.toArray()).map(t => [t.id, t.name]));
+    // 1. Use Fuse.js for efficient fuzzy searching
+    const searchResults = searchService.search(searchQuery)
+    if (searchResults.length === 0) {
+      return { prompts: [], total: 0 } // No search results, return early
+    }
 
-    finalCollection = finalCollection.filter(p => {
-      const tagNames = (p.tagIds || []).map(tid => tagMap.get(tid) || '').join(' ').toLowerCase();
-      return p.title.toLowerCase().includes(query) ||
-             p.content.toLowerCase().includes(query) ||
-             tagNames.includes(query);
-    });
+    const resultIds = searchResults.map(res => res.item.id)
+    const matchesMap = new Map(searchResults.map(res => [res.item.id, res.matches]))
+
+    // 2. Fetch only the matching prompts from Dexie
+    const promptsFromDb = await db.prompts.where('id').anyOf(resultIds).toArray()
+
+    // Create a map for quick reordering based on search score
+    const promptsMap = new Map(promptsFromDb.map(p => [p.id, p]))
+
+    // 3. Reorder the prompts according to Fuse.js relevance score and attach matches
+    filteredPrompts = resultIds
+      .map((id) => {
+        const prompt = promptsMap.get(id)
+        if (!prompt) return null
+        return { ...prompt, matches: matchesMap.get(id) }
+      })
+      .filter(Boolean) as PromptWithMatches[]
+  }
+  else {
+    // No search query, start with a Dexie collection sorted as requested
+    let collection = db.prompts.orderBy(sortBy)
+    if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
+      collection = collection.reverse()
+    }
+    filteredPrompts = await collection.toArray()
   }
 
-  const total = await finalCollection.count();
-  const prompts = await finalCollection.offset(offset).limit(limit).toArray();
+  // 4. Apply additional filters (favorite, categories, tags) on the (potentially search-filtered) list
+  const filterConditions: ((p: Prompt) => boolean)[] = []
+  if (favoriteOnly) {
+    filterConditions.push(p => !!p.favorite)
+  }
+  if (categories && categories.length > 0) {
+    filterConditions.push(p => categories.some(catId => p.categoryIds.includes(catId)))
+  }
+  if (tags && tags.length > 0) {
+    filterConditions.push(p => tags.every(tagId => p.tagIds.includes(tagId)))
+  }
 
-  return { prompts, total };
+  if (filterConditions.length > 0) {
+    filteredPrompts = filteredPrompts.filter(p => filterConditions.every(cond => cond(p)))
+  }
+
+  // 5. Apply pagination
+  const total = filteredPrompts.length
+  const paginatedPrompts = filteredPrompts.slice(offset, offset + limit)
+
+  return { prompts: paginatedPrompts, total }
 }
