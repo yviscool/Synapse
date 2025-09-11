@@ -29,31 +29,10 @@ export class APMDB extends Dexie {
 
 export const db = new APMDB()
 
-// --- Dexie Hooks for real-time sync with SearchService ---
-
-// Update search index when prompts change by notifying the background script
-db.prompts.hook('creating', (primKey, obj, trans) => {
-  chrome.runtime.sendMessage({ type: MSG.ADD_TO_INDEX, data: obj })
-})
-
-db.prompts.hook('updating', (modifications, primKey, obj, trans) => {
-  chrome.runtime.sendMessage({ type: MSG.UPDATE_IN_INDEX, data: obj })
-})
-
-db.prompts.hook('deleting', (primKey, obj, trans) => {
-  chrome.runtime.sendMessage({ type: MSG.REMOVE_FROM_INDEX, data: primKey })
-})
-
-// When tags change, request a full index rebuild from the background script
-db.tags.hook('creating', () => {
-  chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
-})
-db.tags.hook('updating', () => {
-  chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
-})
-db.tags.hook('deleting', () => {
-  chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
-})
+// All database write operations and their corresponding notifications are now handled
+// by the Repository pattern in `repository.ts`.
+// This ensures that notifications are only sent *after* a transaction is complete,
+// preventing race conditions and "Transaction committed too early" errors.
 
 export const DEFAULT_SETTINGS: Settings = {
   id: 'global',
@@ -76,101 +55,8 @@ export async function getSettings(): Promise<Settings> {
   return s
 }
 
-export async function setSettings(patch: Partial<Settings>) {
-  const cur = await getSettings()
-  await db.settings.put({ ...cur, ...patch })
-}
-
-
-/**
- * Merges prompts into specific categories and adds additional tags.
- * @param promptsToImport - Array of prompts from the imported file.
- * @param targetCategoryIds - The IDs of the categories to merge into.
- * @param additionalTagsFromModal - A list of strings for extra tags to add from the modal.
- * @returns An object with counts of imported and skipped prompts.
- */
-export async function mergePrompts(
-  promptsToImport: Prompt[],
-  targetCategoryIds: string[],
-  additionalTagsFromModal: string[],
-): Promise<{ importedCount: number; skippedCount: number }> {
-  return db.transaction('rw', [db.prompts, db.tags], async () => {
-    const existingTitles = new Set((await db.prompts.toArray()).map(p => p.title))
-    const newPrompts: Prompt[] = []
-
-    // 1. Collect ALL unique tag names from all sources
-    const allTagNames = new Set<string>()
-    additionalTagsFromModal.forEach(t => allTagNames.add(t))
-    promptsToImport.forEach((p) => {
-      if (Array.isArray(p.tagIds)) {
-        // We assume the tagIds from the file are actually tag names
-        p.tagIds.forEach(tagName => allTagNames.add(String(tagName)))
-      }
-    })
-
-    // 2. Resolve all tag names to IDs in a batch
-    const tagNameToIdMap = new Map<string, string>()
-    const tagNamesArray = [...allTagNames]
-
-    if (tagNamesArray.length > 0) {
-      const existingTags = await db.tags.where('name').anyOf(tagNamesArray).toArray()
-      existingTags.forEach(tag => tagNameToIdMap.set(tag.name, tag.id))
-
-      for (const name of tagNamesArray) {
-        if (!tagNameToIdMap.has(name)) {
-          const newTag = { id: crypto.randomUUID(), name }
-          await db.tags.add(newTag)
-          tagNameToIdMap.set(name, newTag.id)
-        }
-      }
-    }
-
-    // 3. Process each prompt
-    for (const p of promptsToImport) {
-      if (!p.title || existingTitles.has(p.title)) {
-        continue
-      }
-
-      // Resolve tag names from the file to IDs
-      const tagIdsFromFile: string[] = []
-      if (Array.isArray(p.tagIds)) {
-        p.tagIds.forEach((tagName) => {
-          const id = tagNameToIdMap.get(String(tagName))
-          if (id) tagIdsFromFile.push(id)
-        })
-      }
-
-      // Resolve tag names from the modal input to IDs
-      const tagIdsFromModal: string[] = additionalTagsFromModal.map(name => tagNameToIdMap.get(name)).filter(Boolean) as string[]
-
-      // Combine them
-      const finalTagIds = [...new Set([...tagIdsFromFile, ...tagIdsFromModal])]
-
-      const newPrompt = createSafePrompt({
-        title: p.title,
-        content: p.content,
-        categoryIds: targetCategoryIds,
-        tagIds: finalTagIds, // Use the resolved IDs
-        favorite: false,
-      })
-      newPrompt.id = crypto.randomUUID()
-
-      newPrompts.push(newPrompt)
-      existingTitles.add(newPrompt.title)
-    }
-
-    if (newPrompts.length > 0) {
-      await db.prompts.bulkAdd(newPrompts)
-      // Manually trigger a search index rebuild as bulkAdd does not trigger hooks.
-      await chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
-    }
-
-    return {
-      importedCount: newPrompts.length,
-      skippedCount: promptsToImport.length - newPrompts.length,
-    }
-  })
-}
+// The setSettings function has been removed.
+// All settings modifications must go through the repository.
 
 /**
  * Defines the parameters for querying prompts.
@@ -308,36 +194,4 @@ export async function queryPrompts(params: QueryPromptsParams = {}): Promise<Que
   const paginatedPrompts = filteredPrompts.slice(offset, offset + limit)
 
   return { prompts: paginatedPrompts, total }
-}
-
-/**
- * Imports data from a backup file, overwriting existing data.
- * This function is designed to be called from the UI.
- * @param importedData - The parsed data from the backup file.
- */
-export async function importDataFromBackup(importedData: any): Promise<void> {
-  const currentSettings = await getSettings()
-
-  await db.transaction('rw', [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings], async () => {
-    await db.prompts.clear()
-    await db.prompt_versions.clear()
-    await db.categories.clear()
-    await db.tags.clear()
-
-    if (importedData.prompts) await db.prompts.bulkPut(importedData.prompts)
-    if (importedData.prompt_versions) await db.prompt_versions.bulkPut(importedData.prompt_versions)
-    if (importedData.categories) await db.categories.bulkPut(importedData.categories)
-    if (importedData.tags) await db.tags.bulkPut(importedData.tags)
-
-    const settingsToApply = importedData.settings || DEFAULT_SETTINGS
-    // Preserve current sync settings
-    settingsToApply.syncEnabled = currentSettings.syncEnabled
-    settingsToApply.syncProvider = currentSettings.syncProvider
-    settingsToApply.userProfile = currentSettings.userProfile
-    settingsToApply.lastSyncTimestamp = currentSettings.lastSyncTimestamp
-    await db.settings.put(settingsToApply)
-  })
-
-  // Manually trigger a search index rebuild after import.
-  await chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
 }

@@ -326,12 +326,11 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ui, useUI } from '@/stores/ui'
 import { db, queryPrompts, type PromptWithMatches } from '@/stores/db'
-import { MSG } from '@/utils/messaging'
+import { repository } from '@/stores/repository'
 import type { Prompt, Category, Tag, PromptVersion } from '@/types/prompt'
 import { generateHighlightedHtml } from '@/utils/highlighter'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
-import { createVersion } from '@/utils/versionUtils'
 import { useModal } from '@/composables/useModal'
 import { onKeyStroke, refDebounced } from '@vueuse/core'
 import { parseQuery } from '@/utils/queryParser'
@@ -621,14 +620,14 @@ async function triggerRefetch() {
 }
 
 async function toggleFavorite(prompt: Prompt) {
-  try {
-    await db.prompts.update(prompt.id, { favorite: !prompt.favorite, updatedAt: Date.now() })
-    showToast(!prompt.favorite ? '已添加到收藏' : '已取消收藏', 'success')
+  const newFavoriteState = !prompt.favorite
+  const { ok } = await repository.updatePrompt(prompt.id, { favorite: newFavoriteState })
+  if (ok) {
+    showToast(newFavoriteState ? '已添加到收藏' : '已取消收藏', 'success')
     // Optimistic update
     const p = prompts.value.find(p => p.id === prompt.id)
-    if (p) p.favorite = !p.favorite
-  } catch (error) {
-    console.error('Failed to toggle favorite:', error)
+    if (p) p.favorite = newFavoriteState
+  } else {
     showToast('操作失败', 'error')
   }
 }
@@ -638,45 +637,23 @@ async function savePrompt() {
     showToast('请输入标题', 'error')
     return
   }
+
   try {
     const tagNames = editingTags.value.map(t => t.trim()).filter(Boolean)
-    const tagIds: string[] = []
-    if (tagNames.length > 0) {
-      const existingTags = await db.tags.where('name').anyOf(tagNames).toArray()
-      for (const name of tagNames) {
-        const existingTag = existingTags.find(t => t.name === name)
-        if (existingTag) {
-          tagIds.push(existingTag.id)
-        } else {
-          const newTag = { id: nanoid(), name }
-          await db.tags.put(newTag)
-          tagIds.push(newTag.id)
-        }
-      }
-      await loadTags()
+
+    // The content change detection for versioning is now implicitly handled inside the repo method
+    const note = hasContentChanged.value ? (changeNote.value || '内容更新') : undefined
+
+    const { ok, error } = await repository.savePrompt(editingPrompt.value, tagNames, note)
+
+    if (ok) {
+      await triggerRefetch()
+      await loadTags() // Reload tags in case new ones were created
+      closeEditor()
+      showToast('保存成功', 'success')
+    } else {
+      throw error || new Error('保存 Prompt 时发生未知错误')
     }
-    const isNewPrompt = !editingPrompt.value.id
-    const now = Date.now()
-    const promptData = { ...editingPrompt.value, categoryIds: editingPrompt.value?.categoryIds || [], tagIds, updatedAt: now }
-    if (!promptData.id) {
-      promptData.id = nanoid()
-      promptData.createdAt = now
-    }
-    const safePrompt = createSafePrompt(promptData)
-    const validationError = validatePrompt(safePrompt)
-    if (validationError) {
-      showToast(`数据验证失败: ${validationError}`, 'error')
-      return
-    }
-    if (!isNewPrompt && hasContentChanged.value) {
-      const version = await createVersion(safePrompt.id, safePrompt.content, changeNote.value || '内容更新', safePrompt.currentVersionId)
-      safePrompt.currentVersionId = version.id
-    }
-    await db.prompts.put(safePrompt)
-    await triggerRefetch()
-    closeEditor()
-    showToast('保存成功', 'success')
-    chrome.runtime.sendMessage({ type: MSG.DATA_UPDATED, data: { scope: 'prompts', version: Date.now().toString() } })
   } catch (error) {
     console.error('Failed to save prompt:', error)
     showToast(`保存失败: ${(error as Error).message}`, 'error')
@@ -684,25 +661,24 @@ async function savePrompt() {
 }
 
 async function deletePrompt(id: string) {
-  const ok = await askConfirm('确定要删除这个 Prompt 吗？其所有历史版本也将被删除。', { type: 'danger' })
-  if (!ok) return
-  try {
-    await db.transaction('rw', [db.prompts, db.prompt_versions], async () => {
-      await db.prompt_versions.where('promptId').equals(id).delete()
-      await db.prompts.delete(id)
-    })
+  const confirm = await askConfirm('确定要删除这个 Prompt 吗？其所有历史版本也将被删除。', { type: 'danger' })
+  if (!confirm) return
+
+  const { ok } = await repository.deletePrompt(id)
+  if (ok) {
     await triggerRefetch()
     showToast('删除成功', 'success')
-    chrome.runtime.sendMessage({ type: MSG.DATA_UPDATED, data: { scope: 'prompts', version: Date.now().toString() } })
-  } catch (error) {
-    console.error('Failed to delete prompt:', error)
+  } else {
     showToast('删除失败', 'error')
   }
 }
 
 async function copyPrompt(prompt: Prompt) {
+  // Updating lastUsedAt is a "soft" update, doesn't need to trigger a full re-index
+  // We can use the repository for this to be consistent
+  repository.updatePrompt(prompt.id, { lastUsedAt: Date.now() })
+
   try {
-    await db.prompts.update(prompt.id, { lastUsedAt: Date.now() })
     await navigator.clipboard.writeText(prompt.content)
     copiedId.value = prompt.id
     setTimeout(() => { if (copiedId.value === prompt.id) copiedId.value = null }, 1500)

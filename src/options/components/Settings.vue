@@ -72,6 +72,7 @@
               <div class="flex gap-2">
                 <button @click="handleRestoreFromCloud(file.id)" class="text-sm text-blue-600 hover:underline">恢复</button>
                 <button @click="handleDownloadFromCloud(file.id, file.name)" class="text-sm text-gray-600 hover:underline">下载</button>
+                <button @click="handleDeleteFromCloud(file.id)" class="text-sm text-red-600 hover:underline">删除</button>
               </div>
             </li>
           </ul>
@@ -111,10 +112,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useUI } from '@/stores/ui'
-import { db, getSettings, importDataFromBackup, DEFAULT_SETTINGS } from '@/stores/db'
+import { db, getSettings, DEFAULT_SETTINGS } from '@/stores/db' // Read-only and defaults
+import { repository } from '@/stores/repository'
 import { syncManager } from '@/stores/sync'
 import type { Settings } from '@/types/prompt'
-import { MSG } from '@/utils/messaging'
 
 interface DriveFile {
   id: string;
@@ -215,6 +216,20 @@ async function handleDownloadFromCloud(fileId: string, fileName: string) {
   }
 }
 
+async function handleDeleteFromCloud(fileId: string) {
+  const confirmed = await askConfirm('确定要永久删除此云端备份吗？此操作不可撤销。', { type: 'danger' });
+  if (!confirmed) return;
+
+  showToast('正在删除...', 'success');
+  try {
+    await syncManager.deleteCloudBackup(fileId);
+    await loadBackupHistory();
+    showToast('备份已删除', 'success');
+  } catch (error) {
+    showToast(`删除失败: ${(error as Error).message}`, 'error');
+  }
+}
+
 async function handleEnableSync(provider: 'google-drive') {
   const confirmed = await askConfirm(`即将跳转到 Google 进行授权，以允许 Synapse 在您的 Google Drive 中创建专属应用文件夹来存放备份数据。我们不会访问您的任何其他文件。`, { type: 'default' })
   if (!confirmed) return
@@ -301,11 +316,14 @@ const importData = async (event: Event) => {
     const confirmed = await askConfirm('从备份恢复将覆盖此设备上的所有数据，但会保留当前的云同步设置。此操作不可撤销。是否继续？', { type: 'danger' })
     if (!confirmed) return
 
-    await importDataFromBackup(importedData)
+    const { ok, error } = await repository.importDataFromBackup(importedData)
 
-    showToast('数据恢复成功！页面将刷新。', 'success')
-    
-    setTimeout(() => window.location.reload(), 1500)
+    if (ok) {
+      showToast('数据恢复成功！页面将刷新。', 'success')
+      setTimeout(() => window.location.reload(), 1500)
+    } else {
+      throw error
+    }
 
   } catch (error) {
     console.error('导入数据失败:', error)
@@ -320,31 +338,13 @@ const resetData = async () => {
   if (!confirmed) return
 
   try {
-    const currentSettings = await getSettings();
-
-    await db.transaction('rw', [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings], async () => {
-      await db.prompts.clear();
-      await db.prompt_versions.clear();
-      await db.categories.clear();
-      await db.tags.clear();
-      await db.settings.clear();
-      
-      // Put default settings but preserve sync state
-      const newSettings = { ...DEFAULT_SETTINGS };
-      newSettings.syncEnabled = currentSettings.syncEnabled;
-      newSettings.syncProvider = currentSettings.syncProvider;
-      newSettings.userProfile = currentSettings.userProfile;
-      newSettings.lastSyncTimestamp = currentSettings.lastSyncTimestamp;
-      await db.settings.put(newSettings);
-    });
-
-    // Explicitly tell the background script to rebuild the index with empty data
-    await chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX });
-
-    showToast('所有数据已重置！页面将刷新。', 'success')
-    
-    setTimeout(() => window.location.reload(), 1500)
-
+    const { ok, error } = await repository.resetAllData()
+    if (ok) {
+      showToast('所有数据已重置！页面将刷新。', 'success')
+      setTimeout(() => window.location.reload(), 1500)
+    } else {
+      throw error
+    }
   } catch (error) {
     console.error('重置数据失败:', error)
     showToast('重置失败，请重试', 'error')

@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import { db, getSettings, queryPrompts } from '@/stores/db'
+import { repository } from '@/stores/repository'
 import { searchService } from '@/services/SearchService'
 import type { Prompt } from '@/types'
 import {
@@ -13,11 +14,32 @@ import {
   type PerformSearchResult,
 } from '@/utils/messaging'
 
-// --- Initialize Search Index ---
+// --- Initialize Search Index & Repository Listeners ---
+console.log('[Background] Script loaded. Setting up repository listeners.')
 searchService.buildIndex().catch(console.error)
+
+/**
+ * Handles all data update notifications.
+ * This is the single source of truth for reacting to data changes.
+ */
+// Listener for data changes originating *within* the background script's context
+repository.events.on('allChanged', () => {
+  // This case happens for minor changes initiated from the background script itself (e.g. future features).
+  // It's less critical but good to have. It will fetch from its own DB connection.
+  console.log('[Background] Internal data change detected. Rebuilding index from DB.')
+  searchService.buildIndex()
+})
 
 chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
   const { type, data } = msg
+
+  if (type === MSG.REBUILD_INDEX_WITH_DATA) {
+    console.log('[Background] Received data payload to rebuild index.')
+    searchService.buildIndex(data)
+      .then(() => sendResponse({ ok: true }))
+      .catch(e => sendResponse({ ok: false, error: e.message }))
+    return true // async
+  }
 
   if (type === MSG.GET_PROMPTS) {
     handleGetPrompts(data)
@@ -41,7 +63,8 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
   }
 
   if (type === MSG.DATA_UPDATED) {
-    // Broadcast to all content scripts that data has changed
+    // This is a generic update message, we can just broadcast it
+    // The specific index rebuild is handled by REBUILD_INDEX_WITH_DATA
     broadcastToTabs(msg)
     return false // No response needed
   }
@@ -65,33 +88,62 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
     return true // Return true to indicate async response
   }
 
-  // --- Indexing Messages ---
-  if (type === MSG.REBUILD_INDEX) {
-    searchService.buildIndex()
-      .then(() => sendResponse({ ok: true }))
-      .catch(e => sendResponse({ ok: false, error: e.message }))
-    return true
-  }
-  if (type === MSG.ADD_TO_INDEX) {
-    searchService.add(data as Prompt)
-    return false // Fire and forget
-  }
-  if (type === MSG.UPDATE_IN_INDEX) {
-    searchService.update(data as Prompt)
-    return false // Fire and forget
-  }
-  if (type === MSG.REMOVE_FROM_INDEX) {
-    searchService.remove(data as string)
-    return false // Fire and forget
-  }
+  // --- Indexing Messages (OBSOLETE) ---
+  // These are no longer needed. The repository now notifies the background script
+  // directly and safely after a transaction is completed.
 })
+
+/**
+ * A dedicated search function for the background script to avoid re-entrant messaging.
+ * It performs a search and then fetches the corresponding data directly from the database.
+ */
+async function searchPromptsInBackground(query: string) {
+  if (!query) {
+    return { prompts: [], total: 0 }
+  }
+
+  const searchResults = searchService.search(query)
+  if (searchResults.length === 0) {
+    return { prompts: [], total: 0 }
+  }
+
+  const resultIds = searchResults.map(res => res.item.id)
+  const matchesMap = new Map(searchResults.map(res => [res.item.id, res.matches]))
+
+  const promptsFromDb = await db.prompts.where('id').anyOf(resultIds).toArray()
+
+  const promptsMap = new Map(promptsFromDb.map(p => [p.id, p]))
+
+  const filteredPrompts = resultIds
+    .map((id) => {
+      const prompt = promptsMap.get(id)
+      if (!prompt) return null
+      return { ...prompt, matches: matchesMap.get(id) }
+    })
+    .filter(Boolean)
+
+  return { prompts: filteredPrompts, total: filteredPrompts.length }
+}
+
 
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
 ): Promise<{ data: PromptDTO[]; total: number; version: string }> {
-  // 1. Map `q` to `searchQuery` and then call the unified query logic
+  // 1. Map `q` to `searchQuery` and then call the correct logic
   const { q, ...restPayload } = payload || {}
-  const { prompts, total } = await queryPrompts({ searchQuery: q, ...restPayload })
+
+  let prompts, total
+  if (q) {
+    // If there is a search query, use the direct background search function
+    const searchResult = await searchPromptsInBackground(q)
+    prompts = searchResult.prompts
+    total = searchResult.total
+  } else {
+    // Otherwise, use the standard query function (for category filtering, etc.)
+    const queryResult = await queryPrompts({ ...restPayload })
+    prompts = queryResult.prompts
+    total = queryResult.total
+  }
 
   // 2. Map to DTOs, preserving matches data
   const [categories, allTags] = await Promise.all([db.categories.toArray(), db.tags.toArray()])
@@ -135,23 +187,14 @@ async function saveSelectionAsPrompt(text: string) {
   if (!text || !text.trim())
     return
 
-  try {
-    const now = Date.now()
-    const title = text.trim().slice(0, 40) + (text.trim().length > 40 ? '...' : '')
+  const title = text.trim().slice(0, 40) + (text.trim().length > 40 ? '...' : '')
 
-    const newPrompt: Prompt = {
-      id: nanoid(),
-      title,
-      content: text,
-      categoryIds: [],
-      tagIds: [],
-      createdAt: now,
-      updatedAt: now,
-      currentVersionId: null,
-    }
+  const { ok, error } = await repository.addPrompt({
+    title,
+    content: text,
+  })
 
-    await db.prompts.put(newPrompt)
-
+  if (ok) {
     // Notify user
     chrome.notifications.create({
       type: 'basic',
@@ -159,14 +202,10 @@ async function saveSelectionAsPrompt(text: string) {
       title: 'Synapse',
       message: '提示词已保存！',
     })
-
-    // Notify other parts of the extension to update data
-    broadcastToTabs({
-      type: MSG.DATA_UPDATED,
-      data: { scope: 'prompts', version: Date.now().toString() },
-    })
+    // The repository's `withCommitNotification` already handles broadcasting the DATA_UPDATED message,
+    // so we don't need to do it here anymore.
   }
-  catch (error) {
+  else {
     console.error('Failed to save prompt from selection:', error)
     chrome.notifications.create({
       type: 'basic',

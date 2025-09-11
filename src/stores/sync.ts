@@ -3,7 +3,8 @@
  *
  * This service manages the entire lifecycle of syncing data with a cloud provider.
  */
-import { db, getSettings, setSettings } from '@/stores/db'
+import { db, getSettings } from '@/stores/db'
+import { repository } from '@/stores/repository'
 import * as gdrive from '@/utils/googleDriveApi'
 import { searchService } from '@/services/SearchService'
 import { MSG } from '@/utils/messaging'
@@ -33,7 +34,8 @@ class SyncManager {
           picture: profile.picture,
         },
       }
-      await setSettings(newSettings)
+      const currentSettings = await getSettings()
+      await repository.setSettings({ ...currentSettings, ...newSettings })
       await this.triggerSync(true) // Force upload on first sync
     } catch (error) {      
       console.error('Failed to enable sync:', error)
@@ -53,7 +55,8 @@ class SyncManager {
       userProfile: undefined,
       lastSyncTimestamp: undefined,
     }
-    await setSettings(newSettings)
+    const currentSettings = await getSettings()
+    await repository.setSettings({ ...currentSettings, ...newSettings })
   }
 
   /**
@@ -93,7 +96,8 @@ class SyncManager {
       }
 
       await this.pruneOldBackups();
-      await setSettings({ lastSyncTimestamp: new Date().getTime() })
+      const currentSettings = await getSettings()
+      await repository.setSettings({ ...currentSettings, lastSyncTimestamp: new Date().getTime() })
 
     } catch (error) {
       console.error('Sync failed:', error)
@@ -174,13 +178,17 @@ class SyncManager {
 
   async restoreFromCloudBackup(fileId:string) {
     await this.downloadRemoteData(fileId)
-    // Manually trigger a search index rebuild after restoring data.
-    await chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
-    await setSettings({ lastSyncTimestamp: new Date().getTime() })
+    // The repository notifications will handle the index rebuild.
+    const currentSettings = await getSettings()
+    await repository.setSettings({ ...currentSettings, lastSyncTimestamp: new Date().getTime() })
   }
 
   async downloadCloudBackup(fileId: string) {
     return gdrive.downloadBackupFile(fileId);
+  }
+
+  async deleteCloudBackup(fileId: string) {
+    return gdrive.deleteFile(fileId);
   }
 }
 

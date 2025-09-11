@@ -106,6 +106,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, onBeforeUpdate, watch } from 'vue'
 import { db } from '@/stores/db'
+import { repository } from '@/stores/repository'
 import type { Prompt } from '@/types'
 import { MSG } from '@/utils/messaging'
 
@@ -212,7 +213,9 @@ async function selectPrompt(prompt: Prompt, element: HTMLElement) {
   exitWithAnimation(element, async () => {
     try {
       await navigator.clipboard.writeText(prompt.content)
-      await db.prompts.update(prompt.id, { lastUsedAt: Date.now(), updatedAt: Date.now() })
+      // This is a "soft" update, but we use the repository for consistency.
+      // The notification will fire, but it's a small price for correctness.
+      await repository.updatePrompt(prompt.id, { lastUsedAt: Date.now() })
     } catch (e) {
       console.error("Failed to copy or update prompt:", e)
     }

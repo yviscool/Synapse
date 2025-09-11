@@ -65,11 +65,14 @@ async function fetchData() {
   isLoading.value = true
 
   try {
-    const payload = {
+    const payload: any = {
       q: searchQueryDebounced.value,
-      category: selectedCategory.value,
       page: currentPage.value,
       limit: 50,
+    }
+    // Only apply category filter if there is no search query
+    if (!searchQueryDebounced.value) {
+      payload.category = selectedCategory.value
     }
     const res: ResponseMessage<(PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]> & { total?: number } = await chrome.runtime.sendMessage({ type: MSG.GET_PROMPTS, data: payload })
 
