@@ -42,19 +42,35 @@ async function withCommitNotification(
   eventData?: any,
 ) {
   try {
-    const result = await db.transaction('rw', tables as Dexie.Table[], (trans) => {
-      trans.on('complete', () => {
+    const result = await db.transaction('rw', tables as Dexie.Table[], async (trans) => {
+      const opResult = await operation(trans)
+
+      trans.on('complete', async () => {
         console.log(`[Repository] Transaction completed. Emitting '${eventType}'.`)
         events.emit(eventType, eventData)
-        chrome.runtime.sendMessage({
-          type: MSG.DATA_UPDATED,
-          data: { scope: eventType.replace('Changed', ''), version: Date.now().toString() },
-        })
+
+        // For large-scale changes, we now explicitly send all data to the background
+        // to rebuild its index, avoiding stale data issues.
+        if (eventType === 'allChanged') {
+          const [prompts, tags] = await Promise.all([db.prompts.toArray(), db.tags.toArray()])
+          chrome.runtime.sendMessage({
+            type: MSG.REBUILD_INDEX_WITH_DATA,
+            data: { prompts, tags },
+          })
+        } else {
+          // For smaller changes, a generic update notification is sufficient.
+          chrome.runtime.sendMessage({
+            type: MSG.DATA_UPDATED,
+            data: { scope: eventType.replace('Changed', ''), version: Date.now().toString() },
+          })
+        }
       })
+
       trans.on('error', (err) => {
         console.error('[Repository] Transaction failed.', err)
       })
-      return operation(trans)
+
+      return opResult
     })
     return { ok: true, data: result }
   } catch (error) {

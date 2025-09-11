@@ -48,20 +48,31 @@ function updateTagCache(allTags: Tag[]): void {
 
 /**
  * Builds the search index from scratch.
- * This should be called once when the application starts.
+ * If data is provided, it uses that data. Otherwise, it fetches from the DB.
+ * @param data - Optional data payload containing prompts and tags.
  */
-async function buildIndex(): Promise<void> {
-  const [prompts, allTags] = await Promise.all([
-    db.prompts.toArray(),
-    db.tags.toArray(),
-  ])
+async function buildIndex(data?: { prompts: Prompt[], tags: Tag[] }): Promise<void> {
+  let promptsToBuild: Prompt[] = []
+  let tagsToBuild: Tag[] = []
 
-  updateTagCache(allTags)
+  if (data) {
+    console.log('[SearchService] Building index from provided data payload.')
+    promptsToBuild = data.prompts
+    tagsToBuild = data.tags
+  } else {
+    console.log('[SearchService] Building index by fetching from DB.')
+    const [promptsFromDb, tagsFromDb] = await Promise.all([
+      db.prompts.toArray(),
+      db.tags.toArray(),
+    ])
+    promptsToBuild = promptsFromDb
+    tagsToBuild = tagsFromDb
+  }
 
-  const searchablePrompts = prompts.map(convertToSearchable)
-
+  updateTagCache(tagsToBuild)
+  const searchablePrompts = promptsToBuild.map(convertToSearchable)
   fuse = new Fuse(searchablePrompts, getFuseOptions())
-  console.log('Fuse.js index built successfully.')
+  console.log(`[SearchService] Index rebuilt with ${promptsToBuild.length} items.`)
 }
 
 /**

@@ -22,18 +22,24 @@ searchService.buildIndex().catch(console.error)
  * Handles all data update notifications.
  * This is the single source of truth for reacting to data changes.
  */
-function handleDataUpdate(source: 'internal_event' | 'external_message') {
-  console.log(`[Background] Data update triggered from: ${source}. Rebuilding search index.`)
-  searchService.buildIndex().catch(error => {
-    console.error(`[Background] Failed to rebuild search index after update from ${source}:`, error)
-  })
-}
-
 // Listener for data changes originating *within* the background script's context
-repository.events.on('allChanged', () => handleDataUpdate('internal_event'))
+repository.events.on('allChanged', () => {
+  // This case happens for minor changes initiated from the background script itself (e.g. future features).
+  // It's less critical but good to have. It will fetch from its own DB connection.
+  console.log('[Background] Internal data change detected. Rebuilding index from DB.')
+  searchService.buildIndex()
+})
 
 chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
   const { type, data } = msg
+
+  if (type === MSG.REBUILD_INDEX_WITH_DATA) {
+    console.log('[Background] Received data payload to rebuild index.')
+    searchService.buildIndex(data)
+      .then(() => sendResponse({ ok: true }))
+      .catch(e => sendResponse({ ok: false, error: e.message }))
+    return true // async
+  }
 
   if (type === MSG.GET_PROMPTS) {
     handleGetPrompts(data)
@@ -57,9 +63,8 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
   }
 
   if (type === MSG.DATA_UPDATED) {
-    // This message comes from other contexts (e.g., options page)
-    handleDataUpdate('external_message')
-    // Also broadcast to all content scripts that data has changed
+    // This is a generic update message, we can just broadcast it
+    // The specific index rebuild is handled by REBUILD_INDEX_WITH_DATA
     broadcastToTabs(msg)
     return false // No response needed
   }
