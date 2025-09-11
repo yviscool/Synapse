@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Synapse",
-  "version": "1.2.10",
+  "version": "1.2.11",
   "description": "Synapse 是一款浏览器扩展，专为 AI 提示词管理 而生。它让你在一个地方集中管理提示词，支持 版本历史、智能分类，并能在 AI 网站中自动注入提示词，同时生成 长对话大纲，实现高效、条理清晰的 AI 使用体验。",
   "permissions": [
     "identity",
