@@ -171,9 +171,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useModal } from '@/composables/useModal'
-import { useKey } from '@vueuse/core'
+import { useMagicKeys } from '@vueuse/core'
 import MarkdownEditor from '@/options/components/MarkdownEditor.vue'
 import VersionHistory from '@/options/components/VersionHistory.vue'
 import type { Prompt, Category, PromptVersion } from '@/types/prompt'
@@ -203,9 +203,13 @@ const emit = defineEmits<{
 
 const isOpen = computed(() => !!props.modelValue)
 useModal(isOpen, () => emit('close'))
-useKey(['Control+Enter', 'Meta+Enter'], () => {
-  if (isOpen.value) emit('save')
-}, { preventDefault: true })
+
+const keys = useMagicKeys()
+watch([keys['Ctrl+Enter'], keys['Meta+Enter']], ([ctrl, meta]) => {
+  if ((ctrl || meta) && isOpen.value) {
+    emit('save')
+  }
+})
 
 const titleProxy = computed({
   get: () => props.modelValue?.title || '',
