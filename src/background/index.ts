@@ -69,7 +69,7 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
 ): Promise<{ data: PromptDTO[]; total: number; version: string }> {
-  const { q, category, page, limit } = payload || {}
+  const { q, category, categoryNames, tagNames, page = 1, limit = 50 } = payload || {}
 
   const [categories, allTags] = await Promise.all([db.categories.toArray(), db.tags.toArray()])
   const categoryMap = new Map(categories.map(c => [c.id, c.name]))
@@ -79,17 +79,34 @@ async function handleGetPrompts(
   let total = 0
   let matchesMap = new Map<string, any>()
 
-  if (q) {
-    // If there's a search query, use the search service
-    const searchResults = searchService.search(q)
-    const resultIds = searchResults.map(res => res.item.id)
-    matchesMap = new Map(searchResults.map(res => [res.item.id, res.matches]))
+  if (q || (categoryNames && categoryNames.length > 0) || (tagNames && tagNames.length > 0)) {
+    // If there's any search query (text, category, or tag), use the search service
+    const searchQuery = q || ''
+    const searchResults = searchService.search(searchQuery)
+    let resultPrompts = searchResults.map(res => ({ ...res.item, matches: res.matches }))
 
-    if (resultIds.length > 0) {
-      prompts = await db.prompts.where('id').anyOf(resultIds).toArray()
+    // Filter by category names if provided
+    if (categoryNames && categoryNames.length > 0) {
+      const lowerCaseCategoryNames = categoryNames.map(name => name.toLowerCase())
+      resultPrompts = resultPrompts.filter(p =>
+        p.categoryIds.some(catId => lowerCaseCategoryNames.includes(categoryMap.get(catId)?.toLowerCase() || ''))
+      )
     }
-    total = prompts.length // For search, total is the count of matched items
-  } else {
+
+    // Filter by tag names if provided
+    if (tagNames && tagNames.length > 0) {
+      const lowerCaseTagNames = tagNames.map(name => name.toLowerCase())
+      resultPrompts = resultPrompts.filter(p =>
+        p.tagIds.some(tagId => lowerCaseTagNames.includes(tagMap.get(tagId)?.toLowerCase() || ''))
+      )
+    }
+
+    // Re-create matchesMap after filtering
+    matchesMap = new Map(resultPrompts.map(p => [p.id, p.matches]))
+    prompts = resultPrompts
+    total = prompts.length // Total is the count of matched items
+  }
+  else {
     // No search query, filter by category
     let collection = db.prompts.orderBy('updatedAt').reverse()
 
@@ -104,11 +121,9 @@ async function handleGetPrompts(
     prompts = await collection.offset((page - 1) * limit).limit(limit).toArray()
   }
 
-  // Paginate search results manually
-  if (q) {
-    const start = (page - 1) * limit
-    prompts = prompts.slice(start, start + limit)
-  }
+  // Paginate results manually
+  const start = (page - 1) * limit
+  prompts = prompts.slice(start, start + limit)
 
   const data: PromptDTO[] = prompts.map((p) => {
     return {

@@ -32,6 +32,7 @@ import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock }
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
+import { parseQuery } from '@/utils/queryParser'
 import type Fuse from 'fuse.js'
 
 const { showToast, hideToast } = useUI()
@@ -65,9 +66,13 @@ async function fetchData() {
   isLoading.value = true
 
   try {
+    const { text, categoryNames, tagNames } = parseQuery(searchQueryDebounced.value)
+
     const payload = {
-      q: searchQueryDebounced.value,
+      q: text,
       category: selectedCategory.value,
+      categoryNames,
+      tagNames,
       page: currentPage.value,
       limit: 50,
     }
@@ -108,7 +113,19 @@ function resetAndFetch() {
   fetchData()
 }
 
-watch([searchQueryDebounced, selectedCategory], () => {
+watch(searchQueryDebounced, (newQuery) => {
+  // If user types a command, reset the category button selection
+  if (newQuery.includes('>') || newQuery.includes('#')) {
+    selectedCategory.value = '全部'
+  }
+  resetAndFetch()
+})
+
+watch(selectedCategory, (newCategory) => {
+  // If user clicks a category, clear the search query
+  if (newCategory !== '全部') {
+    searchQuery.value = ''
+  }
   resetAndFetch()
 })
 

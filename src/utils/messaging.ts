@@ -42,6 +42,8 @@ export interface PromptDTO {
 export interface GetPromptsPayload {
   q?: string
   category?: string
+  categoryNames?: string[]
+  tagNames?: string[]
   page?: number
   limit?: number
 }
