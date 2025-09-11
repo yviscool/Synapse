@@ -62,9 +62,11 @@
             ]"
             title="回车使用"
           >
-            <div class="flex items-start justify-between">
-              <div class="font-semibold text-base text-gray-800 dark:text-gray-100 truncate mr-4">
-                {{ p.title }}
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-base text-gray-800 dark:text-gray-100 truncate">
+                  {{ p.title }}
+                </div>
               </div>
               <button
                 class="p-2 rounded-full text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-500/10 flex-shrink-0"
