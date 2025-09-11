@@ -331,6 +331,8 @@ import type { Prompt, Category, Tag, PromptVersion } from '@/types/prompt'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
 import { createVersion } from '@/utils/versionUtils'
+import { useModal } from '@/composables/useModal'
+import { onKeyStroke, refDebounced } from '@vueuse/core'
 import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
 import CategoryManager from './components/CategoryManager.vue'
@@ -345,7 +347,7 @@ const tags = ref<Tag[]>([])
 const availableTags = ref<Tag[]>([])
 const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
-const searchQueryDebounced = ref('')
+const searchQueryDebounced = refDebounced(searchQuery, 300)
 const selectedCategories = ref<string[]>([])
 const selectedTags = ref<string[]>([])
 const showFavoriteOnly = ref(false)
@@ -369,24 +371,19 @@ const showSettings = ref(false)
 const menuOpenId = ref<string | null>(null)
 const copiedId = ref<string | null>(null)
 
+useModal(showSettings, () => { showSettings.value = false })
+useModal(showCategoryManager, () => { showCategoryManager.value = false })
+useModal(computed(() => !!editingPrompt.value), closeEditor)
+
+onKeyStroke(['Control+k', 'Meta+k'], (e) => {
+  e.preventDefault()
+  searchInputRef.value?.focus()
+})
+
 // --- State for Time Machine Feature ---
 const isReadonly = ref(false)
 const previewingVersion = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
 const baseVersionForEdit = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
-
-// --- Debounce Search Query ---
-let searchDebounceTimer: number | undefined
-watch(searchQuery, (val) => {
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
-  searchDebounceTimer = window.setTimeout(() => {
-    searchQueryDebounced.value = val
-  }, 300)
-})
-
-// --- Body Overflow Lock for Modals ---
-watch(() => editingPrompt.value || showSettings.value || showCategoryManager.value, (isModalOpen) => {
-  document.body.style.overflow = isModalOpen ? 'hidden' : ''
-})
 
 // --- Data Fetching Logic ---
 async function fetchPrompts() {
@@ -746,26 +743,6 @@ async function handleMergeSuccess() {
   await loadTags()
 }
 
-const handleKeydown = (event: KeyboardEvent) => {
-  if (ui.confirm.visible) return
-  if (editingPrompt.value && (event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-    event.preventDefault()
-    savePrompt()
-    return
-  }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-    event.preventDefault()
-    searchInputRef.value?.focus()
-    return
-  }
-  if (event.key === 'Escape') {
-    if (editingPrompt.value) closeEditor()
-    else if (showCategoryManager.value) showCategoryManager.value = false
-    else if (showSettings.value) showSettings.value = false
-    else if (menuOpenId.value) menuOpenId.value = null
-  }
-}
-
 onMounted(async () => {
   try {
     await loadInitialData()
@@ -798,13 +775,9 @@ onMounted(async () => {
     console.error('Failed to open database:', error)
     showToast('数据库连接失败，请检查控制台获取详细信息。', 'error')
   }
-
-  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  document.body.style.overflow = ''
   if (shelfObserver) shelfObserver.disconnect()
 })
 </script>
