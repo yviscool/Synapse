@@ -5,6 +5,7 @@
  */
 import { db, getSettings, setSettings } from '@/stores/db'
 import * as gdrive from '@/utils/googleDriveApi'
+import { searchService } from './SearchService'
 
 const MAX_BACKUPS_TO_KEEP = 10;
 
@@ -168,9 +169,11 @@ class SyncManager {
     return gdrive.listBackupFiles();
   }
 
-  async restoreFromCloudBackup(fileId: string) {
-    await this.downloadRemoteData(fileId);
-    await setSettings({ lastSyncTimestamp: new Date().getTime() });
+  async restoreFromCloudBackup(fileId:string) {
+    await this.downloadRemoteData(fileId)
+    // Manually trigger a search index rebuild after restoring data.
+    await searchService.buildIndex()
+    await setSettings({ lastSyncTimestamp: new Date().getTime() })
   }
 
   async downloadCloudBackup(fileId: string) {

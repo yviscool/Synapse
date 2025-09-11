@@ -169,6 +169,8 @@ export async function mergePrompts(
 
     if (newPrompts.length > 0) {
       await db.prompts.bulkAdd(newPrompts)
+      // Manually trigger a search index rebuild as bulkAdd does not trigger hooks.
+      await searchService.buildIndex()
     }
 
     return {
@@ -314,4 +316,36 @@ export async function queryPrompts(params: QueryPromptsParams = {}): Promise<Que
   const paginatedPrompts = filteredPrompts.slice(offset, offset + limit)
 
   return { prompts: paginatedPrompts, total }
+}
+
+/**
+ * Imports data from a backup file, overwriting existing data.
+ * This function is designed to be called from the UI.
+ * @param importedData - The parsed data from the backup file.
+ */
+export async function importDataFromBackup(importedData: any): Promise<void> {
+  const currentSettings = await getSettings()
+
+  await db.transaction('rw', db.prompts, db.prompt_versions, db.categories, db.tags, db.settings, async () => {
+    await db.prompts.clear()
+    await db.prompt_versions.clear()
+    await db.categories.clear()
+    await db.tags.clear()
+
+    if (importedData.prompts) await db.prompts.bulkPut(importedData.prompts)
+    if (importedData.prompt_versions) await db.prompt_versions.bulkPut(importedData.prompt_versions)
+    if (importedData.categories) await db.categories.bulkPut(importedData.categories)
+    if (importedData.tags) await db.tags.bulkPut(importedData.tags)
+
+    const settingsToApply = importedData.settings || DEFAULT_SETTINGS
+    // Preserve current sync settings
+    settingsToApply.syncEnabled = currentSettings.syncEnabled
+    settingsToApply.syncProvider = currentSettings.syncProvider
+    settingsToApply.userProfile = currentSettings.userProfile
+    settingsToApply.lastSyncTimestamp = currentSettings.lastSyncTimestamp
+    await db.settings.put(settingsToApply)
+  })
+
+  // Manually trigger a search index rebuild after import.
+  await searchService.buildIndex()
 }

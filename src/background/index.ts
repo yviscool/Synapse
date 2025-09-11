@@ -69,8 +69,9 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
 ): Promise<{ data: PromptDTO[]; total: number; version: string }> {
-  // 1. Directly call the unified query logic
-  const { prompts, total } = await queryPrompts(payload || {})
+  // 1. Map `q` to `searchQuery` and then call the unified query logic
+  const { q, ...restPayload } = payload || {}
+  const { prompts, total } = await queryPrompts({ searchQuery: q, ...restPayload })
 
   // 2. Map to DTOs, preserving matches data
   const [categories, allTags] = await Promise.all([db.categories.toArray(), db.tags.toArray()])
