@@ -122,7 +122,7 @@ class SyncManager {
   private async downloadRemoteData(fileId: string): Promise<void> {
     const importedData = await gdrive.downloadBackupFile(fileId)
     // @ts-ignore
-    await db.transaction('rw', db.prompts, db.prompt_versions, db.categories, db.tags, db.settings, async () => {
+    await db.transaction('rw', [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings], async () => {
       if (importedData.prompts) {
         await db.prompts.clear()
         await db.prompts.bulkPut(importedData.prompts)

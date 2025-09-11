@@ -111,9 +111,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useUI } from '@/stores/ui'
-import { getSettings, importDataFromBackup } from '@/stores/db'
+import { db, getSettings, importDataFromBackup, DEFAULT_SETTINGS } from '@/stores/db'
 import { syncManager } from '@/stores/sync'
 import type { Settings } from '@/types/prompt'
+import { MSG } from '@/utils/messaging'
 
 interface DriveFile {
   id: string;
@@ -321,7 +322,7 @@ const resetData = async () => {
   try {
     const currentSettings = await getSettings();
 
-    await db.transaction('rw', db.prompts, db.prompt_versions, db.categories, db.tags, db.settings, async () => {
+    await db.transaction('rw', [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings], async () => {
       await db.prompts.clear();
       await db.prompt_versions.clear();
       await db.categories.clear();
@@ -336,6 +337,9 @@ const resetData = async () => {
       newSettings.lastSyncTimestamp = currentSettings.lastSyncTimestamp;
       await db.settings.put(newSettings);
     });
+
+    // Explicitly tell the background script to rebuild the index with empty data
+    await chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX });
 
     showToast('所有数据已重置！页面将刷新。', 'success')
     

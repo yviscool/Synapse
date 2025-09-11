@@ -3,7 +3,6 @@ import type Fuse from 'fuse.js'
 import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
 import { MSG, type PerformSearchResult } from '@/utils/messaging'
 import { createSafePrompt } from '@/utils/promptUtils'
-import { searchService } from '@/services/SearchService'
 
 export class APMDB extends Dexie {
   prompts!: Table<Prompt, string>
@@ -32,35 +31,28 @@ export const db = new APMDB()
 
 // --- Dexie Hooks for real-time sync with SearchService ---
 
-// Update search index when prompts change
+// Update search index when prompts change by notifying the background script
 db.prompts.hook('creating', (primKey, obj, trans) => {
-  searchService.add(obj) // No more N+1 query
+  chrome.runtime.sendMessage({ type: MSG.ADD_TO_INDEX, data: obj })
 })
 
 db.prompts.hook('updating', (modifications, primKey, obj, trans) => {
-  searchService.update(obj) // No more N+1 query
+  chrome.runtime.sendMessage({ type: MSG.UPDATE_IN_INDEX, data: obj })
 })
 
 db.prompts.hook('deleting', (primKey, obj, trans) => {
-  searchService.remove(primKey)
+  chrome.runtime.sendMessage({ type: MSG.REMOVE_FROM_INDEX, data: primKey })
 })
 
-// Update the tag cache in SearchService when tags change
-async function updateTagCacheAndRebuildIndex() {
-  const allTags = await db.tags.toArray()
-  searchService.updateTagCache(allTags)
-  // Rebuild the entire prompt index because tag names might have changed
-  await searchService.buildIndex()
-}
-
-db.tags.hook('creating', async () => {
-  await updateTagCacheAndRebuildIndex()
+// When tags change, request a full index rebuild from the background script
+db.tags.hook('creating', () => {
+  chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
 })
-db.tags.hook('updating', async () => {
-  await updateTagCacheAndRebuildIndex()
+db.tags.hook('updating', () => {
+  chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
 })
-db.tags.hook('deleting', async () => {
-  await updateTagCacheAndRebuildIndex()
+db.tags.hook('deleting', () => {
+  chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
 })
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -102,7 +94,7 @@ export async function mergePrompts(
   targetCategoryIds: string[],
   additionalTagsFromModal: string[],
 ): Promise<{ importedCount: number; skippedCount: number }> {
-  return db.transaction('rw', db.prompts, db.tags, async () => {
+  return db.transaction('rw', [db.prompts, db.tags], async () => {
     const existingTitles = new Set((await db.prompts.toArray()).map(p => p.title))
     const newPrompts: Prompt[] = []
 
@@ -347,5 +339,5 @@ export async function importDataFromBackup(importedData: any): Promise<void> {
   })
 
   // Manually trigger a search index rebuild after import.
-  await searchService.buildIndex()
+  await chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
 }

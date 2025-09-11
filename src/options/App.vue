@@ -687,7 +687,7 @@ async function deletePrompt(id: string) {
   const ok = await askConfirm('确定要删除这个 Prompt 吗？其所有历史版本也将被删除。', { type: 'danger' })
   if (!ok) return
   try {
-    await db.transaction('rw', db.prompts, db.prompt_versions, async () => {
+    await db.transaction('rw', [db.prompts, db.prompt_versions], async () => {
       await db.prompt_versions.where('promptId').equals(id).delete()
       await db.prompts.delete(id)
     })
