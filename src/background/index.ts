@@ -64,6 +64,26 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
     })
     return true // Return true to indicate async response
   }
+
+  // --- Indexing Messages ---
+  if (type === MSG.REBUILD_INDEX) {
+    searchService.buildIndex()
+      .then(() => sendResponse({ ok: true }))
+      .catch(e => sendResponse({ ok: false, error: e.message }))
+    return true
+  }
+  if (type === MSG.ADD_TO_INDEX) {
+    searchService.add(data as Prompt)
+    return false // Fire and forget
+  }
+  if (type === MSG.UPDATE_IN_INDEX) {
+    searchService.update(data as Prompt)
+    return false // Fire and forget
+  }
+  if (type === MSG.REMOVE_FROM_INDEX) {
+    searchService.remove(data as string)
+    return false // Fire and forget
+  }
 })
 
 async function handleGetPrompts(

@@ -6,6 +6,8 @@
 import { db, getSettings, setSettings } from '@/stores/db'
 import * as gdrive from '@/utils/googleDriveApi'
 import { searchService } from '@/services/SearchService'
+import { MSG } from '@/utils/messaging'
+
 
 const MAX_BACKUPS_TO_KEEP = 10;
 
@@ -85,6 +87,7 @@ class SyncManager {
       } else if (remoteTimestamp > localTimestamp) {
         console.log('Remote data is newer. Downloading from cloud...')
         await this.downloadRemoteData(latestRemoteFile.id)
+        await searchService.buildIndex()
       } else {
         console.log('Local and remote data are in sync.')
       }
@@ -172,7 +175,7 @@ class SyncManager {
   async restoreFromCloudBackup(fileId:string) {
     await this.downloadRemoteData(fileId)
     // Manually trigger a search index rebuild after restoring data.
-    await searchService.buildIndex()
+    await chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
     await setSettings({ lastSyncTimestamp: new Date().getTime() })
   }
 

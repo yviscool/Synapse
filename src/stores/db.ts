@@ -170,7 +170,7 @@ export async function mergePrompts(
     if (newPrompts.length > 0) {
       await db.prompts.bulkAdd(newPrompts)
       // Manually trigger a search index rebuild as bulkAdd does not trigger hooks.
-      await searchService.buildIndex()
+      await chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX })
     }
 
     return {
@@ -326,7 +326,7 @@ export async function queryPrompts(params: QueryPromptsParams = {}): Promise<Que
 export async function importDataFromBackup(importedData: any): Promise<void> {
   const currentSettings = await getSettings()
 
-  await db.transaction('rw', db.prompts, db.prompt_versions, db.categories, db.tags, db.settings, async () => {
+  await db.transaction('rw', [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings], async () => {
     await db.prompts.clear()
     await db.prompt_versions.clear()
     await db.categories.clear()
