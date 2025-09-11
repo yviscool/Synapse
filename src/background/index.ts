@@ -69,35 +69,61 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
 ): Promise<{ data: PromptDTO[]; total: number; version: string }> {
+  const { q, category, page, limit } = payload || {}
+
   const [categories, allTags] = await Promise.all([db.categories.toArray(), db.tags.toArray()])
   const categoryMap = new Map(categories.map(c => [c.id, c.name]))
   const tagMap = new Map(allTags.map(t => [t.id, t.name]))
 
-  let categoryId: string | undefined
+  let prompts: Prompt[] = []
+  let total = 0
+  let matchesMap = new Map<string, any>()
 
-  if (payload?.category && payload.category !== '全部') {
-    categoryId = categories.find(c => c.name === payload.category)?.id
+  if (q) {
+    // If there's a search query, use the search service
+    const searchResults = searchService.search(q)
+    const resultIds = searchResults.map(res => res.item.id)
+    matchesMap = new Map(searchResults.map(res => [res.item.id, res.matches]))
+
+    if (resultIds.length > 0) {
+      prompts = await db.prompts.where('id').anyOf(resultIds).toArray()
+    }
+    total = prompts.length // For search, total is the count of matched items
+  } else {
+    // No search query, filter by category
+    let collection = db.prompts.orderBy('updatedAt').reverse()
+
+    if (category && category !== '全部') {
+      const categoryId = categories.find(c => c.name === category)?.id
+      if (categoryId) {
+        collection = db.prompts.where('categoryIds').equals(categoryId).reverse().sortBy('updatedAt')
+      }
+    }
+
+    total = await collection.count()
+    prompts = await collection.offset((page - 1) * limit).limit(limit).toArray()
   }
 
-  const { prompts, total } = await queryPrompts({
-    searchQuery: payload?.q,
-    categories: categoryId ? [categoryId] : undefined,
-    page: payload?.page,
-    limit: payload?.limit,
-    sortBy: 'updatedAt', // Default sort for content script
-  })
+  // Paginate search results manually
+  if (q) {
+    const start = (page - 1) * limit
+    prompts = prompts.slice(start, start + limit)
+  }
 
-  const data: PromptDTO[] = prompts.map(p => ({
-    id: p.id,
-    title: p.title,
-    content: p.content,
-    categoryName: p.categoryIds.length > 0 ? categoryMap.get(p.categoryIds[0]) : undefined,
-    tags: p.tagIds.map(tid => tagMap.get(tid) || '').filter(Boolean),
-  }))
+  const data: PromptDTO[] = prompts.map((p) => {
+    return {
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      categoryName: p.categoryIds.length > 0 ? categoryMap.get(p.categoryIds[0]) : undefined,
+      tags: p.tagIds.map(tid => tagMap.get(tid) || '').filter(Boolean),
+      matches: matchesMap.get(p.id), // Attach matches data
+    }
+  })
 
   const latestUpdate = await db.prompts.orderBy('updatedAt').reverse().first()
   const version = latestUpdate?.updatedAt.toString() || Date.now().toString()
-  
+
   return { data, total, version }
 }
 

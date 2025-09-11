@@ -29,13 +29,14 @@ export interface ResponseMessage<T = any> {
   version?: string
 }
 
-// Data Transfer Object for content script prompts
+// Data Transfer Object for content script prompts, now with optional matches for highlighting
 export interface PromptDTO {
   id: string
   title: string
   content: string
-  categoryName: string
+  categoryName?: string
   tags: string[]
+  matches?: readonly Fuse.FuseResultMatch[]
 }
 
 export interface GetPromptsPayload {
