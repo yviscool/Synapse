@@ -1,15 +1,12 @@
 <template>
-  <!-- Overlay with blur and transition -->
   <div
     class="fixed inset-0 z-2147483646 flex items-start justify-center pointer-events-none backdrop-blur-sm transition-opacity duration-300"
     :class="isMounted ? 'opacity-100' : 'opacity-0'"
   >
-    <!-- Main panel with animation, refined styling -->
     <div
-      class="mt-16 w-[min(800px,90vw)] max-h-[80vh] rounded-xl shadow-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-[#18181c]/80 pointer-events-auto flex flex-col transform transition-all duration-300"
+      class="relative mt-16 w-[min(800px,90vw)] max-h-[80vh] rounded-xl shadow-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-[#18181c]/80 pointer-events-auto flex flex-col transform transition-all duration-300"
       :class="isMounted ? 'scale-100 opacity-100' : 'scale-95 opacity-0'"
     >
-      <!-- Header with Search and Close button -->
       <div class="p-3 border-b border-black/10 dark:border-white/10 flex items-center gap-3 flex-shrink-0">
         <div class="flex-1 flex items-center gap-3 px-3 border border-gray-300/70 dark:border-gray-700/70 rounded-lg bg-white dark:bg-gray-900/50 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
           <div class="i-carbon-search text-gray-400 flex-shrink-0" />
@@ -18,19 +15,10 @@
             v-model="query"
             placeholder="搜索提示..."
             class="w-full py-2 outline-none bg-transparent"
-            @keydown.stop
           />
         </div>
-        <button
-          class="p-2 rounded-full hover:bg-gray-500/10 transition-colors flex-shrink-0"
-          @click="$emit('close')"
-          title="关闭 (Esc)"
-        >
-          <div class="i-carbon-close text-xl" />
-        </button>
       </div>
 
-      <!-- Categories -->
       <div class="px-3 py-2 border-b border-black/10 dark:border-white/10 flex flex-wrap gap-2 flex-shrink-0">
         <button
           v-for="c in categories"
@@ -43,11 +31,10 @@
               : 'bg-white/50 dark:bg-transparent border-gray-300/70 dark:border-gray-700/70 hover:bg-gray-500/10 hover:border-gray-400/50',
           ]"
         >
-          {{ c || '未分类' }}
+          {{ c }}
         </button>
       </div>
 
-      <!-- Prompt List -->
       <div ref="scrollContainer" class="overflow-y-auto p-3 grid gap-3">
         <template v-if="prompts.length > 0">
           <div
@@ -55,7 +42,7 @@
             :key="p.id"
             @click="$emit('select', p)"
             :class="[
-              'p-4 rounded-lg border cursor-pointer group transition-all duration-150',
+              'p-4 rounded-lg border cursor-pointer group transition-all duration-150 min-w-0',
               i === highlightIndex
                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 shadow-lg'
                 : 'border-gray-300/50 dark:border-gray-700/50 hover:border-blue-500/50 hover:bg-gray-500/5',
@@ -79,10 +66,10 @@
             <div class="mt-1 text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
               {{ preview(p.content) }}
             </div>
-            <div class="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
-              <div class="flex items-center gap-1.5">
+            <div class="mt-3 flex items-center flex-wrap gap-x-4 gap-y-2 text-xs text-gray-500 dark:text-gray-500">
+              <div v-if="p.categoryName" class="flex items-center gap-1.5">
                 <div class="i-carbon-folder" />
-                <span>{{ p.categoryName || '未分类' }}</span>
+                <span>{{ p.categoryName }}</span>
               </div>
               <div v-if="p.tags?.length" class="flex items-center gap-1.5">
                 <div class="i-carbon-tag" />
@@ -102,11 +89,9 @@
         <div v-if="prompts.length === 0 && !isLoading" class="text-center py-10 text-gray-500">
           没有找到匹配的提示
         </div>
-        <!-- Sentinel for infinite scroll -->
         <div ref="loaderRef" class="h-1"></div>
       </div>
 
-      <!-- Footer -->
       <div
         class="p-2 text-xs text-gray-400 dark:text-gray-600 border-t border-black/10 dark:border-white/10 flex items-center justify-between flex-shrink-0"
       >
@@ -125,6 +110,14 @@
           </span>
         </div>
       </div>
+      
+      <button
+        class="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-500/10 transition-colors flex-shrink-0"
+        @click="$emit('close')"
+        title="关闭 (Esc)"
+      >
+        <div class="i-carbon-close text-xl" />
+      </button>
     </div>
   </div>
 </template>

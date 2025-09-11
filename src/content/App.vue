@@ -68,9 +68,8 @@ async function fetchData() {
       q: searchQueryDebounced.value,
       category: selectedCategory.value,
       page: currentPage.value,
-      limit: 50, // Load more items in content script for better scroll experience
+      limit: 50,
     }
-    // The response from background script is { ok, data, total, version }
     const res: ResponseMessage<PromptDTO[]> & { total?: number } = await chrome.runtime.sendMessage({ type: MSG.GET_PROMPTS, data: payload })
 
     if (res.ok && res.data) {
@@ -93,7 +92,7 @@ async function fetchCategories() {
   try {
     const res: ResponseMessage<{id: string, name: string}[]> = await chrome.runtime.sendMessage({ type: MSG.GET_CATEGORIES })
     if (res.ok && res.data) {
-      categoryOptions.value = ['全部', '未分类', ...res.data.map(c => c.name)]
+      categoryOptions.value = ['全部', ...res.data.map(c => c.name)]
     }
   } catch (e) {
     console.error('Failed to fetch categories:', e)
@@ -197,8 +196,9 @@ async function handleSelect(p: PromptDTO) {
       try { await navigator.clipboard.writeText(p.content) } catch {}
       return
     }
-    if (target.el.value?.toLowerCase().endsWith('/p')) {
-      target.el.value = target.el.value.slice(0, -2)
+    // Clean up the trigger: now it's just '/', because 'p' was prevented.
+    if (target.el.value?.toLowerCase().endsWith('/')) {
+      target.el.value = target.el.value.slice(0, -1)
       target.el.dispatchEvent(new Event('input', { bubbles: true }))
     }
     insertAtCursor(target, p.content)
@@ -222,37 +222,38 @@ function handleLoadMore() {
 }
 
 // --- Global Listeners ---
-let lastInputValue = ''
-const ceLast = new WeakMap<HTMLElement, string>()
-
 whenever(keys.alt_k, () => {
   if (!visible.value) openPanel()
 })
 
-function onInput(e: Event) {
+// Listen for keydown to prevent the race condition
+function onKeydown(e: KeyboardEvent) {
   if (visible.value) return
-  const t = e.target as any
-  if (t instanceof HTMLTextAreaElement) {
-    const v = t.value || ''
-    if (v.toLowerCase().endsWith('/p') && v !== lastInputValue) {
-      lastInputValue = v
-      openPanel()
-    } else {
-      lastInputValue = v
+
+  const t = e.target as HTMLElement
+  const isTextarea = t instanceof HTMLTextAreaElement;
+  const isContentEditable = t.isContentEditable;
+
+  if (!isTextarea && !isContentEditable) return;
+
+  // Check for the trigger sequence: '/' followed by a 'p' keydown event
+  if (e.key.toLowerCase() === 'p') {
+    let precedingText = '';
+    if (isTextarea) {
+      precedingText = (t as HTMLTextAreaElement).value || '';
+    } else if (isContentEditable) {
+      precedingText = t.textContent || '';
     }
-  } else if (t instanceof HTMLElement && t.isContentEditable) {
-    const last = ceLast.get(t) || ''
-    const v = (t.textContent || '')
-    if (v.toLowerCase().endsWith('/p') && v !== last) {
-      ceLast.set(t, v)
-      openPanel()
-    } else {
-      ceLast.set(t, v)
+
+    if (precedingText.toLowerCase().endsWith('/')) {
+      e.preventDefault();
+      e.stopPropagation();
+      openPanel();
     }
   }
 }
 
-useEventListener(document, 'input', onInput, true)
+useEventListener(document, 'keydown', onKeydown, true)
 
 onMounted(() => {
   chrome.runtime.onMessage.addListener((msg: RequestMessage) => {

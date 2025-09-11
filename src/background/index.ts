@@ -55,44 +55,30 @@ async function handleGetPrompts(
   const tagMap = new Map(allTags.map(t => [t.id, t.name]))
 
   let categoryId: string | undefined
-  let isUncategorized = false
 
   if (payload?.category && payload.category !== '全部') {
-    if (payload.category === '未分类') {
-      isUncategorized = true
-    } else {
-      categoryId = categories.find(c => c.name === payload.category)?.id
-    }
+    categoryId = categories.find(c => c.name === payload.category)?.id
   }
 
-  // The `queryPrompts` function doesn't support a filter for uncategorized prompts.
-  // So we pass the categoryId only if it's not the "uncategorized" case.
   const { prompts, total } = await queryPrompts({
     searchQuery: payload?.q,
-    category: isUncategorized ? undefined : categoryId,
+    categories: categoryId ? [categoryId] : undefined,
     page: payload?.page,
     limit: payload?.limit,
     sortBy: 'updatedAt', // Default sort for content script
   })
 
-  // Post-filter for the "uncategorized" case. This is a workaround.
-  const finalPrompts = isUncategorized
-    ? prompts.filter(p => p.categoryIds.length === 0)
-    : prompts
-
-  const data: PromptDTO[] = finalPrompts.map(p => ({
+  const data: PromptDTO[] = prompts.map(p => ({
     id: p.id,
     title: p.title,
     content: p.content,
-    categoryName: p.categoryIds.length > 0 ? categoryMap.get(p.categoryIds[0]) || '未分类' : '未分类',
+    categoryName: p.categoryIds.length > 0 ? categoryMap.get(p.categoryIds[0]) : undefined,
     tags: p.tagIds.map(tid => tagMap.get(tid) || '').filter(Boolean),
   }))
 
   const latestUpdate = await db.prompts.orderBy('updatedAt').reverse().first()
   const version = latestUpdate?.updatedAt.toString() || Date.now().toString()
-
-  // Note: The `total` count will be inaccurate for the "uncategorized" filter.
-  // This is a known limitation of the current implementation.
+  
   return { data, total, version }
 }
 
