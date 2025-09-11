@@ -332,7 +332,7 @@ import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
 import { createVersion } from '@/utils/versionUtils'
 import { useModal } from '@/composables/useModal'
-import { useKey } from '@vueuse/core'
+import { onKeyStroke, refDebounced } from '@vueuse/core'
 import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
 import CategoryManager from './components/CategoryManager.vue'
@@ -347,7 +347,7 @@ const tags = ref<Tag[]>([])
 const availableTags = ref<Tag[]>([])
 const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
-const searchQueryDebounced = ref('')
+const searchQueryDebounced = refDebounced(searchQuery, 300)
 const selectedCategories = ref<string[]>([])
 const selectedTags = ref<string[]>([])
 const showFavoriteOnly = ref(false)
@@ -375,7 +375,7 @@ useModal(showSettings, () => { showSettings.value = false })
 useModal(showCategoryManager, () => { showCategoryManager.value = false })
 useModal(computed(() => !!editingPrompt.value), closeEditor)
 
-useKey(['Control+k', 'Meta+k'], (e) => {
+onKeyStroke(['Control+k', 'Meta+k'], (e) => {
   e.preventDefault()
   searchInputRef.value?.focus()
 })
@@ -384,15 +384,6 @@ useKey(['Control+k', 'Meta+k'], (e) => {
 const isReadonly = ref(false)
 const previewingVersion = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
 const baseVersionForEdit = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
-
-// --- Debounce Search Query ---
-let searchDebounceTimer: number | undefined
-watch(searchQuery, (val) => {
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
-  searchDebounceTimer = window.setTimeout(() => {
-    searchQueryDebounced.value = val
-  }, 300)
-})
 
 // --- Data Fetching Logic ---
 async function fetchPrompts() {
