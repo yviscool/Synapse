@@ -13,22 +13,6 @@ marked.setOptions({
 const dmp = new DiffMatchPatch()
 
 /**
- * 创建新的版本记录
- */
-export async function createVersion(
-  promptId: string, 
-  content: string, 
-  note?: string,
-  parentVersionId?: string | null
-): Promise<PromptVersion> {
-  const result = await repository.createVersion(promptId, content, note, parentVersionId)
-  if (result.ok && result.data) {
-    return result.data
-  }
-  throw result.error || new Error('Failed to create version')
-}
-
-/**
  * 获取 Prompt 的所有版本历史
  */
 export async function getVersionHistory(promptId: string): Promise<PromptVersion[]> {

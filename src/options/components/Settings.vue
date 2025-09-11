@@ -72,6 +72,7 @@
               <div class="flex gap-2">
                 <button @click="handleRestoreFromCloud(file.id)" class="text-sm text-blue-600 hover:underline">恢复</button>
                 <button @click="handleDownloadFromCloud(file.id, file.name)" class="text-sm text-gray-600 hover:underline">下载</button>
+                <button @click="handleDeleteFromCloud(file.id)" class="text-sm text-red-600 hover:underline">删除</button>
               </div>
             </li>
           </ul>
@@ -212,6 +213,20 @@ async function handleDownloadFromCloud(fileId: string, fileName: string) {
     showToast('文件已下载', 'success');
   } catch (error) {
     showToast(`下载失败: ${(error as Error).message}`, 'error');
+  }
+}
+
+async function handleDeleteFromCloud(fileId: string) {
+  const confirmed = await askConfirm('确定要永久删除此云端备份吗？此操作不可撤销。', { type: 'danger' });
+  if (!confirmed) return;
+
+  showToast('正在删除...', 'success');
+  try {
+    await syncManager.deleteCloudBackup(fileId);
+    await loadBackupHistory();
+    showToast('备份已删除', 'success');
+  } catch (error) {
+    showToast(`删除失败: ${(error as Error).message}`, 'error');
   }
 }
 

@@ -186,6 +186,10 @@ class SyncManager {
   async downloadCloudBackup(fileId: string) {
     return gdrive.downloadBackupFile(fileId);
   }
+
+  async deleteCloudBackup(fileId: string) {
+    return gdrive.deleteFile(fileId);
+  }
 }
 
 export const syncManager = new SyncManager();

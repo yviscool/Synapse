@@ -1,4 +1,4 @@
-import { db } from './db'
+import { db, DEFAULT_SETTINGS } from './db'
 import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
 import { MSG } from '@/utils/messaging'
 import { createSafePrompt } from '@/utils/promptUtils'
@@ -302,7 +302,7 @@ export const repository = {
         if (importedData.prompt_versions) await db.prompt_versions.bulkPut(importedData.prompt_versions)
         if (importedData.categories) await db.categories.bulkPut(importedData.categories)
         if (importedData.tags) await db.tags.bulkPut(importedData.tags)
-        const settingsToApply = importedData.settings || { ...db.DEFAULT_SETTINGS }
+        const settingsToApply = importedData.settings || { ...DEFAULT_SETTINGS }
         if (currentSettings) {
             settingsToApply.syncEnabled = currentSettings.syncEnabled
             settingsToApply.syncProvider = currentSettings.syncProvider
@@ -327,7 +327,7 @@ export const repository = {
         await db.settings.clear()
 
         const newSettings: Settings = {
-          ...db.DEFAULT_SETTINGS,
+          ...DEFAULT_SETTINGS,
           id: 'global', // Explicitly set the key path
         }
         if (currentSettings) {
