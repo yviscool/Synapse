@@ -120,10 +120,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
-import { db } from '@/stores/db'
-import { nanoid } from 'nanoid'
+import { db } from '@/stores/db' // Keep for read-only operations
+import { repository } from '@/stores/repository'
 import { useUI } from '@/stores/ui'
-import { MSG } from '@/utils/messaging'
 import type { Category, Prompt } from '@/types/prompt'
 import { onClickOutside, useVModel, useFocus, useDebounceFn, whenever } from '@vueuse/core'
 import { useModal } from '@/composables/useModal'
@@ -330,14 +329,6 @@ function close() {
     emit('update:visible', false)
 }
 
-async function notifyDataUpdate() {
-    await chrome.runtime.sendMessage({
-        type: MSG.DATA_UPDATED,
-        data: { scope: 'categories', version: Date.now().toString() },
-    })
-    emit('updated')
-}
-
 // --- Database Operations ---
 async function loadCategories() {
     categories.value = await db.categories.toArray()
@@ -349,22 +340,21 @@ function getPromptCount(categoryId: string) {
     return prompts.value.filter(p => p.categoryIds?.includes(categoryId)).length
 }
 
-// --- CRUD Operations ---
+// --- CRUD Operations (Refactored to use Repository) ---
 async function addCategory() {
     const name = newCategoryName.value.trim()
     if (!name) return
-    const newCategory: Category = {
-        id: nanoid(),
-        name,
-        icon: newCategoryIcon.value || '',
-        sort: (categories.value.length > 0 ? Math.max(...categories.value.map(c => c.sort || 0)) : 0) + 1
+
+    const { ok } = await repository.addCategory({ name, icon: newCategoryIcon.value || '' })
+    if (ok) {
+        showToast('分类添加成功', 'success')
+        newCategoryName.value = ''
+        newCategoryIcon.value = ''
+        await loadCategories() // Reload to get the new category
+        emit('updated')
+    } else {
+        showToast('添加失败', 'error')
     }
-    await db.categories.put(newCategory)
-    showToast('分类添加成功', 'success')
-    newCategoryName.value = ''
-    newCategoryIcon.value = ''
-    await loadCategories()
-    await notifyDataUpdate()
 }
 
 function editCategory(category: Category) {
@@ -386,20 +376,29 @@ async function saveCategoryEdit() {
         cancelCategoryEdit()
         return
     }
-    await db.categories.update(id, { name, icon: editingCategoryIcon.value })
-    showToast('分类更新成功', 'success')
-    await loadCategories()
-    await notifyDataUpdate()
+    const { ok } = await repository.updateCategory(id, { name, icon: editingCategoryIcon.value })
+    if (ok) {
+        showToast('分类更新成功', 'success')
+        await loadCategories()
+        emit('updated')
+    } else {
+        showToast('更新失败', 'error')
+    }
     cancelCategoryEdit()
 }
 
 async function deleteCategory(id: string) {
-    const ok = await askConfirm('确定要删除这个分类吗？相关的灵感不会被删除。', { type: 'danger' })
-    if (!ok) return
-    await db.categories.delete(id)
-    showToast('分类删除成功', 'success')
-    await loadCategories()
-    await notifyDataUpdate()
+    const confirm = await askConfirm('确定要删除这个分类吗？相关的灵感不会被删除。', { type: 'danger' })
+    if (!confirm) return
+
+    const { ok } = await repository.deleteCategory(id)
+    if (ok) {
+        showToast('分类删除成功', 'success')
+        await loadCategories()
+        emit('updated')
+    } else {
+        showToast('删除失败', 'error')
+    }
 }
 
 // --- Icon Picker Logic ---
@@ -465,9 +464,13 @@ function handleCategoryDragLeave() {
 }
 
 const debouncedSaveOrder = useDebounceFn(async (updatedCategories: Category[]) => {
-    await db.categories.bulkPut(updatedCategories)
-    await notifyDataUpdate()
-    showToast('顺序已更新', 'success')
+    const { ok } = await repository.updateCategoryOrder(updatedCategories)
+    if (ok) {
+        showToast('顺序已更新', 'success')
+        emit('updated')
+    } else {
+        showToast('顺序更新失败', 'error')
+    }
 }, 500)
 
 async function handleCategoryDrop(event: DragEvent) {

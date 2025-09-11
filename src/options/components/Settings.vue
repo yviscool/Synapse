@@ -111,10 +111,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useUI } from '@/stores/ui'
-import { db, getSettings, importDataFromBackup, DEFAULT_SETTINGS } from '@/stores/db'
+import { db, getSettings, DEFAULT_SETTINGS } from '@/stores/db' // Read-only and defaults
+import { repository } from '@/stores/repository'
 import { syncManager } from '@/stores/sync'
 import type { Settings } from '@/types/prompt'
-import { MSG } from '@/utils/messaging'
 
 interface DriveFile {
   id: string;
@@ -301,11 +301,14 @@ const importData = async (event: Event) => {
     const confirmed = await askConfirm('从备份恢复将覆盖此设备上的所有数据，但会保留当前的云同步设置。此操作不可撤销。是否继续？', { type: 'danger' })
     if (!confirmed) return
 
-    await importDataFromBackup(importedData)
+    const { ok, error } = await repository.importDataFromBackup(importedData)
 
-    showToast('数据恢复成功！页面将刷新。', 'success')
-    
-    setTimeout(() => window.location.reload(), 1500)
+    if (ok) {
+      showToast('数据恢复成功！页面将刷新。', 'success')
+      setTimeout(() => window.location.reload(), 1500)
+    } else {
+      throw error
+    }
 
   } catch (error) {
     console.error('导入数据失败:', error)
@@ -320,31 +323,13 @@ const resetData = async () => {
   if (!confirmed) return
 
   try {
-    const currentSettings = await getSettings();
-
-    await db.transaction('rw', [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings], async () => {
-      await db.prompts.clear();
-      await db.prompt_versions.clear();
-      await db.categories.clear();
-      await db.tags.clear();
-      await db.settings.clear();
-      
-      // Put default settings but preserve sync state
-      const newSettings = { ...DEFAULT_SETTINGS };
-      newSettings.syncEnabled = currentSettings.syncEnabled;
-      newSettings.syncProvider = currentSettings.syncProvider;
-      newSettings.userProfile = currentSettings.userProfile;
-      newSettings.lastSyncTimestamp = currentSettings.lastSyncTimestamp;
-      await db.settings.put(newSettings);
-    });
-
-    // Explicitly tell the background script to rebuild the index with empty data
-    await chrome.runtime.sendMessage({ type: MSG.REBUILD_INDEX });
-
-    showToast('所有数据已重置！页面将刷新。', 'success')
-    
-    setTimeout(() => window.location.reload(), 1500)
-
+    const { ok, error } = await repository.resetAllData()
+    if (ok) {
+      showToast('所有数据已重置！页面将刷新。', 'success')
+      setTimeout(() => window.location.reload(), 1500)
+    } else {
+      throw error
+    }
   } catch (error) {
     console.error('重置数据失败:', error)
     showToast('重置失败，请重试', 'error')

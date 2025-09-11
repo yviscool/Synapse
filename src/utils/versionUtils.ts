@@ -1,6 +1,6 @@
-import { nanoid } from 'nanoid'
 import { marked } from 'marked'
-import { db } from '@/stores/db'
+import { db } from '@/stores/db' // Keep for read-only
+import { repository } from '@/stores/repository'
 import type { Prompt, PromptVersion } from '@/types/prompt'
 import DiffMatchPatch from 'diff-match-patch'
 
@@ -19,19 +19,13 @@ export async function createVersion(
   promptId: string, 
   content: string, 
   note?: string,
-  parentVersionId?: string
+  parentVersionId?: string | null
 ): Promise<PromptVersion> {
-  const version: PromptVersion = {
-    id: nanoid(),
-    promptId,
-    content,
-    note,
-    parentVersionId: parentVersionId || null,
-    createdAt: Date.now()
+  const result = await repository.createVersion(promptId, content, note, parentVersionId)
+  if (result.ok && result.data) {
+    return result.data
   }
-  
-  await db.prompt_versions.put(version)
-  return version
+  throw result.error || new Error('Failed to create version')
 }
 
 /**
@@ -102,47 +96,20 @@ async function renderDiffAsMarkdown(diffs: any[]): Promise<string> {
  * 恢复到指定版本
  */
 export async function revertToVersion(promptId: string, versionId: string, currentUnsavedContent: string): Promise<void> {
-  const version = await db.prompt_versions.get(versionId)
-  if (!version || version.promptId !== promptId) {
-    throw new Error('版本不存在或不匹配')
+  const { ok, error } = await repository.revertToVersion(promptId, versionId, currentUnsavedContent)
+  if (!ok) {
+    throw error || new Error('Failed to revert to version')
   }
-  
-  const prompt = await db.prompts.get(promptId)
-  if (!prompt) {
-    throw new Error('Prompt 不存在')
-  }
-  
-  // 创建当前状态的备份版本
-  await createVersion(promptId, currentUnsavedContent, '自动备份：恢复前状态', prompt.currentVersionId)
-  // await createVersion(promptId, prompt.content, '自动备份：恢复前状态', prompt.currentVersionId)
-
-  
-  // 更新 Prompt 内容
-  const updatedPrompt: Prompt = {
-    ...prompt,
-    content: version.content,
-    currentVersionId: versionId,
-    updatedAt: Date.now()
-  }
-  
-  await db.prompts.put(updatedPrompt)
 }
 
 /**
  * 删除版本（保留最新版本）
  */
 export async function deleteVersion(versionId: string): Promise<void> {
-  const version = await db.prompt_versions.get(versionId)
-  if (!version) {
-    throw new Error('版本不存在')
+  const { ok, error } = await repository.deleteVersion(versionId)
+  if (!ok) {
+    throw error || new Error('Failed to delete version')
   }
-  
-  const versions = await getVersionHistory(version.promptId)
-  if (versions.length <= 1) {
-    throw new Error('不能删除最后一个版本')
-  }
-  
-  await db.prompt_versions.delete(versionId)
 }
 
 /**

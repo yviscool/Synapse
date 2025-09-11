@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import { db, getSettings, queryPrompts } from '@/stores/db'
+import { repository } from '@/stores/repository'
 import { searchService } from '@/services/SearchService'
 import type { Prompt } from '@/types'
 import {
@@ -13,8 +14,15 @@ import {
   type PerformSearchResult,
 } from '@/utils/messaging'
 
-// --- Initialize Search Index ---
+// --- Initialize Search Index & Repository Listeners ---
 searchService.buildIndex().catch(console.error)
+
+// The new, disciplined way: listen for repository events after transactions are complete.
+repository.events.on('allChanged', () => {
+  console.log('[Background] Detected data change from repository, rebuilding search index.')
+  searchService.buildIndex().catch(console.error)
+})
+
 
 chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
   const { type, data } = msg
@@ -65,25 +73,9 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
     return true // Return true to indicate async response
   }
 
-  // --- Indexing Messages ---
-  if (type === MSG.REBUILD_INDEX) {
-    searchService.buildIndex()
-      .then(() => sendResponse({ ok: true }))
-      .catch(e => sendResponse({ ok: false, error: e.message }))
-    return true
-  }
-  if (type === MSG.ADD_TO_INDEX) {
-    searchService.add(data as Prompt)
-    return false // Fire and forget
-  }
-  if (type === MSG.UPDATE_IN_INDEX) {
-    searchService.update(data as Prompt)
-    return false // Fire and forget
-  }
-  if (type === MSG.REMOVE_FROM_INDEX) {
-    searchService.remove(data as string)
-    return false // Fire and forget
-  }
+  // --- Indexing Messages (OBSOLETE) ---
+  // These are no longer needed. The repository now notifies the background script
+  // directly and safely after a transaction is completed.
 })
 
 async function handleGetPrompts(
@@ -135,23 +127,14 @@ async function saveSelectionAsPrompt(text: string) {
   if (!text || !text.trim())
     return
 
-  try {
-    const now = Date.now()
-    const title = text.trim().slice(0, 40) + (text.trim().length > 40 ? '...' : '')
+  const title = text.trim().slice(0, 40) + (text.trim().length > 40 ? '...' : '')
 
-    const newPrompt: Prompt = {
-      id: nanoid(),
-      title,
-      content: text,
-      categoryIds: [],
-      tagIds: [],
-      createdAt: now,
-      updatedAt: now,
-      currentVersionId: null,
-    }
+  const { ok, error } = await repository.addPrompt({
+    title,
+    content: text,
+  })
 
-    await db.prompts.put(newPrompt)
-
+  if (ok) {
     // Notify user
     chrome.notifications.create({
       type: 'basic',
@@ -159,14 +142,10 @@ async function saveSelectionAsPrompt(text: string) {
       title: 'Synapse',
       message: '提示词已保存！',
     })
-
-    // Notify other parts of the extension to update data
-    broadcastToTabs({
-      type: MSG.DATA_UPDATED,
-      data: { scope: 'prompts', version: Date.now().toString() },
-    })
+    // The repository's `withCommitNotification` already handles broadcasting the DATA_UPDATED message,
+    // so we don't need to do it here anymore.
   }
-  catch (error) {
+  else {
     console.error('Failed to save prompt from selection:', error)
     chrome.notifications.create({
       type: 'basic',

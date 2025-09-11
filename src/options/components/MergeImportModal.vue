@@ -114,7 +114,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { Category, Prompt } from '@/types/prompt'
-import { mergePrompts } from '@/stores/db'
+import { repository } from '@/stores/repository'
 import { useUI } from '@/stores/ui'
 import { useModal } from '@/composables/useModal'
 
@@ -231,10 +231,14 @@ async function executeMerge() {
 
   isMerging.value = true
   try {
-    const result = await mergePrompts(promptsToImport.value, targetCategoryIds.value, additionalTags.value)
-    showToast(`合并完成！新增 ${result.importedCount} 条，跳过 ${result.skippedCount} 条重复项。`, 'success')
-    emit('merged')
-    emit('update:visible', false)
+    const result = await repository.mergePrompts(promptsToImport.value, targetCategoryIds.value, additionalTags.value)
+    if (result.ok && result.data) {
+      showToast(`合并完成！新增 ${result.data.importedCount} 条，跳过 ${result.data.skippedCount} 条重复项。`, 'success')
+      emit('merged')
+      emit('update:visible', false)
+    } else {
+      throw result.error || new Error('合并过程中发生未知错误')
+    }
   } catch (error) {
     showToast(`合并失败: ${(error as Error).message}`, 'error')
   } finally {
