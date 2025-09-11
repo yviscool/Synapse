@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie'
 import type Fuse from 'fuse.js'
 import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
 import { createSafePrompt } from '@/utils/promptUtils'
-import { searchService, type SearchablePrompt } from '@/services/SearchService'
+import { searchService } from '@/services/SearchService'
 
 export class APMDB extends Dexie {
   prompts!: Table<Prompt, string>
@@ -29,29 +29,37 @@ export class APMDB extends Dexie {
 
 export const db = new APMDB()
 
-// Helper function to convert a Prompt to a SearchablePrompt
-async function promptToSearchablePrompt(prompt: Prompt): Promise<SearchablePrompt> {
-  const tagMap = new Map((await db.tags.toArray()).map(t => [t.id, t.name]))
-  return {
-    ...prompt,
-    tagNames: prompt.tagIds.map(id => tagMap.get(id)).filter(Boolean) as string[],
-  }
+// --- Dexie Hooks for real-time sync with SearchService ---
+
+// Update search index when prompts change
+db.prompts.hook('creating', (primKey, obj, trans) => {
+  searchService.add(obj) // No more N+1 query
+})
+
+db.prompts.hook('updating', (modifications, primKey, obj, trans) => {
+  searchService.update(obj) // No more N+1 query
+})
+
+db.prompts.hook('deleting', (primKey, obj, trans) => {
+  searchService.remove(primKey)
+})
+
+// Update the tag cache in SearchService when tags change
+async function updateTagCacheAndRebuildIndex() {
+  const allTags = await db.tags.toArray()
+  searchService.updateTagCache(allTags)
+  // Rebuild the entire prompt index because tag names might have changed
+  await searchService.buildIndex()
 }
 
-// Dexie hooks for real-time sync with SearchService
-db.prompts.hook('creating', async (primKey, obj, trans) => {
-  const searchablePrompt = await promptToSearchablePrompt(obj)
-  searchService.add(searchablePrompt)
+db.tags.hook('creating', async () => {
+  await updateTagCacheAndRebuildIndex()
 })
-
-db.prompts.hook('updating', async (modifications, primKey, obj, trans) => {
-  // The hook gives us the modified prompt object directly
-  const searchablePrompt = await promptToSearchablePrompt(obj)
-  searchService.update(searchablePrompt)
+db.tags.hook('updating', async () => {
+  await updateTagCacheAndRebuildIndex()
 })
-
-db.prompts.hook('deleting', async (primKey, obj, trans) => {
-  searchService.remove(primKey)
+db.tags.hook('deleting', async () => {
+  await updateTagCacheAndRebuildIndex()
 })
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -173,13 +181,13 @@ export async function mergePrompts(
  * Defines the parameters for querying prompts.
  */
 export interface QueryPromptsParams {
-  searchQuery?: string;
-  categories?: string[]; // Storing category IDs
-  tags?: string[]; // Storing tag IDs
-  favoriteOnly?: boolean;
-  sortBy?: 'updatedAt' | 'createdAt' | 'title';
-  page?: number;
-  limit?: number;
+  searchQuery?: string
+  categoryNames?: string[] // Now accepting names
+  tagNames?: string[] // Now accepting names
+  favoriteOnly?: boolean
+  sortBy?: 'updatedAt' | 'createdAt' | 'title'
+  page?: number
+  limit?: number
 }
 
 /**
@@ -207,8 +215,8 @@ export interface QueryPromptsResult {
 export async function queryPrompts(params: QueryPromptsParams = {}): Promise<QueryPromptsResult> {
   const {
     searchQuery,
-    categories,
-    tags,
+    categoryNames,
+    tagNames,
     favoriteOnly,
     sortBy = 'updatedAt',
     page = 1,
@@ -252,16 +260,29 @@ export async function queryPrompts(params: QueryPromptsParams = {}): Promise<Que
     filteredPrompts = await collection.toArray()
   }
 
-  // 4. Apply additional filters (favorite, categories, tags) on the (potentially search-filtered) list
+  // 4. Resolve name-based filters to IDs before applying them
+  let categoryIds: string[] | undefined
+  if (categoryNames && categoryNames.length > 0) {
+    const categories = await db.categories.where('name').anyOf(categoryNames).toArray()
+    categoryIds = categories.map(c => c.id)
+  }
+
+  let tagIds: string[] | undefined
+  if (tagNames && tagNames.length > 0) {
+    const tags = await db.tags.where('name').anyOf(tagNames).toArray()
+    tagIds = tags.map(t => t.id)
+  }
+
+  // 5. Apply additional filters (favorite, categories, tags) on the (potentially search-filtered) list
   const filterConditions: ((p: Prompt) => boolean)[] = []
   if (favoriteOnly) {
     filterConditions.push(p => !!p.favorite)
   }
-  if (categories && categories.length > 0) {
-    filterConditions.push(p => categories.some(catId => p.categoryIds.includes(catId)))
+  if (categoryIds && categoryIds.length > 0) {
+    filterConditions.push(p => categoryIds.some(catId => p.categoryIds.includes(catId)))
   }
-  if (tags && tags.length > 0) {
-    filterConditions.push(p => tags.every(tagId => p.tagIds.includes(tagId)))
+  if (tagIds && tagIds.length > 0) {
+    filterConditions.push(p => tagIds.every(tagId => p.tagIds.includes(tagId)))
   }
 
   if (filterConditions.length > 0) {

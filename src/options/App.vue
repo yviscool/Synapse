@@ -351,6 +351,8 @@ const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const searchQueryDebounced = refDebounced(searchQuery, 300)
 const plainSearchQuery = ref('')
+const parsedCategoryNames = ref<string[]>([])
+const parsedTagNames = ref<string[]>([])
 const selectedCategories = ref<string[]>([])
 const selectedTags = ref<string[]>([])
 const showFavoriteOnly = ref(false)
@@ -393,15 +395,25 @@ async function fetchPrompts() {
   if (isLoading.value) return
   isLoading.value = true
 
+  // The component now only deals with names for command-palette filters
+  // and IDs for UI-button filters. The data layer handles resolving them.
+  const categoryNames = parsedCategoryNames.value.length
+    ? parsedCategoryNames.value
+    : selectedCategories.value.map(id => categories.value.find(c => c.id === id)?.name).filter(Boolean) as string[]
+
+  const tagNames = parsedTagNames.value.length
+    ? parsedTagNames.value
+    : selectedTags.value.map(id => tags.value.find(t => t.id === id)?.name).filter(Boolean) as string[]
+
   try {
     const { prompts: newPrompts, total } = await queryPrompts({
       page: currentPage.value,
       limit: 20,
       sortBy: sortBy.value,
       favoriteOnly: showFavoriteOnly.value,
-      searchQuery: plainSearchQuery.value, // Use the plain text query
-      categories: selectedCategories.value,
-      tags: selectedTags.value,
+      searchQuery: plainSearchQuery.value,
+      categoryNames, // Pass names to the data layer
+      tagNames, // Pass names to the data layer
     })
 
     if (currentPage.value === 1) {
@@ -423,32 +435,26 @@ async function fetchPrompts() {
 
 // --- Watchers for Command Palette and Data Fetching ---
 
-// Watcher 1: Parses the raw search query and updates filter states
+// Watcher 1: Parses the raw search query and updates name-based filter states
 watch(searchQueryDebounced, (newQuery) => {
   const { text, categoryNames, tagNames } = parseQuery(newQuery)
   plainSearchQuery.value = text
+  parsedCategoryNames.value = categoryNames
+  parsedTagNames.value = tagNames
 
-  // Update selected categories based on parsed names
-  const categoryIds = categoryNames
-    .map(name => availableCategories.value.find(c => c.name.toLowerCase() === name.toLowerCase())?.id)
-    .filter(Boolean) as string[]
-  // Avoid self-triggering loop by checking for actual changes
-  if (JSON.stringify(categoryIds) !== JSON.stringify(selectedCategories.value)) {
-    selectedCategories.value = categoryIds
+  // If user is using command palette, clear button selections for clarity.
+  // The UI will reactively update.
+  if (categoryNames.length > 0 && selectedCategories.value.length > 0) {
+    selectedCategories.value = []
   }
-
-  // Update selected tags based on parsed names
-  const tagIds = tagNames
-    .map(name => tags.value.find(t => t.name.toLowerCase() === name.toLowerCase())?.id)
-    .filter(Boolean) as string[]
-  if (JSON.stringify(tagIds) !== JSON.stringify(selectedTags.value)) {
-    selectedTags.value = tagIds
+  if (tagNames.length > 0 && selectedTags.value.length > 0) {
+    selectedTags.value = []
   }
 })
 
 // Watcher 2: Triggers a refetch whenever any filter changes
 watch(
-  [plainSearchQuery, selectedCategories, selectedTags, showFavoriteOnly, sortBy],
+  [plainSearchQuery, selectedCategories, selectedTags, parsedCategoryNames, parsedTagNames, showFavoriteOnly, sortBy],
   () => {
     currentPage.value = 1
     totalPrompts.value = 0
