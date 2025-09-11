@@ -69,61 +69,13 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
 ): Promise<{ data: PromptDTO[]; total: number; version: string }> {
-  const { q, category, categoryNames, tagNames, page = 1, limit = 50 } = payload || {}
+  // 1. Directly call the unified query logic
+  const { prompts, total } = await queryPrompts(payload || {})
 
+  // 2. Map to DTOs, preserving matches data
   const [categories, allTags] = await Promise.all([db.categories.toArray(), db.tags.toArray()])
   const categoryMap = new Map(categories.map(c => [c.id, c.name]))
   const tagMap = new Map(allTags.map(t => [t.id, t.name]))
-
-  let prompts: Prompt[] = []
-  let total = 0
-  let matchesMap = new Map<string, any>()
-
-  if (q || (categoryNames && categoryNames.length > 0) || (tagNames && tagNames.length > 0)) {
-    // If there's any search query (text, category, or tag), use the search service
-    const searchQuery = q || ''
-    const searchResults = searchService.search(searchQuery)
-    let resultPrompts = searchResults.map(res => ({ ...res.item, matches: res.matches }))
-
-    // Filter by category names if provided
-    if (categoryNames && categoryNames.length > 0) {
-      const lowerCaseCategoryNames = categoryNames.map(name => name.toLowerCase())
-      resultPrompts = resultPrompts.filter(p =>
-        p.categoryIds.some(catId => lowerCaseCategoryNames.includes(categoryMap.get(catId)?.toLowerCase() || ''))
-      )
-    }
-
-    // Filter by tag names if provided
-    if (tagNames && tagNames.length > 0) {
-      const lowerCaseTagNames = tagNames.map(name => name.toLowerCase())
-      resultPrompts = resultPrompts.filter(p =>
-        p.tagIds.some(tagId => lowerCaseTagNames.includes(tagMap.get(tagId)?.toLowerCase() || ''))
-      )
-    }
-
-    // Re-create matchesMap after filtering
-    matchesMap = new Map(resultPrompts.map(p => [p.id, p.matches]))
-    prompts = resultPrompts
-    total = prompts.length // Total is the count of matched items
-  }
-  else {
-    // No search query, filter by category
-    let collection = db.prompts.orderBy('updatedAt').reverse()
-
-    if (category && category !== '全部') {
-      const categoryId = categories.find(c => c.name === category)?.id
-      if (categoryId) {
-        collection = db.prompts.where('categoryIds').equals(categoryId).reverse().sortBy('updatedAt')
-      }
-    }
-
-    total = await collection.count()
-    prompts = await collection.offset((page - 1) * limit).limit(limit).toArray()
-  }
-
-  // Paginate results manually
-  const start = (page - 1) * limit
-  prompts = prompts.slice(start, start + limit)
 
   const data: PromptDTO[] = prompts.map((p) => {
     return {
@@ -132,7 +84,7 @@ async function handleGetPrompts(
       content: p.content,
       categoryName: p.categoryIds.length > 0 ? categoryMap.get(p.categoryIds[0]) : undefined,
       tags: p.tagIds.map(tid => tagMap.get(tid) || '').filter(Boolean),
-      matches: matchesMap.get(p.id), // Attach matches data
+      matches: p.matches, // Pass through the matches data
     }
   })
 

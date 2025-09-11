@@ -3,6 +3,7 @@ import type Fuse from 'fuse.js'
 import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
 import { MSG, type PerformSearchResult } from '@/utils/messaging'
 import { createSafePrompt } from '@/utils/promptUtils'
+import { searchService } from '@/services/SearchService'
 
 export class APMDB extends Dexie {
   prompts!: Table<Prompt, string>
@@ -182,8 +183,9 @@ export async function mergePrompts(
  */
 export interface QueryPromptsParams {
   searchQuery?: string
-  categoryNames?: string[] // Now accepting names
-  tagNames?: string[] // Now accepting names
+  category?: string // Legacy from content script, will be merged into categoryNames
+  categoryNames?: string[]
+  tagNames?: string[]
   favoriteOnly?: boolean
   sortBy?: 'updatedAt' | 'createdAt' | 'title'
   page?: number
@@ -215,7 +217,8 @@ export interface QueryPromptsResult {
 export async function queryPrompts(params: QueryPromptsParams = {}): Promise<QueryPromptsResult> {
   const {
     searchQuery,
-    categoryNames,
+    category,
+    categoryNames: initialCategoryNames,
     tagNames,
     favoriteOnly,
     sortBy = 'updatedAt',
@@ -271,9 +274,16 @@ export async function queryPrompts(params: QueryPromptsParams = {}): Promise<Que
   }
 
   // 4. Resolve name-based filters to IDs before applying them
+  const categoryNames = [...(initialCategoryNames || [])]
+  if (category && category !== '全部') {
+    categoryNames.push(category)
+  }
+
   let categoryIds: string[] | undefined
-  if (categoryNames && categoryNames.length > 0) {
-    const categories = await db.categories.where('name').anyOf(categoryNames).toArray()
+  if (categoryNames.length > 0) {
+    // Use a Set to handle potential duplicates
+    const uniqueNames = [...new Set(categoryNames)]
+    const categories = await db.categories.where('name').anyOf(uniqueNames).toArray()
     categoryIds = categories.map(c => c.id)
   }
 
