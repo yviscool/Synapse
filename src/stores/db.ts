@@ -1,8 +1,8 @@
 import Dexie, { type Table } from 'dexie'
 import type Fuse from 'fuse.js'
 import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
+import { MSG, type PerformSearchResult } from '@/utils/messaging'
 import { createSafePrompt } from '@/utils/promptUtils'
-import { searchService } from '@/services/SearchService'
 
 export class APMDB extends Dexie {
   prompts!: Table<Prompt, string>
@@ -227,10 +227,20 @@ export async function queryPrompts(params: QueryPromptsParams = {}): Promise<Que
   let filteredPrompts: PromptWithMatches[] = []
 
   if (searchQuery) {
-    // 1. Use Fuse.js for efficient fuzzy searching
-    const searchResults = searchService.search(searchQuery)
+    // 1. Delegate search to the background script
+    const response = await chrome.runtime.sendMessage({
+      type: MSG.PERFORM_SEARCH,
+      data: { query: searchQuery },
+    })
+
+    if (!response.ok || !response.data) {
+      console.error('Failed to perform search via background script:', response.error)
+      return { prompts: [], total: 0 }
+    }
+
+    const searchResults = response.data as PerformSearchResult[]
     if (searchResults.length === 0) {
-      return { prompts: [], total: 0 } // No search results, return early
+      return { prompts: [], total: 0 }
     }
 
     const resultIds = searchResults.map(res => res.item.id)

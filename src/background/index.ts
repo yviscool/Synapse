@@ -9,6 +9,8 @@ import {
   type GetPromptsPayload,
   type PromptDTO,
   type DataUpdatedPayload,
+  type PerformSearchPayload,
+  type PerformSearchResult,
 } from '@/utils/messaging'
 
 // --- Initialize Search Index ---
@@ -48,6 +50,15 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
     db.prompts.update(data.promptId, { lastUsedAt: Date.now() })
       .catch(e => console.error('Failed to update lastUsedAt:', e))
     return false // No need to wait
+  }
+
+  if (type === MSG.PERFORM_SEARCH) {
+    const { query } = data as PerformSearchPayload
+    const results = searchService.search(query)
+    // We need to cast because the result from searchService is technically Fuse.FuseResult[]
+    // but our PerformSearchResult is designed to be structurally compatible and serializable.
+    sendResponse({ ok: true, data: results as PerformSearchResult[] })
+    return false // Synchronous response
   }
 })
 
