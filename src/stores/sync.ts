@@ -5,7 +5,7 @@
  */
 import { db, getSettings, setSettings } from '@/stores/db'
 import * as gdrive from '@/utils/googleDriveApi'
-import { searchService } from './SearchService'
+import { searchService } from '@/services/SearchService'
 
 const MAX_BACKUPS_TO_KEEP = 10;
 
