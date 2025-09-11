@@ -125,18 +125,23 @@ import { nanoid } from 'nanoid'
 import { useUI } from '@/stores/ui'
 import { MSG } from '@/utils/messaging'
 import type { Category, Prompt } from '@/types/prompt'
-import { onClickOutside } from '@vueuse/core'
+import { onClickOutside, useVModel, useFocus, useDebounceFn, whenever } from '@vueuse/core'
 import { useModal } from '@/composables/useModal'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'updated'): void }>()
+
+const isOpen = useVModel(props, 'visible', emit)
+useModal(isOpen, close)
 
 // Refined state management
 const categories = ref<Category[]>([])
 const prompts = ref<Prompt[]>([])
 const { showToast, askConfirm } = useUI()
 const editInputRef = ref<HTMLInputElement | null>(null)
+const { focused: isEditInputFocused } = useFocus(editInputRef, { initialValue: false })
 const iconSearchInputRef = ref<HTMLInputElement | null>(null)
+const { focused: isIconSearchInputFocused } = useFocus(iconSearchInputRef, { initialValue: false })
 
 // --- 'Add' state ---
 const newCategoryName = ref('')
@@ -158,21 +163,14 @@ const iconSearch = ref('')
 
 onClickOutside(iconPickerRef, () => closeIconPicker())
 
-const isOpen = computed({
-    get: () => props.visible,
-    set: val => emit('update:visible', val),
-})
-useModal(isOpen, close)
-
-// Prevent body scroll when modal is open
-watch(() => props.visible, (isVisible) => {
+whenever(isOpen, (isVisible) => {
     if (isVisible) {
         // Load fresh data each time the modal is opened
         Promise.all([loadCategories(), loadPrompts()])
     } else {
         cancelCategoryEdit() // Clean up edit state when closing
     }
-});
+}, { immediate: true })
 
 // --- Data & Computed ---
 const orderedCategories = computed(() =>
@@ -374,7 +372,7 @@ function editCategory(category: Category) {
     editingCategoryId.value = category.id
     editingCategoryName.value = category.name
     editingCategoryIcon.value = category.icon || ''
-    nextTick(() => editInputRef.value?.focus())
+    isEditInputFocused.value = true
 }
 
 function cancelCategoryEdit() {
@@ -418,7 +416,7 @@ function toggleIconPicker(event: MouseEvent, target: 'add' | string) {
         y: rect.bottom + 8
     }
     iconSearch.value = ''
-    nextTick(() => iconSearchInputRef.value?.focus())
+    isIconSearchInputFocused.value = true
 }
 
 function closeIconPicker() {
@@ -466,6 +464,12 @@ function handleCategoryDragLeave() {
     dragOverCategoryId.value = null
 }
 
+const debouncedSaveOrder = useDebounceFn(async (updatedCategories: Category[]) => {
+    await db.categories.bulkPut(updatedCategories)
+    await notifyDataUpdate()
+    showToast('顺序已更新', 'success')
+}, 500)
+
 async function handleCategoryDrop(event: DragEvent) {
     const draggedId = draggingCategoryId.value
     const targetId = dragOverCategoryId.value
@@ -488,10 +492,8 @@ async function handleCategoryDrop(event: DragEvent) {
     reordered.splice(toIndex, 0, draggedItem)
 
     const updated = reordered.map((c, idx) => ({ ...c, sort: idx + 1 }))
-    await db.categories.bulkPut(updated)
     categories.value = updated // Optimistic update for smooth UI
-    showToast('顺序已更新', 'success')
-    await notifyDataUpdate()
+    debouncedSaveOrder(updated)
 }
 
 onMounted(() => {

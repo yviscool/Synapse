@@ -29,8 +29,6 @@
 import { ui, useUI } from '@/stores/ui'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock } from '@vueuse/core'
-import { useFocusRestore } from '@/composables/useFocusRestore'
-import { useSlashTrigger } from '@/composables/useSlashTrigger'
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
@@ -59,7 +57,7 @@ const highlightIndex = ref(0)
 let dataVersion = '0'
 
 let opener: ReturnType<typeof findActiveInput> | null = null
-const { saveFocus, restoreFocus } = useFocusRestore()
+let lastActiveEl: Element | null = null
 
 async function fetchData() {
   if (isLoading.value) return
@@ -116,7 +114,7 @@ watch([searchQueryDebounced, selectedCategory], () => {
 
 function openPanel() {
   visible.value = true
-  saveFocus()
+  lastActiveEl = document.activeElement
   opener = findActiveInput()
 
   // Reset state
@@ -129,7 +127,9 @@ function openPanel() {
 
 function closePanel() {
   visible.value = false
-  restoreFocus()
+  if (lastActiveEl instanceof HTMLElement) {
+    setTimeout(() => lastActiveEl?.focus(), 0)
+  }
 }
 
 function clampHighlight() {
@@ -222,12 +222,37 @@ function handleLoadMore() {
 }
 
 // --- Global Listeners ---
+let lastInputValue = ''
+const ceLast = new WeakMap<HTMLElement, string>()
+
 whenever(keys.alt_k, () => {
   if (!visible.value) openPanel()
 })
-useSlashTrigger(() => {
-  if (!visible.value) openPanel()
-})
+
+function onInput(e: Event) {
+  if (visible.value) return
+  const t = e.target as any
+  if (t instanceof HTMLTextAreaElement) {
+    const v = t.value || ''
+    if (v.toLowerCase().endsWith('/p') && v !== lastInputValue) {
+      lastInputValue = v
+      openPanel()
+    } else {
+      lastInputValue = v
+    }
+  } else if (t instanceof HTMLElement && t.isContentEditable) {
+    const last = ceLast.get(t) || ''
+    const v = (t.textContent || '')
+    if (v.toLowerCase().endsWith('/p') && v !== last) {
+      ceLast.set(t, v)
+      openPanel()
+    } else {
+      ceLast.set(t, v)
+    }
+  }
+}
+
+useEventListener(document, 'input', onInput, true)
 
 onMounted(() => {
   chrome.runtime.onMessage.addListener((msg: RequestMessage) => {
