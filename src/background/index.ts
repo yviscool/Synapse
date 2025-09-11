@@ -18,14 +18,19 @@ import {
 console.log('[Background] Script loaded. Setting up repository listeners.')
 searchService.buildIndex().catch(console.error)
 
-// The new, disciplined way: listen for repository events after transactions are complete.
-repository.events.on('allChanged', () => {
-  console.log('[Background] `allChanged` event received. Rebuilding search index.')
+/**
+ * Handles all data update notifications.
+ * This is the single source of truth for reacting to data changes.
+ */
+function handleDataUpdate(source: 'internal_event' | 'external_message') {
+  console.log(`[Background] Data update triggered from: ${source}. Rebuilding search index.`)
   searchService.buildIndex().catch(error => {
-    console.error('[Background] Failed to rebuild search index after `allChanged` event:', error)
+    console.error(`[Background] Failed to rebuild search index after update from ${source}:`, error)
   })
-})
+}
 
+// Listener for data changes originating *within* the background script's context
+repository.events.on('allChanged', () => handleDataUpdate('internal_event'))
 
 chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
   const { type, data } = msg
@@ -52,7 +57,9 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
   }
 
   if (type === MSG.DATA_UPDATED) {
-    // Broadcast to all content scripts that data has changed
+    // This message comes from other contexts (e.g., options page)
+    handleDataUpdate('external_message')
+    // Also broadcast to all content scripts that data has changed
     broadcastToTabs(msg)
     return false // No response needed
   }
