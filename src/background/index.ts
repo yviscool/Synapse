@@ -54,11 +54,15 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
 
   if (type === MSG.PERFORM_SEARCH) {
     const { query } = data as PerformSearchPayload
-    const results = searchService.search(query)
-    // We need to cast because the result from searchService is technically Fuse.FuseResult[]
-    // but our PerformSearchResult is designed to be structurally compatible and serializable.
-    sendResponse({ ok: true, data: results as PerformSearchResult[] })
-    return false // Synchronous response
+    // This handler must be async to use `then`
+    Promise.resolve(searchService.search(query)).then((results) => {
+      // We need to cast because the result from searchService is technically Fuse.FuseResult[]
+      // but our PerformSearchResult is designed to be structurally compatible and serializable.
+      sendResponse({ ok: true, data: results as PerformSearchResult[] })
+    }).catch(error => {
+      sendResponse({ ok: false, error: error.message })
+    })
+    return true // Return true to indicate async response
   }
 })
 
