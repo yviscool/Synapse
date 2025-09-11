@@ -35,10 +35,10 @@
         <button
           v-for="c in categories"
           :key="c"
-          @click="$emit('update:selectedCategory', c)"
+          @click="selectedCategoryModel = c"
           :class="[
             'px-3 py-1 rounded-lg text-sm border transition-colors',
-            c === selectedCategory
+            c === selectedCategoryModel
               ? 'bg-blue-600 text-white border-blue-600'
               : 'bg-white/50 dark:bg-transparent border-gray-300/70 dark:border-gray-700/70 hover:bg-gray-500/10 hover:border-gray-400/50',
           ]"
@@ -129,7 +129,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
-import { useFocus } from '@vueuse/core'
+import { useFocus, useVModel } from '@vueuse/core'
 import type { PromptDTO } from '@/utils/messaging'
 
 const props = defineProps<{
@@ -155,10 +155,8 @@ const emit = defineEmits<{
 const searchInput = ref<HTMLInputElement | null>(null)
 useFocus(searchInput, { initialValue: true })
 
-const query = computed({
-  get: () => props.searchQuery,
-  set: (v: string) => emit('update:searchQuery', v),
-})
+const query = useVModel(props, 'searchQuery', emit)
+const selectedCategoryModel = useVModel(props, 'selectedCategory', emit)
 
 const isMounted = ref(false)
 const loaderRef = ref<HTMLElement | null>(null)

@@ -3,16 +3,14 @@
     <PromptSelector
       v-if="visible"
       ref="selectorRef"
+      v-model:searchQuery="searchQuery"
+      v-model:selectedCategory="selectedCategory"
       :prompts="allPrompts"
       :categories="categoryOptions"
-      :selectedCategory="selectedCategory"
       :highlightIndex="highlightIndex"
-      :searchQuery="searchQuery"
       :isLoading="isLoading"
       :hasMore="hasMore"
       :totalPrompts="totalPrompts"
-      @update:selectedCategory="(v: string) => selectedCategory = v"
-      @update:searchQuery="(v: string) => searchQuery = v"
       @select="handleSelect"
       @copy="handleCopy"
       @close="closePanel"
@@ -29,7 +27,10 @@
 
 <script setup lang="ts">
 import { ui, useUI } from '@/stores/ui'
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock } from '@vueuse/core'
+import { useFocusRestore } from '@/composables/useFocusRestore'
+import { useSlashTrigger } from '@/composables/useSlashTrigger'
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
@@ -39,12 +40,15 @@ const { showToast, hideToast } = useUI()
 const selectorRef = ref<InstanceType<typeof PromptSelector> | null>(null)
 const visible = ref(false)
 
+const isLocked = useScrollLock(document.body)
+watch(visible, (v) => isLocked.value = v)
+
 // --- Data & Filter State ---
 const allPrompts = ref<PromptDTO[]>([])
 const categoryOptions = ref<string[]>(['全部'])
 const selectedCategory = ref<string>('全部')
 const searchQuery = ref('')
-const searchQueryDebounced = ref('')
+const searchQueryDebounced = refDebounced(searchQuery, 200)
 
 // --- Pagination State ---
 const currentPage = ref(1)
@@ -55,7 +59,7 @@ const highlightIndex = ref(0)
 let dataVersion = '0'
 
 let opener: ReturnType<typeof findActiveInput> | null = null
-let lastActiveEl: Element | null = null
+const { saveFocus, restoreFocus } = useFocusRestore()
 
 async function fetchData() {
   if (isLoading.value) return
@@ -106,40 +110,26 @@ function resetAndFetch() {
   fetchData()
 }
 
-let searchDebounceTimer: number
-watch(searchQuery, (val) => {
-  clearTimeout(searchDebounceTimer)
-  searchDebounceTimer = window.setTimeout(() => {
-    searchQueryDebounced.value = val
-  }, 200)
-})
-
 watch([searchQueryDebounced, selectedCategory], () => {
   resetAndFetch()
 })
 
 function openPanel() {
   visible.value = true
-  lastActiveEl = document.activeElement
+  saveFocus()
   opener = findActiveInput()
 
   // Reset state
   selectedCategory.value = '全部'
   searchQuery.value = ''
-  searchQueryDebounced.value = ''
   
   resetAndFetch()
   fetchCategories()
-
-  setTimeout(() => window.addEventListener('keydown', onKeydown, true), 0)
 }
 
 function closePanel() {
   visible.value = false
-  window.removeEventListener('keydown', onKeydown, true)
-  if (lastActiveEl instanceof HTMLElement) {
-    setTimeout(() => lastActiveEl?.focus(), 0)
-  }
+  restoreFocus()
 }
 
 function clampHighlight() {
@@ -152,36 +142,52 @@ watch(highlightIndex, (newIndex) => {
   selectorRef.value?.scrollToItem(newIndex)
 })
 
-function onKeydown(e: KeyboardEvent) {
+// --- Keyboard Navigation ---
+const keys = useMagicKeys({
+  passive: false,
+  onEventFired(e) {
+    if (visible.value && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Tab')) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  },
+})
+whenever(keys.ArrowDown, () => {
   if (!visible.value) return
-  const key = e.key
-  if (key === 'ArrowDown') {
-    e.preventDefault(); e.stopPropagation()
-    highlightIndex.value++
-    clampHighlight()
-  } else if (key === 'ArrowUp') {
-    e.preventDefault(); e.stopPropagation()
-    highlightIndex.value--
-    clampHighlight()
-  } else if (key === 'Enter') {
-    e.preventDefault(); e.stopPropagation()
-    const cur = allPrompts.value[highlightIndex.value]
-    if (cur) handleSelect(cur)
-  } else if (key === 'Tab') {
-    e.preventDefault(); e.stopPropagation()
-    const idx = categoryOptions.value.indexOf(selectedCategory.value)
-    const dir = e.shiftKey ? -1 : 1
-    const next = (idx + dir + categoryOptions.value.length) % categoryOptions.value.length
-    selectedCategory.value = categoryOptions.value[next]
-  } else if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'c') {
-    e.preventDefault(); e.stopPropagation()
-    const cur = allPrompts.value[highlightIndex.value]
-    if (cur) handleCopy(cur)
-  } else if (key === 'Escape') {
-    e.preventDefault(); e.stopPropagation()
-    closePanel()
-  }
-}
+  highlightIndex.value++
+  clampHighlight()
+})
+whenever(keys.ArrowUp, () => {
+  if (!visible.value) return
+  highlightIndex.value--
+  clampHighlight()
+})
+whenever(keys.Enter, () => {
+  if (!visible.value) return
+  const cur = allPrompts.value[highlightIndex.value]
+  if (cur) handleSelect(cur)
+})
+whenever(keys.Escape, () => {
+  if (!visible.value) return
+  closePanel()
+})
+whenever(keys.Tab, () => {
+  if (!visible.value) return
+  const idx = categoryOptions.value.indexOf(selectedCategory.value)
+  const next = (idx + 1 + categoryOptions.value.length) % categoryOptions.value.length
+  selectedCategory.value = categoryOptions.value[next]
+})
+whenever(keys['Shift+Tab'], () => {
+  if (!visible.value) return
+  const idx = categoryOptions.value.indexOf(selectedCategory.value)
+  const next = (idx - 1 + categoryOptions.value.length) % categoryOptions.value.length
+  selectedCategory.value = categoryOptions.value[next]
+})
+whenever(keys.Ctrl_C, () => {
+  if (!visible.value) return
+  const cur = allPrompts.value[highlightIndex.value]
+  if (cur) handleCopy(cur)
+})
 
 async function handleSelect(p: PromptDTO) {
   try {
@@ -216,42 +222,14 @@ function handleLoadMore() {
 }
 
 // --- Global Listeners ---
-let lastInputValue = ''
-const ceLast = new WeakMap<HTMLElement, string>()
-
-function onGlobalKeydown(e: KeyboardEvent) {
-  if (visible.value) return
-  if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'k') {
-    openPanel()
-  }
-}
-
-function onInput(e: Event) {
-  if (visible.value) return
-  const t = e.target as any
-  if (t instanceof HTMLTextAreaElement) {
-    const v = t.value || ''
-    if (v.toLowerCase().endsWith('/p') && v !== lastInputValue) {
-      lastInputValue = v
-      openPanel()
-    } else {
-      lastInputValue = v
-    }
-  } else if (t instanceof HTMLElement && t.isContentEditable) {
-    const last = ceLast.get(t) || ''
-    const v = (t.textContent || '')
-    if (v.toLowerCase().endsWith('/p') && v !== last) {
-      ceLast.set(t, v)
-      openPanel()
-    } else {
-      ceLast.set(t, v)
-    }
-  }
-}
+whenever(keys.alt_k, () => {
+  if (!visible.value) openPanel()
+})
+useSlashTrigger(() => {
+  if (!visible.value) openPanel()
+})
 
 onMounted(() => {
-  window.addEventListener('keydown', onGlobalKeydown, true)
-  document.addEventListener('input', onInput, true)
   chrome.runtime.onMessage.addListener((msg: RequestMessage) => {
     if (msg?.type === MSG.OPEN_PANEL) {
       openPanel()
@@ -263,10 +241,5 @@ onMounted(() => {
       }
     }
   })
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', onGlobalKeydown, true)
-  document.removeEventListener('input', onInput, true)
 })
 </script>
