@@ -93,12 +93,57 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
   // directly and safely after a transaction is completed.
 })
 
+/**
+ * A dedicated search function for the background script to avoid re-entrant messaging.
+ * It performs a search and then fetches the corresponding data directly from the database.
+ */
+async function searchPromptsInBackground(query: string) {
+  if (!query) {
+    return { prompts: [], total: 0 }
+  }
+
+  const searchResults = searchService.search(query)
+  if (searchResults.length === 0) {
+    return { prompts: [], total: 0 }
+  }
+
+  const resultIds = searchResults.map(res => res.item.id)
+  const matchesMap = new Map(searchResults.map(res => [res.item.id, res.matches]))
+
+  const promptsFromDb = await db.prompts.where('id').anyOf(resultIds).toArray()
+
+  const promptsMap = new Map(promptsFromDb.map(p => [p.id, p]))
+
+  const filteredPrompts = resultIds
+    .map((id) => {
+      const prompt = promptsMap.get(id)
+      if (!prompt) return null
+      return { ...prompt, matches: matchesMap.get(id) }
+    })
+    .filter(Boolean)
+
+  return { prompts: filteredPrompts, total: filteredPrompts.length }
+}
+
+
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
 ): Promise<{ data: PromptDTO[]; total: number; version: string }> {
-  // 1. Map `q` to `searchQuery` and then call the unified query logic
+  // 1. Map `q` to `searchQuery` and then call the correct logic
   const { q, ...restPayload } = payload || {}
-  const { prompts, total } = await queryPrompts({ searchQuery: q, ...restPayload })
+
+  let prompts, total
+  if (q) {
+    // If there is a search query, use the direct background search function
+    const searchResult = await searchPromptsInBackground(q)
+    prompts = searchResult.prompts
+    total = searchResult.total
+  } else {
+    // Otherwise, use the standard query function (for category filtering, etc.)
+    const queryResult = await queryPrompts({ ...restPayload })
+    prompts = queryResult.prompts
+    total = queryResult.total
+  }
 
   // 2. Map to DTOs, preserving matches data
   const [categories, allTags] = await Promise.all([db.categories.toArray(), db.tags.toArray()])
