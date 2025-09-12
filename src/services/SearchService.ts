@@ -9,6 +9,10 @@ export interface SearchablePrompt extends Prompt {
 // --- Module-level state ---
 let fuse: Fuse<SearchablePrompt> | null = null
 const tagMap = new Map<string, string>()
+let resolveReady: () => void
+let ready = new Promise<void>((resolve) => {
+  resolveReady = resolve
+})
 
 // --- Private utility functions ---
 function getFuseOptions(): Fuse.IFuseOptions<SearchablePrompt> {
@@ -52,6 +56,12 @@ function updateTagCache(allTags: Tag[]): void {
  * @param data - Optional data payload containing prompts and tags.
  */
 async function buildIndex(data?: { prompts: Prompt[], tags: Tag[] }): Promise<void> {
+  // Reset the ready promise for re-indexing
+  ready = new Promise<void>((resolve) => {
+    resolveReady = resolve
+  })
+  fuse = null // Invalidate existing index
+
   let promptsToBuild: Prompt[] = []
   let tagsToBuild: Tag[] = []
 
@@ -73,13 +83,16 @@ async function buildIndex(data?: { prompts: Prompt[], tags: Tag[] }): Promise<vo
   const searchablePrompts = promptsToBuild.map(convertToSearchable)
   fuse = new Fuse(searchablePrompts, getFuseOptions())
   console.log(`[SearchService] Index rebuilt with ${promptsToBuild.length} items.`)
+  resolveReady() // Signal that the index is ready
 }
 
 /**
  * Searches the index for a given query.
+ * This function will wait for the index to be ready before performing the search.
  * @param query - The search term.
  */
-function search(query: string) {
+async function search(query: string) {
+  await ready // Wait for the index to be built
   if (!fuse) {
     console.warn('Fuse.js index has not been built yet.')
     return []

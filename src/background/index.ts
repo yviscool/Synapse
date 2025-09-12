@@ -77,14 +77,17 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
 
   if (type === MSG.PERFORM_SEARCH) {
     const { query } = data as PerformSearchPayload
-    // This handler must be async to use `then`
-    Promise.resolve(searchService.search(query)).then((results) => {
-      // We need to cast because the result from searchService is technically Fuse.FuseResult[]
-      // but our PerformSearchResult is designed to be structurally compatible and serializable.
-      sendResponse({ ok: true, data: results as PerformSearchResult[] })
-    }).catch(error => {
-      sendResponse({ ok: false, error: error.message })
-    })
+    ;(async () => {
+      try {
+        const results = await searchService.search(query)
+        // We need to cast because the result from searchService is technically Fuse.FuseResult[]
+        // but our PerformSearchResult is designed to be structurally compatible and serializable.
+        sendResponse({ ok: true, data: results as PerformSearchResult[] })
+      }
+      catch (error) {
+        sendResponse({ ok: false, error: (error as Error).message })
+      }
+    })()
     return true // Return true to indicate async response
   }
 
@@ -102,7 +105,7 @@ async function searchPromptsInBackground(query: string) {
     return { prompts: [], total: 0 }
   }
 
-  const searchResults = searchService.search(query)
+  const searchResults = await searchService.search(query)
   if (searchResults.length === 0) {
     return { prompts: [], total: 0 }
   }
