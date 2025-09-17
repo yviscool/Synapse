@@ -1,5 +1,7 @@
 <template>
+  <!-- 主容器：包含提示词选择器和消息提示组件 -->
   <div>
+    <!-- 提示词选择器面板 -->
     <PromptSelector
       v-if="visible"
       ref="selectorRef"
@@ -16,6 +18,7 @@
       @close="closePanel"
       @load-more="handleLoadMore"
     />
+    <!-- 消息提示组件 -->
     <UiToast
       v-if="ui.toast"
       :message="ui.toast.message"
@@ -26,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+// === 导入依赖 ===
 import { ui, useUI } from '@/stores/ui'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock } from '@vueuse/core'
@@ -34,75 +38,119 @@ import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
 import type Fuse from 'fuse.js'
 
+// === UI 控制 ===
 const { showToast, hideToast } = useUI()
 
+// === 组件引用和状态 ===
+/** 提示词选择器组件引用 */
 const selectorRef = ref<InstanceType<typeof PromptSelector> | null>(null)
+/** 面板是否可见 */
 const visible = ref(false)
 
+// 当面板显示时锁定页面滚动，提升用户体验
 const isLocked = useScrollLock(document.body)
 watch(visible, (v) => isLocked.value = v)
 
-// --- Data & Filter State ---
+// === 数据和过滤状态 ===
+/** 所有提示词数据（包含搜索匹配信息） */
 const allPrompts = ref<(PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]>([])
+/** 分类选项列表 */
 const categoryOptions = ref<string[]>(['全部'])
+/** 当前选中的分类 */
 const selectedCategory = ref<string>('全部')
+/** 搜索查询字符串 */
 const searchQuery = ref('')
+/** 防抖处理的搜索查询，避免频繁请求 */
 const searchQueryDebounced = refDebounced(searchQuery, 200)
 
-// --- Pagination State ---
+// === 分页状态 ===
+/** 当前页码 */
 const currentPage = ref(1)
+/** 提示词总数 */
 const totalPrompts = ref(0)
+/** 是否正在加载数据 */
 const isLoading = ref(false)
+/** 是否还有更多数据可加载 */
 const hasMore = computed(() => allPrompts.value.length < totalPrompts.value)
+/** 当前高亮的提示词索引 */
 const highlightIndex = ref(0)
+/** 数据版本号，用于检测数据更新 */
 let dataVersion = '0'
 
+// === 输入元素状态 ===
+/** 触发面板时的输入元素信息 */
 let opener: ReturnType<typeof findActiveInput> | null = null
-let lastActiveEl: Element | null = null
+/** 上一个活跃的元素，用于关闭面板后恢复焦点 */
+let lastActiveEl: HTMLElement | null = null
 
+// === 数据获取函数 ===
+
+/**
+ * 获取提示词数据
+ * 支持搜索、分类过滤和分页加载
+ */
 async function fetchData() {
+  // 防止重复请求
   if (isLoading.value) return
   isLoading.value = true
 
   try {
+    // 构建请求参数
     const payload: any = {
-      q: searchQueryDebounced.value,
-      page: currentPage.value,
-      limit: 50,
+      q: searchQueryDebounced.value,        // 搜索关键词
+      page: currentPage.value,              // 当前页码
+      limit: 50,                           // 每页数量
     }
-    // Only apply category filter if there is no search query
+    
+    // 只有在没有搜索关键词时才应用分类过滤
+    // 这样可以确保搜索结果不受分类限制
     if (!searchQueryDebounced.value) {
       payload.category = selectedCategory.value
     }
-    const res: ResponseMessage<(PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]> & { total?: number } = await chrome.runtime.sendMessage({ type: MSG.GET_PROMPTS, data: payload })
+    
+    // 发送消息到后台脚本获取数据
+    const res: ResponseMessage<(PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]> & { total?: number } = 
+      await chrome.runtime.sendMessage({ type: MSG.GET_PROMPTS, data: payload })
 
     if (res.ok && res.data) {
       if (currentPage.value === 1) {
+        // 第一页：替换所有数据
         allPrompts.value = res.data
       } else {
+        // 后续页：追加数据（无限滚动）
         allPrompts.value.push(...res.data)
       }
       totalPrompts.value = res.total || 0
       dataVersion = res.version || '0'
     }
   } catch (e) {
-    console.error('Failed to fetch prompts:', e)
+    console.error('获取提示词失败:', e)
   } finally {
     isLoading.value = false
   }
 }
 
+/**
+ * 获取分类列表
+ */
 async function fetchCategories() {
   try {
-    const res: ResponseMessage<{id: string, name: string}[]> = await chrome.runtime.sendMessage({ type: MSG.GET_CATEGORIES })
+    const res: ResponseMessage<{id: string, name: string}[]> = 
+      await chrome.runtime.sendMessage({ type: MSG.GET_CATEGORIES })
+    
     if (res.ok && res.data) {
+      // 在分类列表前添加"全部"选项
       categoryOptions.value = ['全部', ...res.data.map(c => c.name)]
     }
   } catch (e) {
-    console.error('Failed to fetch categories:', e)
+    console.error('获取分类失败:', e)
   }
 }
 
+/**
+ * 重置状态并重新获取数据
+ * 在搜索条件或分类改变时调用
+ */
 function resetAndFetch() {
   currentPage.value = 1
   totalPrompts.value = 0
@@ -111,113 +159,219 @@ function resetAndFetch() {
   fetchData()
 }
 
+// 监听搜索关键词和分类变化，自动重新获取数据
 watch([searchQueryDebounced, selectedCategory], () => {
   resetAndFetch()
 })
 
+// === 面板控制函数 ===
+
+/**
+ * 打开提示词选择面板
+ */
 function openPanel() {
   visible.value = true
-  lastActiveEl = document.activeElement
+  
+  // 记录当前焦点元素，用于关闭面板后恢复
+  lastActiveEl = document.activeElement as HTMLElement | null
+  
+  // 查找并记录触发面板的输入元素
   opener = findActiveInput()
 
-  // Reset state
+  // 重置搜索和分类状态
   selectedCategory.value = '全部'
   searchQuery.value = ''
   
+  // 获取数据
   resetAndFetch()
   fetchCategories()
 }
 
+/**
+ * 关闭提示词选择面板
+ */
 function closePanel() {
   visible.value = false
-  if (lastActiveEl instanceof HTMLElement) {
+  
+  // 恢复之前的焦点元素
+  if (lastActiveEl) {
     setTimeout(() => lastActiveEl?.focus(), 0)
   }
 }
 
+/**
+ * 限制高亮索引在有效范围内
+ */
 function clampHighlight() {
   const n = allPrompts.value.length
-  if (n === 0) highlightIndex.value = 0
-  else highlightIndex.value = Math.max(0, Math.min(highlightIndex.value, n - 1))
+  if (n === 0) {
+    highlightIndex.value = 0
+  } else {
+    highlightIndex.value = Math.max(0, Math.min(highlightIndex.value, n - 1))
+  }
 }
 
+// 监听高亮索引变化，自动滚动到对应项目
 watch(highlightIndex, (newIndex) => {
   selectorRef.value?.scrollToItem(newIndex)
 })
 
-// --- Keyboard Navigation ---
+// === 键盘导航控制 ===
+
+/**
+ * 魔法按键配置
+ * 用于处理面板显示时的键盘快捷键
+ */
 const keys = useMagicKeys({
   passive: false,
   onEventFired(e) {
+    // 当面板显示时，阻止某些按键的默认行为
     if (visible.value && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Tab')) {
       e.preventDefault()
       e.stopPropagation()
     }
   },
 })
+
+// 向下箭头：移动到下一个提示词
 whenever(keys.ArrowDown, () => {
   if (!visible.value) return
   highlightIndex.value++
   clampHighlight()
 })
+
+// 向上箭头：移动到上一个提示词
 whenever(keys.ArrowUp, () => {
   if (!visible.value) return
   highlightIndex.value--
   clampHighlight()
 })
+
+// 回车键：选择当前高亮的提示词
 whenever(keys.Enter, () => {
   if (!visible.value) return
   const cur = allPrompts.value[highlightIndex.value]
   if (cur) handleSelect(cur)
 })
+
+// ESC键：关闭面板
 whenever(keys.Escape, () => {
   if (!visible.value) return
   closePanel()
 })
+
+// Tab键：切换到下一个分类
 whenever(keys.Tab, () => {
   if (!visible.value) return
   const idx = categoryOptions.value.indexOf(selectedCategory.value)
   const next = (idx + 1 + categoryOptions.value.length) % categoryOptions.value.length
   selectedCategory.value = categoryOptions.value[next]
 })
+
+// Shift+Tab：切换到上一个分类
 whenever(keys['Shift+Tab'], () => {
   if (!visible.value) return
   const idx = categoryOptions.value.indexOf(selectedCategory.value)
   const next = (idx - 1 + categoryOptions.value.length) % categoryOptions.value.length
   selectedCategory.value = categoryOptions.value[next]
 })
+
+// Ctrl+C：复制当前高亮的提示词
 whenever(keys.Ctrl_C, () => {
   if (!visible.value) return
   const cur = allPrompts.value[highlightIndex.value]
   if (cur) handleCopy(cur)
 })
 
+// === 事件处理函数 ===
+
+/**
+ * 处理提示词选择事件
+ * @param p 选中的提示词对象
+ */
 async function handleSelect(p: PromptDTO) {
   try {
-    chrome.runtime.sendMessage({ type: MSG.UPDATE_PROMPT_LAST_USED, data: { promptId: p.id } })
+    // 更新提示词的最后使用时间（用于排序和统计）
+    chrome.runtime.sendMessage({ 
+      type: MSG.UPDATE_PROMPT_LAST_USED, 
+      data: { promptId: p.id } 
+    })
+    
+    // 获取目标输入元素（优先使用打开面板时记录的元素）
     const target = opener || findActiveInput()
+    
+    // 如果没有找到输入元素，则复制到剪贴板
     if (!target) {
-      try { await navigator.clipboard.writeText(p.content) } catch {}
+      try { 
+        await navigator.clipboard.writeText(p.content) 
+        showToast('已复制到剪贴板', 'success')
+      } catch {
+        showToast('复制失败', 'error')
+      }
       return
     }
-    // Clean up the trigger: now it's just '/', because 'p' was prevented.
-    if (target.el.value?.toLowerCase().endsWith('/')) {
-      target.el.value = target.el.value.slice(0, -1)
-      target.el.dispatchEvent(new Event('input', { bubbles: true }))
+    
+    // 清理触发符：移除末尾的 '/' 字符
+    // 这是因为用户输入 '/p' 时，'p' 被阻止了，只剩下 '/'
+    if (target.kind === 'textarea') {
+      const textarea = target.el as HTMLTextAreaElement
+      if (textarea.value?.toLowerCase().endsWith('/')) {
+        textarea.value = textarea.value.slice(0, -1)
+        textarea.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+    } else if (target.kind === 'contenteditable') {
+      // 对于 contenteditable 元素，需要特殊处理
+      const text = target.el.textContent || ''
+      if (text.toLowerCase().endsWith('/')) {
+        // 移除最后的 '/' 字符
+        const range = document.createRange()
+        const sel = window.getSelection()
+        if (sel && sel.rangeCount > 0) {
+          range.selectNodeContents(target.el)
+          range.collapse(false)
+          range.setStart(range.endContainer, Math.max(0, range.endOffset - 1))
+          range.deleteContents()
+        }
+      }
     }
+    
+    // 在光标位置插入提示词内容
     insertAtCursor(target, p.content)
+    
+    showToast('提示词已插入', 'success')
+  } catch (error) {
+    console.error('处理提示词选择时出错:', error)
+    showToast('插入失败', 'error')
   } finally {
     closePanel()
   }
 }
 
+/**
+ * 处理提示词复制事件
+ * @param p 要复制的提示词对象
+ */
 async function handleCopy(p: PromptDTO) {
-  chrome.runtime.sendMessage({ type: MSG.UPDATE_PROMPT_LAST_USED, data: { promptId: p.id } })
-  try { await navigator.clipboard.writeText(p.content) } catch {}
-  showToast('复制成功！', 'success')
+  // 更新提示词的最后使用时间
+  chrome.runtime.sendMessage({ 
+    type: MSG.UPDATE_PROMPT_LAST_USED, 
+    data: { promptId: p.id } 
+  })
+  
+  try { 
+    await navigator.clipboard.writeText(p.content)
+    showToast('复制成功！', 'success')
+  } catch {
+    showToast('复制失败', 'error')
+  }
+  
   closePanel()
 }
 
+/**
+ * 处理加载更多数据事件
+ * 实现无限滚动功能
+ */
 function handleLoadMore() {
   if (hasMore.value && !isLoading.value) {
     currentPage.value++
@@ -225,46 +379,69 @@ function handleLoadMore() {
   }
 }
 
-// --- Global Listeners ---
+// === 全局事件监听 ===
+
+// Alt+K 快捷键：打开面板
 whenever(keys.alt_k, () => {
   if (!visible.value) openPanel()
 })
 
-// Listen for keydown to prevent the race condition
+/**
+ * 全局键盘事件监听器
+ * 用于检测 '/p' 触发序列
+ * @param e 键盘事件对象
+ */
 function onKeydown(e: KeyboardEvent) {
+  // 如果面板已经显示，不处理触发序列
   if (visible.value) return
 
   const t = e.target as HTMLElement
-  const isTextarea = t instanceof HTMLTextAreaElement;
-  const isContentEditable = t.isContentEditable;
+  const isTextarea = t instanceof HTMLTextAreaElement
+  const isContentEditable = t.isContentEditable
 
-  if (!isTextarea && !isContentEditable) return;
+  // 只在文本输入元素中处理
+  if (!isTextarea && !isContentEditable) return
 
-  // Check for the trigger sequence: '/' followed by a 'p' keydown event
+  // 检测触发序列：'/' 后跟 'p' 键
   if (e.key.toLowerCase() === 'p') {
-    let precedingText = '';
+    let precedingText = ''
+    
     if (isTextarea) {
-      precedingText = (t as HTMLTextAreaElement).value || '';
+      // 获取 textarea 的文本内容
+      precedingText = (t as HTMLTextAreaElement).value || ''
     } else if (isContentEditable) {
-      precedingText = t.textContent || '';
+      // 获取 contenteditable 元素的文本内容
+      precedingText = t.textContent || ''
     }
 
+    // 如果文本以 '/' 结尾，则触发面板
     if (precedingText.toLowerCase().endsWith('/')) {
-      e.preventDefault();
-      e.stopPropagation();
-      openPanel();
+      e.preventDefault()    // 阻止 'p' 字符输入
+      e.stopPropagation()   // 阻止事件冒泡
+      openPanel()           // 打开提示词面板
     }
   }
 }
 
+// 注册全局键盘事件监听器（捕获阶段）
 useEventListener(document, 'keydown', onKeydown, true)
 
+// === 组件生命周期 ===
+
+/**
+ * 组件挂载后的初始化操作
+ */
 onMounted(() => {
+  // 监听来自后台脚本的消息
   chrome.runtime.onMessage.addListener((msg: RequestMessage) => {
+    // 处理打开面板的消息
     if (msg?.type === MSG.OPEN_PANEL) {
       openPanel()
     }
+    
+    // 处理数据更新的消息
     if (msg?.type === MSG.DATA_UPDATED) {
+      // 如果面板正在显示且数据版本不同，则刷新数据
       if (visible.value && msg.data?.version !== dataVersion) {
         resetAndFetch()
         fetchCategories()
