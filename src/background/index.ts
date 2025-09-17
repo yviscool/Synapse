@@ -184,31 +184,42 @@ async function broadcastToTabs(msg: RequestMessage<DataUpdatedPayload>) {
   }
 }
 
-// --- Quick Save Feature ---
+// --- 快捷保存功能 ---
 
+/**
+ * 将选中的文本作为新的提示词保存
+ * @param text - 选中的文本内容
+ */
 async function saveSelectionAsPrompt(text: string) {
+  // 如果文本为空或只有空白，则不执行任何操作
   if (!text || !text.trim())
     return
 
+  // 从文本内容生成一个简短的标题
   const title = text.trim().slice(0, 40) + (text.trim().length > 40 ? '...' : '')
 
-  const { ok, error } = await repository.addPrompt({
+  // 调用 repository 中的 savePrompt 方法来保存新的提示词
+  // 注意：repository 中并没有 addPrompt 方法，正确的方法是 savePrompt
+  // savePrompt 用于创建和更新提示词，当不提供 id 时，它会创建一个新的。
+  // 第二个参数是标签名称数组，快捷保存时默认为空。
+  const { ok, error } = await repository.savePrompt({
     title,
     content: text,
-  })
+  }, [])
 
   if (ok) {
-    // Notify user
+    // 保存成功，创建桌面通知提醒用户
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon-128.png',
       title: 'Synapse',
       message: '提示词已保存！',
     })
-    // The repository's `withCommitNotification` already handles broadcasting the DATA_UPDATED message,
-    // so we don't need to do it here anymore.
+    // repository 的 `withCommitNotification` 包装器会自动处理 DATA_UPDATED 消息的广播
+    // 所以这里不再需要手动发送消息。
   }
   else {
+    // 保存失败，记录错误并创建通知提醒用户
     console.error('Failed to save prompt from selection:', error)
     chrome.notifications.create({
       type: 'basic',
