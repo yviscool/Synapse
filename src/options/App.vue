@@ -366,7 +366,7 @@ import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
 import CategoryManager from './components/CategoryManager.vue'
 import MergeImportModal from './components/MergeImportModal.vue'
-import DeleteCategoryModal from '@/components/DeleteCategoryModal.vue'
+import DeleteCategoryModal from './components/DeleteCategoryModal.vue'
 
 const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
 
