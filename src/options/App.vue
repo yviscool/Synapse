@@ -67,7 +67,7 @@
         
         <div class="space-y-4">
           <!-- The new Control Shelf -->
-          <div class="p-4 bg-gray-50/80 backdrop-blur-sm rounded-xl border border-gray-200/60 space-y-4">
+          <div class="relative z-10 p-4 bg-gray-50/80 backdrop-blur-sm rounded-xl border border-gray-200/60 space-y-4">
             <div class="flex items-center justify-between gap-4 flex-wrap">
               <!-- Category Filters -->
               <div class="flex items-center gap-2 flex-1 min-w-0">
@@ -111,13 +111,39 @@
 
                 <div class="w-px h-6 bg-gray-200/80 ml-2 mr-1"></div>
 
-                <button @click="showMergeImport = true" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="导入并合并">
-                    <div class="i-carbon-document-import text-lg"></div>
+                <!-- New Category Settings Dropdown -->
+                <div class="relative" ref="categorySettingsRef">
+                  <button @click="isCategorySettingsOpen = !isCategorySettingsOpen" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="分类设置">
+                    <div class="i-carbon-settings-adjust text-lg"></div>
                   </button>
-
-                  <button @click="showCategoryManager = true" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="分类管理">
-                    <div class="i-carbon-edit text-lg"></div>
-                  </button>
+                  <div
+                    v-if="isCategorySettingsOpen"
+                    class="absolute right-0 top-12 z-30 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1"
+                  >
+                    <button
+                      @click="showCategoryManager = true; isCategorySettingsOpen = false"
+                      class="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                    >
+                      <div class="i-carbon-edit"></div>
+                      <span>分类管理</span>
+                    </button>
+                    <button
+                      @click="showMergeImport = true; isCategorySettingsOpen = false"
+                      class="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                    >
+                      <div class="i-carbon-document-import"></div>
+                      <span>导入/合并</span>
+                    </button>
+                    <div class="h-px bg-gray-200 my-1"></div>
+                    <button
+                      @click="showDeleteCategoryModal = true; isCategorySettingsOpen = false"
+                      class="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50"
+                    >
+                      <div class="i-carbon-trash-can"></div>
+                      <span>批量删除</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -305,6 +331,8 @@
 
     <MergeImportModal v-model:visible="showMergeImport" :available-categories="availableCategories" :active-categories="selectedCategories" :active-tags="getTagNames(selectedTags)" @merged="handleMergeSuccess" />
 
+    <DeleteCategoryModal v-model:visible="showDeleteCategoryModal" :categories="categories" @updated="handleCategoryDeletion" />
+
     <!-- 全局 UI 组件 -->
     <UiToast
       v-if="ui.toast"
@@ -332,12 +360,13 @@ import { generateHighlightedHtml } from '@/utils/highlighter'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
 import { useModal } from '@/composables/useModal'
-import { onKeyStroke, refDebounced } from '@vueuse/core'
+import { onKeyStroke, refDebounced, onClickOutside } from '@vueuse/core'
 import { parseQuery } from '@/utils/queryParser'
 import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
 import CategoryManager from './components/CategoryManager.vue'
 import MergeImportModal from './components/MergeImportModal.vue'
+import DeleteCategoryModal from '@/components/DeleteCategoryModal.vue'
 
 const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
 
@@ -369,15 +398,23 @@ const editingPrompt = ref<Partial<Prompt> | null>(null)
 const editingTags = ref<string[]>([])
 const showCategoryManager = ref(false)
 const showMergeImport = ref(false)
+const showDeleteCategoryModal = ref(false)
 const changeNote = ref('')
 const hasContentChanged = ref(false)
 const showSettings = ref(false)
 const menuOpenId = ref<string | null>(null)
 const copiedId = ref<string | null>(null)
+const isCategorySettingsOpen = ref(false)
+const categorySettingsRef = ref(null)
 
 useModal(showSettings, () => { showSettings.value = false })
 useModal(showCategoryManager, () => { showCategoryManager.value = false })
+useModal(showMergeImport, () => { showMergeImport.value = false })
+useModal(showDeleteCategoryModal, () => { showDeleteCategoryModal.value = false })
 useModal(computed(() => !!editingPrompt.value), closeEditor)
+
+onClickOutside(categorySettingsRef, () => isCategorySettingsOpen.value = false)
+
 
 onKeyStroke(['Control+k', 'Meta+k'], (e) => {
   e.preventDefault()
@@ -747,6 +784,11 @@ function formatDate(timestamp: number): string {
 async function handleMergeSuccess() {
   await triggerRefetch()
   await loadTags()
+}
+
+async function handleCategoryDeletion() {
+  await loadCategories()
+  await triggerRefetch()
 }
 
 onMounted(async () => {

@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    DeleteCategoryModal: typeof import('./src/components/DeleteCategoryModal.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     UiConfirm: typeof import('./src/components/UiConfirm.vue')['default']

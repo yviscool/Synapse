@@ -244,14 +244,72 @@ export const repository = {
       ['categories', 'prompts'],
       async () => {
         await db.categories.delete(id)
+        // Prompts are now un-categorized instead of being deleted.
         const promptsToUpdate = await db.prompts.where('categoryIds').equals(id).toArray()
-        for (const prompt of promptsToUpdate) {
-          const newCategoryIds = prompt.categoryIds.filter(catId => catId !== id)
-          await db.prompts.update(prompt.id, { categoryIds: newCategoryIds })
+        const updates = promptsToUpdate.map(prompt => ({
+          key: prompt.id,
+          changes: { categoryIds: prompt.categoryIds.filter(catId => catId !== id) }
+        }));
+        if (updates.length > 0) {
+          await db.prompts.bulkUpdate(updates);
         }
       },
       'allChanged'
     )
+  },
+
+  async deletePromptsByCategory(categoryId: string): Promise<{ ok: boolean; error?: any }> {
+    return withCommitNotification(
+      ['prompts', 'prompt_versions'],
+      async () => {
+        const promptsToDelete = await db.prompts.where('categoryIds').equals(categoryId).toArray();
+        if (promptsToDelete.length === 0) return;
+
+        const promptIds = promptsToDelete.map(p => p.id);
+        await db.prompts.bulkDelete(promptIds);
+        await db.prompt_versions.where('promptId').anyOf(promptIds).delete();
+      },
+      'allChanged'
+    );
+  },
+
+  async deleteCategoryAndPrompts(categoryId: string): Promise<{ ok: boolean; error?: any }> {
+    return withCommitNotification(
+      ['categories', 'prompts', 'prompt_versions'],
+      async () => {
+        // First, delete the prompts and their versions
+        const promptsToDelete = await db.prompts.where('categoryIds').equals(categoryId).toArray();
+        if (promptsToDelete.length > 0) {
+          const promptIds = promptsToDelete.map(p => p.id);
+          await db.prompts.bulkDelete(promptIds);
+          await db.prompt_versions.where('promptId').anyOf(promptIds).delete();
+        }
+        // Then, delete the category itself
+        await db.categories.delete(categoryId);
+      },
+      'allChanged'
+    );
+  },
+
+  async deletePromptsByTagsInCategory(categoryId: string, tagIds: string[]): Promise<{ ok: boolean; error?: any }> {
+    return withCommitNotification(
+      ['prompts', 'prompt_versions'],
+      async () => {
+        if (tagIds.length === 0) return;
+
+        const promptsToDelete = await db.prompts
+          .where('categoryIds').equals(categoryId)
+          .filter(prompt => tagIds.every(tagId => prompt.tagIds.includes(tagId)))
+          .toArray();
+        
+        if (promptsToDelete.length === 0) return;
+
+        const promptIds = promptsToDelete.map(p => p.id);
+        await db.prompts.bulkDelete(promptIds);
+        await db.prompt_versions.where('promptId').anyOf(promptIds).delete();
+      },
+      'allChanged'
+    );
   },
 
   async updateCategoryOrder(categories: Category[]): Promise<{ ok: boolean; error?: any }> {
