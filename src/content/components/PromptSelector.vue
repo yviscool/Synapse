@@ -129,10 +129,10 @@ import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useFocus, useVModel } from '@vueuse/core'
 import type { PromptDTO } from '@/utils/messaging'
 import { generateHighlightedHtml } from '@/utils/highlighter'
-import type Fuse from 'fuse.js'
+import type { FuseResultMatch } from 'fuse.js'
 
 const props = defineProps<{
-  prompts: (PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]
+  prompts: (PromptDTO & { matches?: readonly FuseResultMatch[] })[]
   categories: string[]
   selectedCategory: string
   highlightIndex: number

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type Fuse from 'fuse.js'
+import type { FuseResult, FuseResultMatch} from 'fuse.js'
 import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
 import { MSG, type PerformSearchResult } from '@/utils/messaging'
 import { createSafePrompt } from '@/utils/promptUtils'
@@ -76,7 +76,7 @@ export interface QueryPromptsParams {
  * Extends the Prompt type to include Fuse.js match details for highlighting.
  */
 export type PromptWithMatches = Prompt & {
-  matches?: readonly Fuse.FuseResultMatch[]
+  matches?: readonly FuseResultMatch[]
 }
 
 /**

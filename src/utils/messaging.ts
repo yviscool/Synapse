@@ -1,6 +1,6 @@
 import type { Category, Settings } from '@/types'
 import type { SearchablePrompt } from '@/services/SearchService'
-import type Fuse from 'fuse.js'
+import type { FuseResultMatch } from 'fuse.js'
 
 export const MSG = {
   // Panel/UI
@@ -39,7 +39,7 @@ export interface PromptDTO {
   content: string
   categoryName?: string
   tags: string[]
-  matches?: readonly Fuse.FuseResultMatch[]
+  matches?: readonly FuseResultMatch[]
 }
 
 export interface GetPromptsPayload {
@@ -69,7 +69,7 @@ export interface PerformSearchResult {
   item: SearchablePrompt
   refIndex: number
   score?: number
-  matches?: readonly Fuse.FuseResultMatch[]
+  matches?: readonly FuseResultMatch[]
 }
 
 // A generic message type for use in listeners

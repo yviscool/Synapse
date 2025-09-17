@@ -36,7 +36,7 @@ import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock }
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
-import type Fuse from 'fuse.js'
+import type { FuseResultMatch, FuseResult } from 'fuse.js'
 
 // === UI 控制 ===
 const { showToast, hideToast } = useUI()
@@ -53,7 +53,7 @@ watch(visible, (v) => isLocked.value = v)
 
 // === 数据和过滤状态 ===
 /** 所有提示词数据（包含搜索匹配信息） */
-const allPrompts = ref<(PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]>([])
+const allPrompts = ref<(PromptDTO & { matches?: readonly FuseResultMatch[] })[]>([])
 /** 分类选项列表 */
 const categoryOptions = ref<string[]>(['全部'])
 /** 当前选中的分类 */
@@ -109,7 +109,7 @@ async function fetchData() {
     }
     
     // 发送消息到后台脚本获取数据
-    const res: ResponseMessage<(PromptDTO & { matches?: readonly Fuse.FuseResultMatch[] })[]> & { total?: number } = 
+    const res: ResponseMessage<(PromptDTO & { matches?: readonly FuseResultMatch[] })[]> & { total?: number } = 
       await chrome.runtime.sendMessage({ type: MSG.GET_PROMPTS, data: payload })
 
     if (res.ok && res.data) {

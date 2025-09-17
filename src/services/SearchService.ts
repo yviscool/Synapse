@@ -1,4 +1,4 @@
-import Fuse from 'fuse.js'
+import Fuse, { IFuseOptions } from 'fuse.js'
 import type { Prompt, Tag } from '@/types'
 import { db } from '@/stores/db'
 
@@ -15,7 +15,7 @@ let ready = new Promise<void>((resolve) => {
 })
 
 // --- Private utility functions ---
-function getFuseOptions(): Fuse.IFuseOptions<SearchablePrompt> {
+function getFuseOptions(): IFuseOptions<SearchablePrompt> {
   return {
     keys: [
       { name: 'title', weight: 0.4 },
