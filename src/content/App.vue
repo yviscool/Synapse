@@ -226,9 +226,11 @@ const keys = useMagicKeys({
   passive: false,
   onEventFired(e) {
     // 当面板显示时，阻止某些按键的默认行为
-    if (visible.value && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Tab')) {
+    if (visible.value && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Tab' || e.key === 'Enter')) {
       e.preventDefault()
       e.stopPropagation()
+      // 终极武器：立即停止同一元素上其他同类事件监听器的执行
+      e.stopImmediatePropagation()
     }
   },
 })
@@ -311,32 +313,11 @@ async function handleSelect(p: PromptDTO) {
       return
     }
     
-    // 清理触发符：移除末尾的 '/' 字符
-    // 这是因为用户输入 '/p' 时，'p' 被阻止了，只剩下 '/'
-    if (target.kind === 'textarea') {
-      const textarea = target.el as HTMLTextAreaElement
-      if (textarea.value?.toLowerCase().endsWith('/')) {
-        textarea.value = textarea.value.slice(0, -1)
-        textarea.dispatchEvent(new Event('input', { bubbles: true }))
-      }
-    } else if (target.kind === 'contenteditable') {
-      // 对于 contenteditable 元素，需要特殊处理
-      const text = target.el.textContent || ''
-      if (text.toLowerCase().endsWith('/')) {
-        // 移除最后的 '/' 字符
-        const range = document.createRange()
-        const sel = window.getSelection()
-        if (sel && sel.rangeCount > 0) {
-          range.selectNodeContents(target.el)
-          range.collapse(false)
-          range.setStart(range.endContainer, Math.max(0, range.endOffset - 1))
-          range.deleteContents()
-        }
-      }
-    }
-    
-    // 在光标位置插入提示词内容
-    insertAtCursor(target, p.content)
+    // 检查是否由触发器 ('/p') 调用
+    const isTriggered = searchQuery.value === ''
+
+    // 在光标位置插入提示词内容，并告知函数是否需要替换触发符
+    insertAtCursor(target, p.content, isTriggered)
     
     showToast('提示词已插入', 'success')
   } catch (error) {

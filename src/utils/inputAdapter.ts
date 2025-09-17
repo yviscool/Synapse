@@ -58,8 +58,36 @@ export function findActiveInput(customSelectors: string[] = []): InputTarget | n
  * 支持 textarea 和 contenteditable 两种元素类型
  * @param target 目标输入元素
  * @param text 要插入的文本内容
+ * @param replaceTrigger 如果为 true，则在插入前删除一个字符（用于替换触发符如'/'）
  */
-export function insertAtCursor(target: InputTarget, text: string) {
+export function insertAtCursor(target: InputTarget, text: string, replaceTrigger = false) {
+  // 确保元素获得焦点
+  target.el.focus()
+
+  // 如果需要，先删除触发符
+  if (replaceTrigger) {
+    if (target.kind === 'textarea') {
+      const ta = target.el
+      const start = ta.selectionStart ?? ta.value.length
+      if (start > 0) {
+        ta.value = ta.value.slice(0, start - 1) + ta.value.slice(ta.selectionEnd ?? start)
+        ta.selectionStart = ta.selectionEnd = start - 1
+      }
+    } else {
+      // 对于 contenteditable，模拟一次退格键是更健壮的方式
+      // 这会让富文本编辑器自己去处理删除操作，而不是我们手动操作DOM
+      const backspaceEvent = new KeyboardEvent('keydown', {
+        key: 'Backspace',
+        code: 'Backspace',
+        keyCode: 8,
+        which: 8,
+        bubbles: true,
+        cancelable: true
+      });
+      target.el.dispatchEvent(backspaceEvent);
+    }
+  }
+
   // 处理 textarea 元素
   if (target.kind === 'textarea') {
     const ta = target.el
@@ -84,7 +112,6 @@ export function insertAtCursor(target: InputTarget, text: string) {
   
   // 处理 contenteditable 元素
   const el = target.el
-  el.focus() // 确保元素获得焦点
   
   const sel = window.getSelection()
   if (!sel) return
@@ -113,7 +140,7 @@ export function insertAtCursor(target: InputTarget, text: string) {
   sel.addRange(range)
   
   // 清理可能产生的空段落标签（修复回车上屏问题）
-  cleanupEmptyParagraphs(el)
+  // cleanupEmptyParagraphs(el) // 注意：execCommand('delete') 可能已经处理了，可以观察是否还需要
   
   // 触发 input 事件，通知页面文本已改变
   el.dispatchEvent(new InputEvent('input', { 
