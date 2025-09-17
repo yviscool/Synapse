@@ -149,7 +149,16 @@ export async function downloadBackupFile(fileId: string): Promise<any> {
 export async function uploadNewBackup(data: object): Promise<void> {
   const token = await getAuthToken();
   const content = JSON.stringify(data);
-  const timestamp = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+  // 采用中国地区友好时间（本地时区、24 小时制），格式：YYYY-MM-DD_HH-mm-ss
+  // 说明：保持与前端显示一致性，避免文件名中出现冒号
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const timestamp = `${y}-${m}-${d}_${hh}-${mm}-${ss}`;
   const fileName = `${BACKUP_FILE_PREFIX}${timestamp}.json`;
 
   const appFolderId = await findOrCreateAppFolder();
