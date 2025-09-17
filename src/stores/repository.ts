@@ -299,7 +299,7 @@ export const repository = {
 
         const promptsToDelete = await db.prompts
           .where('categoryIds').equals(categoryId)
-          .filter(prompt => tagIds.every(tagId => prompt.tagIds.includes(tagId)))
+          .filter(prompt => tagIds.some(tagId => prompt.tagIds.includes(tagId)))
           .toArray();
         
         if (promptsToDelete.length === 0) return;

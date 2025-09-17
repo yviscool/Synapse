@@ -46,7 +46,7 @@
           <div v-if="deletionMode === 'byTag'" class="pt-2">
             <p v-if="tagsInCategory.length === 0" class="text-sm text-center text-gray-500 py-4">该分类下没有可供筛选的标签。</p>
             <div v-else class="space-y-3">
-              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">选择标签 (将删除包含<strong class="text-blue-600 dark:text-blue-400">全部</strong>所选标签的提示词):</p>
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">选择标签 (将删除包含<strong class="text-orange-500">任一</strong>所选标签的提示词):</p>
               <div class="max-h-36 overflow-y-auto flex flex-wrap gap-2 pt-1">
                 <label v-for="tag in tagsInCategory" :key="tag.id" class="flex items-center px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 text-sm border"
                   :class="selectedTagIds.includes(tag.id) ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-500'">
@@ -134,7 +134,7 @@ const affectedPrompts = computed(() => {
   if (deletionMode.value === 'byTag') {
     if (selectedTagIds.value.length === 0) return []
     return promptsInCategory.value.filter(p => 
-      selectedTagIds.value.every(tagId => p.tagIds.includes(tagId))
+      selectedTagIds.value.some(tagId => p.tagIds.includes(tagId))
     )
   }
   return []
