@@ -41,7 +41,7 @@
       <!-- 优化的搜索和过滤区域 -->
       <div class="mb-8 space-y-6">
         <div class="flex justify-center">
-          <div class="relative w-full max-w-2xl">
+          <div class="relative w-full max-w-2xl z-20">
             <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg i-carbon-search z-10"></div>
             <input
               v-model="searchQuery"
@@ -56,11 +56,35 @@
             </button>
             <div class="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center">
               <div class="w-px h-6 bg-gray-200/80 mr-3"></div>
-              <select v-model="sortBy" class="text-base border-none bg-transparent focus:ring-0 text-gray-600 font-medium">
-                <option value="updatedAt">最近更新</option>
-                <option value="createdAt">创建时间</option>
-                <option value="title">标题排序</option>
-              </select>
+              <!-- 排序方式下拉菜单 -->
+              <div class="relative" ref="sortMenuRef">
+                <button @click="showSortMenu = !showSortMenu"
+                  class="flex items-center gap-2 text-base text-gray-600 font-medium hover:text-gray-900 transition-colors">
+                  <span>{{ currentSortText }}</span>
+                  <i class="i-carbon-chevron-down text-sm transition-transform"
+                    :class="{ 'rotate-180': showSortMenu }"></i>
+                </button>
+                <!-- 下拉选项 -->
+                <transition enter-active-class="transition ease-out duration-100"
+                  enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100"
+                  leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100"
+                  leave-to-class="transform opacity-0 scale-95">
+                  <div v-if="showSortMenu"
+                    class="absolute z-30 top-full right-0 mt-2 w-32 bg-white rounded-lg shadow-lg border border-gray-200/80">
+                    <div class="py-1">
+                      <button v-for="option in sortOptions" :key="option.value" @click="changeSortBy(option.value)"
+                        class="w-full text-left px-4 py-2 text-sm flex items-center gap-2" :class="[
+                          sortBy === option.value
+                            ? 'font-semibold text-blue-600 bg-blue-50'
+                            : 'text-gray-700 hover:bg-gray-100',
+                        ]">
+                        <i class="i-carbon-checkmark text-transparent" :class="{ '!text-blue-600': sortBy === option.value }"></i>
+                        <span>{{ option.text }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </transition>
+              </div>
             </div>
           </div>
         </div>
@@ -370,125 +394,149 @@ import DeleteCategoryModal from './components/DeleteCategoryModal.vue'
 
 const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
 
-// --- State for Data and Filters ---
-const prompts = ref<PromptWithMatches[]>([])
-const categories = ref<Category[]>([])
-const tags = ref<Tag[]>([])
-const availableTags = ref<Tag[]>([])
-const searchQuery = ref('')
-const searchInputRef = ref<HTMLInputElement | null>(null)
-const searchQueryDebounced = refDebounced(searchQuery, 300)
-const plainSearchQuery = ref('')
-const parsedCategoryNames = ref<string[]>([])
-const parsedTagNames = ref<string[]>([])
-const selectedCategories = ref<string[]>([])
-const selectedTags = ref<string[]>([])
-const showFavoriteOnly = ref(false)
-const sortBy = ref<'updatedAt' | 'createdAt' | 'title'>('updatedAt')
+// --- 数据与筛选状态 ---
+const prompts = ref<PromptWithMatches[]>([]) // Prompt 列表，包含匹配高亮信息
+const categories = ref<Category[]>([]) // 所有分类的列表
+const tags = ref<Tag[]>([]) // 所有标签的列表
+const availableTags = ref<Tag[]>([]) // 当前可选的标签列表（根据所选分类动态更新）
+const searchQuery = ref('') // 原始搜索查询字符串（可包含命令，如 "cat:工作 tag:重要"）
+const searchInputRef = ref<HTMLInputElement | null>(null) // 搜索输入框的模板引用
+const searchQueryDebounced = refDebounced(searchQuery, 300) // 使用 VueUse 的 refDebounced 实现搜索防抖，减少请求频率
+const plainSearchQuery = ref('') // 解析后移除了命令部分的纯文本搜索查询
+const parsedCategoryNames = ref<string[]>([]) // 从搜索查询中解析出的分类名称
+const parsedTagNames = ref<string[]>([]) // 从搜索查询中解析出的标签名称
+const selectedCategories = ref<string[]>([]) // 通过点击按钮选择的分类ID列表
+const selectedTags = ref<string[]>([]) // 通过点击按钮选择的标签ID列表
+const showFavoriteOnly = ref(false) // 是否只显示收藏的 Prompt
+const sortBy = ref<'updatedAt' | 'createdAt' | 'title'>('updatedAt') // 当前排序方式
 
-// --- State for Pagination and Loading ---
-const totalPrompts = ref(0)
-const currentPage = ref(1)
-const isLoading = ref(false)
-const loaderRef = ref<HTMLElement | null>(null)
-const hasMore = computed(() => prompts.value.length < totalPrompts.value)
+// --- 分页与加载状态 ---
+const totalPrompts = ref(0) // 符合当前筛选条件的总 Prompt 数量
+const currentPage = ref(1) // 当前加载的页码
+const isLoading = ref(false) // 是否正在加载数据
+const loaderRef = ref<HTMLElement | null>(null) // 用于无限滚动的加载触发器元素
+const hasMore = computed(() => prompts.value.length < totalPrompts.value) // 是否还有更多数据可供加载
 
-// --- State for UI Modals and Menus ---
-const editingPrompt = ref<Partial<Prompt> | null>(null)
-const editingTags = ref<string[]>([])
-const showCategoryManager = ref(false)
-const showMergeImport = ref(false)
-const showDeleteCategoryModal = ref(false)
-const changeNote = ref('')
-const hasContentChanged = ref(false)
-const showSettings = ref(false)
-const menuOpenId = ref<string | null>(null)
-const copiedId = ref<string | null>(null)
-const isCategorySettingsOpen = ref(false)
-const categorySettingsRef = ref(null)
+// --- UI模态框与菜单状态 ---
+const editingPrompt = ref<Partial<Prompt> | null>(null) // 正在编辑的 Prompt 对象，为 null 时表示编辑框关闭
+const editingTags = ref<string[]>([]) // 编辑器中正在编辑的标签名称列表
+const showCategoryManager = ref(false) // 是否显示分类管理模态框
+const showMergeImport = ref(false) // 是否显示导入/合并模态框
+const showDeleteCategoryModal = ref(false) // 是否显示批量删除分类模态框
+const changeNote = ref('') // Prompt 版本变更的备注信息
+const hasContentChanged = ref(false) // 编辑器中的内容是否已发生变化
+const showSettings = ref(false) // 是否显示设置模态框
+const menuOpenId = ref<string | null>(null) // 当前打开的 Prompt 卡片菜单ID
+const copiedId = ref<string | null>(null) // 最近一次复制的 Prompt ID，用于显示“已复制”状态
+const isCategorySettingsOpen = ref(false) // 分类设置下拉菜单是否打开
+const categorySettingsRef = ref(null) // 分类设置按钮的模板引用，用于点击外部关闭
+const showSortMenu = ref(false) // 排序下拉菜单是否打开
+const sortMenuRef = ref(null) // 排序菜单的模板引用，用于点击外部关闭
 
 useModal(showSettings, () => { showSettings.value = false })
 useModal(showCategoryManager, () => { showCategoryManager.value = false })
 useModal(showMergeImport, () => { showMergeImport.value = false })
 useModal(showDeleteCategoryModal, () => { showDeleteCategoryModal.value = false })
-useModal(computed(() => !!editingPrompt.value), closeEditor)
+useModal(computed(() => !!editingPrompt.value), closeEditor) // 监听编辑框状态，在关闭时执行清理操作
 
+// 使用 @vueuse/core 的 onClickOutside 实现点击元素外部时关闭对应的菜单
 onClickOutside(categorySettingsRef, () => isCategorySettingsOpen.value = false)
+onClickOutside(sortMenuRef, () => (showSortMenu.value = false))
 
-
+// 监听 Ctrl+K / Cmd+K 快捷键，聚焦到搜索框
 onKeyStroke(['Control+k', 'Meta+k'], (e) => {
   e.preventDefault()
   searchInputRef.value?.focus()
 })
 
-// --- State for Time Machine Feature ---
-const isReadonly = ref(false)
-const previewingVersion = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
-const baseVersionForEdit = ref<{ version: PromptVersion, versionNumber: number } | null>(null)
+// --- “时间机器” (版本控制) 功能状态 ---
+const isReadonly = ref(false) // 编辑器当前是否为只读模式（预览历史版本时）
+const previewingVersion = ref<{ version: PromptVersion, versionNumber: number } | null>(null) // 正在预览的历史版本信息
+const baseVersionForEdit = ref<{ version: PromptVersion, versionNumber: number } | null>(null) // 当从一个历史版本开始编辑时，记录其基准版本信息
 
-// --- Data Fetching Logic ---
+// --- 数据获取逻辑 ---
+
+/**
+ * @description 异步获取 Prompt 列表。
+ * 该函数会根据当前的筛选条件（搜索、分类、标签、排序等）和分页状态，
+ * 调用数据层方法 `queryPrompts` 来获取数据。
+ * 支持无限滚动加载。
+ */
 async function fetchPrompts() {
-  if (isLoading.value) return
+  if (isLoading.value) return // 防止重复加载
   isLoading.value = true
 
-  // The component now only deals with names for command-palette filters
-  // and IDs for UI-button filters. The data layer handles resolving them.
+  // 确定用于查询的分类名称。优先使用从搜索框命令解析出的名称，
+  // 其次使用用户通过点击按钮选择的分类，将其ID转换为名称。
   const categoryNames = parsedCategoryNames.value.length
     ? parsedCategoryNames.value
     : selectedCategories.value.map(id => categories.value.find(c => c.id === id)?.name).filter(Boolean) as string[]
 
+  // 确定用于查询的标签名称，逻辑同上。
   const tagNames = parsedTagNames.value.length
     ? parsedTagNames.value
     : selectedTags.value.map(id => tags.value.find(t => t.id === id)?.name).filter(Boolean) as string[]
 
   try {
+    // 调用数据查询函数
     const { prompts: newPrompts, total } = await queryPrompts({
       page: currentPage.value,
-      limit: 20,
+      limit: 20, // 每页加载20条
       sortBy: sortBy.value,
       favoriteOnly: showFavoriteOnly.value,
       searchQuery: plainSearchQuery.value,
-      categoryNames, // Pass names to the data layer
-      tagNames, // Pass names to the data layer
+      categoryNames, // 将解析好的名称传递给数据层
+      tagNames,
     })
 
+    // 根据页码决定是重置列表还是追加数据
     if (currentPage.value === 1) {
-      prompts.value = newPrompts
+      prompts.value = newPrompts // 第一页，直接替换
     }
     else {
-      prompts.value.push(...newPrompts)
+      prompts.value.push(...newPrompts) // 后续页，追加到末尾
     }
-    totalPrompts.value = total
+    totalPrompts.value = total // 更新总数
   }
   catch (error) {
     console.error('Failed to fetch prompts:', error)
     showToast('加载 Prompts 失败', 'error')
   }
   finally {
-    isLoading.value = false
+    isLoading.value = false // 结束加载状态
   }
 }
 
-// --- Watchers for Command Palette and Data Fetching ---
+// --- 监听器：用于命令面板和数据获取 ---
 
-// Watcher 1: Parses the raw search query and updates name-based filter states
+/**
+ * @description 监听器1: 解析原始搜索查询。
+ * 当防抖后的搜索查询 `searchQueryDebounced` 变化时，
+ * 调用 `parseQuery` 工具函数来提取纯文本、分类名和标签名。
+ * 如果用户在搜索框中使用了 `cat:` 或 `tag:` 命令，则清空按钮选择的筛选，以命令为准。
+ */
 watch(searchQueryDebounced, (newQuery) => {
   const { text, categoryNames, tagNames } = parseQuery(newQuery)
   plainSearchQuery.value = text
   parsedCategoryNames.value = categoryNames
   parsedTagNames.value = tagNames
 
-  // If user is using command palette, clear button selections for clarity.
-  // The UI will reactively update.
+  // 如果用户通过文本命令指定了分类，则清空按钮选择的分类，避免冲突
   if (categoryNames.length > 0 && selectedCategories.value.length > 0) {
     selectedCategories.value = []
   }
+  // 标签同理
   if (tagNames.length > 0 && selectedTags.value.length > 0) {
     selectedTags.value = []
   }
 })
 
-// Watcher 2: Triggers a refetch whenever any filter changes
+/**
+ * @description 监听器2: 触发数据重新获取。
+ * 当任何一个筛选条件（包括解析后的文本、按钮选择的分类/标签、
+ * 命令解析出的分类/标签、只看收藏、排序方式）发生变化时，
+ * 重置分页到第一页，并调用 `fetchPrompts` 重新加载数据。
+ */
 watch(
   [plainSearchQuery, selectedCategories, selectedTags, parsedCategoryNames, parsedTagNames, showFavoriteOnly, sortBy],
   () => {
@@ -496,10 +544,20 @@ watch(
     totalPrompts.value = 0
     fetchPrompts()
   },
-  { deep: true },
+  { deep: true }, // 使用深度监听以响应数组内部的变化
 )
 
 // --- Computed Properties ---
+const sortOptions = [
+  { value: 'updatedAt', text: '最近更新' },
+  { value: 'createdAt', text: '创建时间' },
+  { value: 'title', text: '标题排序' },
+];
+
+const currentSortText = computed(() => {
+  return sortOptions.find(o => o.value === sortBy.value)?.text || '排序方式';
+});
+
 const getTagNames = (tagIds: string[]): string[] => {
   return tagIds.map(id => tags.value.find(t => t.id === id)?.name || '').filter(Boolean)
 }
@@ -563,27 +621,43 @@ function handleShelfScroll(event: WheelEvent) {
   scrollOffset.value = Math.max(0, Math.min(scrollOffset.value + scrollDelta, maxScroll.value))
 }
 
+function changeSortBy(value: 'updatedAt' | 'createdAt' | 'title') {
+  sortBy.value = value;
+  showSortMenu.value = false;
+}
+
 watch(availableCategories, async () => {
   await nextTick()
   updateShelfDimensions()
 })
 // --- End Pagination ---
 
+/**
+ * @description 切换分类筛选。
+ * @param {string} categoryId - 被点击的分类ID。如果为空字符串，则表示点击了“全部分类”。
+ */
 function toggleCategory(categoryId: string) {
   if (categoryId === '') {
+    // 点击“全部分类”，清空所选分类
     selectedCategories.value = []
   } else {
     const index = selectedCategories.value.indexOf(categoryId)
     if (index > -1) {
+      // 如果该分类已被选中，则取消选中
       selectedCategories.value.splice(index, 1)
     } else {
-      // For now, allow multi-select in UI, but query logic might be limited
+      // 否则，选中该分类（目前支持多选）
       selectedCategories.value.push(categoryId)
     }
   }
+  // 切换分类后，清空已选的标签，因为可用标签集已改变
   selectedTags.value = []
 }
 
+/**
+ * @description 切换标签筛选。
+ * @param {string} tagId - 被点击的标签ID。如果为空字符串，则表示点击了“全部”。
+ */
 function toggleTag(tagId: string) {
   if (tagId === '') {
     selectedTags.value = []
@@ -597,15 +671,24 @@ function toggleTag(tagId: string) {
   }
 }
 
+/**
+ * @description 加载所有初始化所需的数据。
+ * 打开数据库，然后并行加载分类、标签和第一页的 Prompts。
+ */
 async function loadInitialData() {
   await db.open()
   await Promise.all([loadCategories(), loadTags(), fetchPrompts()])
 }
 
+/**
+ * @description 从数据库加载分类列表。
+ * 如果数据库中没有分类，则会创建并插入一组默认分类。
+ */
 async function loadCategories() {
   try {
     const allCategories = await db.categories.toArray()
     categories.value = allCategories
+    // 如果是首次运行，数据库为空，则植入默认分类
     if (categories.value.length === 0) {
       const defaultCategories: Category[] = [
         { id: 'work', name: '工作', sort: 1, icon: 'i-mdi-work' }, { id: 'coding', name: '编程', sort: 2, icon: 'i-carbon-code' }, { id: 'study', name: '学习', sort: 3, icon: 'i-carbon-book' }, { id: 'writing', name: '写作', sort: 4, icon: 'i-carbon-pen' }, { id: 'creation', name: '创作', sort: 5, icon: 'i-carbon-idea' }, { id: 'teaching', name: '教学', sort: 6, icon: 'i-carbon-presentation-file' }, { id: 'yijing', name: '易经', sort: 7, icon: 'i-simple-icons:taichilang' }, { id: 'life', name: '生活', sort: 8, icon: 'i-carbon-home' }, { id: 'other', name: '其他', sort: 9, icon: 'i-mdi-question-mark-circle' },
@@ -619,6 +702,9 @@ async function loadCategories() {
   }
 }
 
+/**
+ * @description 从数据库加载所有标签。
+ */
 async function loadTags() {
   try {
     tags.value = await db.tags.toArray()
@@ -628,21 +714,38 @@ async function loadTags() {
   }
 }
 
+/**
+ * @description 根据分类ID获取分类名称。
+ * @param {string} categoryId - 分类ID。
+ * @returns {string} 分类名称，如果找不到则返回原始ID。
+ */
 function getCategoryName(categoryId: string): string {
   const category = categories.value.find(c => c.id === categoryId)
   return category?.name || categoryId
 }
 
+/**
+ * @description 打开新建 Prompt 的编辑器。
+ * 使用 `createSafePrompt` 创建一个安全的、包含所有必须字段的空 Prompt 对象，
+ * 并重置相关状态。
+ */
 function createNewPrompt() {
   editingPrompt.value = createSafePrompt({
     title: '', content: '', favorite: false, categoryIds: [], tagIds: [],
   })
-  editingTags.value = []
+  editingTags.value = [] // 清空标签编辑器
+  // 重置版本控制相关的状态
   isReadonly.value = false
   previewingVersion.value = null
   baseVersionForEdit.value = null
 }
 
+/**
+ * @description 打开编辑指定 Prompt 的编辑器。
+ * 使用 `clonePrompt` 创建一个深拷贝副本以避免直接修改列表中的数据，
+ * 并初始化标签、重置版本控制状态。
+ * @param {Prompt} prompt - 要编辑的 Prompt 对象。
+ */
 function editPrompt(prompt: Prompt) {
   editingPrompt.value = clonePrompt(prompt)
   editingTags.value = getTagNames(prompt.tagIds || [])
@@ -651,17 +754,26 @@ function editPrompt(prompt: Prompt) {
   baseVersionForEdit.value = null
 }
 
+/**
+ * @description 触发一次数据的完全刷新。
+ * 将页码重置为1，然后调用 `fetchPrompts`。
+ */
 async function triggerRefetch() {
   currentPage.value = 1
   await fetchPrompts()
 }
 
+/**
+ * @description 切换一个 Prompt 的收藏状态。
+ * 调用 repository 方法更新数据库，并进行乐观更新（立即修改UI，如果失败再回滚）。
+ * @param {Prompt} prompt - 要操作的 Prompt 对象。
+ */
 async function toggleFavorite(prompt: Prompt) {
   const newFavoriteState = !prompt.favorite
   const { ok } = await repository.updatePrompt(prompt.id, { favorite: newFavoriteState })
   if (ok) {
     showToast(newFavoriteState ? '已添加到收藏' : '已取消收藏', 'success')
-    // Optimistic update
+    // 乐观更新UI
     const p = prompts.value.find(p => p.id === prompt.id)
     if (p) p.favorite = newFavoriteState
   } else {
@@ -669,24 +781,31 @@ async function toggleFavorite(prompt: Prompt) {
   }
 }
 
+/**
+ * @description 保存 Prompt（新建或更新）。
+ * 该函数会处理标签的创建、版本的记录等复杂逻辑，这些都封装在 `repository.savePrompt` 中。
+ */
 async function savePrompt() {
+  // 基本校验
   if (!editingPrompt.value || !editingPrompt.value.title?.trim()) {
     showToast('请输入标题', 'error')
     return
   }
 
   try {
+    // 从标签输入框获取并清理标签名称
     const tagNames = editingTags.value.map(t => t.trim()).filter(Boolean)
 
-    // The content change detection for versioning is now implicitly handled inside the repo method
+    // 如果内容有变动，则设置版本备注。这被 `repository.savePrompt` 用来决定是否创建新版本。
     const note = hasContentChanged.value ? (changeNote.value || '内容更新') : undefined
 
+    // 调用核心的保存逻辑
     const { ok, error } = await repository.savePrompt(editingPrompt.value, tagNames, note)
 
     if (ok) {
-      await triggerRefetch()
-      await loadTags() // Reload tags in case new ones were created
-      closeEditor()
+      await triggerRefetch() // 刷新列表
+      await loadTags() // 重新加载标签列表，因为可能创建了新标签
+      closeEditor() // 关闭编辑器
       showToast('保存成功', 'success')
     } else {
       throw error || new Error('保存 Prompt 时发生未知错误')
@@ -697,6 +816,11 @@ async function savePrompt() {
   }
 }
 
+/**
+ * @description 删除一个 Prompt。
+ * 会弹出确认框防止误操作。`repository.deletePrompt` 会负责删除主条目和所有相关历史版本。
+ * @param {string} id - 要删除的 Prompt ID。
+ */
 async function deletePrompt(id: string) {
   const confirm = await askConfirm('确定要删除这个 Prompt 吗？其所有历史版本也将被删除。', { type: 'danger' })
   if (!confirm) return
@@ -710,13 +834,18 @@ async function deletePrompt(id: string) {
   }
 }
 
+/**
+ * @description 复制 Prompt 内容到剪贴板。
+ * 同时会更新其 `lastUsedAt` 时间戳，这是一个“软”更新，不会触发版本变更。
+ * @param {Prompt} prompt - 要复制的 Prompt 对象。
+ */
 async function copyPrompt(prompt: Prompt) {
-  // Updating lastUsedAt is a "soft" update, doesn't need to trigger a full re-index
-  // We can use the repository for this to be consistent
+  // 更新“上次使用时间”，这有助于未来的排序或分析
   repository.updatePrompt(prompt.id, { lastUsedAt: Date.now() })
 
   try {
     await navigator.clipboard.writeText(prompt.content)
+    // UI反馈：显示“已复制”状态，并在1.5秒后消失
     copiedId.value = prompt.id
     setTimeout(() => { if (copiedId.value === prompt.id) copiedId.value = null }, 1500)
     showToast('已复制到剪贴板', 'success')
@@ -726,6 +855,9 @@ async function copyPrompt(prompt: Prompt) {
   }
 }
 
+/**
+ * @description 关闭编辑器模态框，并重置所有相关状态。
+ */
 function closeEditor() {
   editingPrompt.value = null
   hasContentChanged.value = false
@@ -734,11 +866,20 @@ function closeEditor() {
   baseVersionForEdit.value = null
 }
 
+/**
+ * @description 编辑器内容变化时的回调。
+ * 用于标记内容已更改，以便在保存时创建新版本。
+ */
 function handleContentChange() {
   if (isReadonly.value) return
   hasContentChanged.value = true
 }
 
+/**
+ * @description 处理预览历史版本的事件。
+ * 将编辑器的内容替换为历史版本的内容，并进入只读模式。
+ * @param {object} payload - 包含版本信息和版本号的对象。
+ */
 function handleVersionPreview(payload: { version: PromptVersion, versionNumber: number }) {
   if (!editingPrompt.value) return
   editingPrompt.value.content = payload.version.content
@@ -748,73 +889,114 @@ function handleVersionPreview(payload: { version: PromptVersion, versionNumber: 
   hasContentChanged.value = false
 }
 
+/**
+ * @description 从预览模式切换到编辑模式。
+ * 用户在预览一个历史版本时，点击“基于此版本编辑”时调用。
+ */
 function handleEditFromPreview() {
   if (!previewingVersion.value) return
+  // 将当前预览的版本设为新编辑内容的基准
   baseVersionForEdit.value = previewingVersion.value
   previewingVersion.value = null
-  isReadonly.value = false
+  isReadonly.value = false // 退出只读模式
 }
 
+/**
+ * @description 重新加载并重新编辑当前正在操作的 Prompt。
+ * 在版本恢复或删除后，需要用数据库中的最新数据刷新编辑器。
+ */
 async function reloadAndReEditCurrentPrompt() {
   if (!editingPrompt.value?.id) return
   const promptId = editingPrompt.value.id
-  await triggerRefetch() // This re-fetches the whole list
+  await triggerRefetch() // 刷新整个列表
   const updatedPrompt = prompts.value.find(p => p.id === promptId)
   if (updatedPrompt) {
-    editPrompt(updatedPrompt)
+    editPrompt(updatedPrompt) // 使用新数据重新打开编辑器
   }
 }
 
+/**
+ * @description 处理版本恢复成功的事件。
+ */
 async function handleVersionRestored(version: any) {
   showToast('版本已恢复', 'success')
   await reloadAndReEditCurrentPrompt()
 }
 
+/**
+ * @description 处理版本删除成功的事件。
+ */
 async function handleVersionDeleted(versionId: string) {
   showToast('版本已删除', 'success')
+  // 如果删除的是正在预览的版本，则需要刷新编辑器
   if (previewingVersion.value && previewingVersion.value.version.id === versionId) {
     await reloadAndReEditCurrentPrompt()
   }
 }
 
+/**
+ * @description 格式化时间戳为易读的日期时间字符串。
+ * @param {number} timestamp - Unix时间戳 (毫秒)。
+ * @returns {string} 格式化后的字符串，如 "9月 18, 19:00"。
+ */
 function formatDate(timestamp: number): string {
   return new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp))
 }
 
+/**
+ * @description 处理导入/合并数据成功后的回调。
+ * 刷新列表和标签。
+ */
 async function handleMergeSuccess() {
   await triggerRefetch()
   await loadTags()
 }
 
+/**
+ * @description 处理批量删除分类成功后的回调。
+ * 刷新分类和列表。
+ */
 async function handleCategoryDeletion() {
   await loadCategories()
   await triggerRefetch()
 }
 
+/**
+ * @description Vue 组件挂载生命周期钩子。
+ * 在这里执行所有初始化操作：
+ * 1. 加载初始数据 (分类, 标签, Prompts)。
+ * 2. 设置无限滚动加载。
+ * 3. 设置分类栏的尺寸监听。
+ * 4. 处理从URL参数打开新建窗口的逻辑。
+ */
 onMounted(async () => {
   try {
     await loadInitialData()
 
+    // 设置无限滚动观察器
     const observer = new IntersectionObserver(
       (entries) => {
+        // 当加载触发器元素进入视口，并且有更多数据且不处于加载中时
         if (entries[0].isIntersecting && hasMore.value && !isLoading.value) {
-          currentPage.value++
+          currentPage.value++ // 加载下一页
           fetchPrompts()
         }
       },
-      { rootMargin: '200px' },
+      { rootMargin: '200px' }, // 预加载区域
     )
     if (loaderRef.value) {
       observer.observe(loaderRef.value)
     }
 
+    // 设置分类栏的尺寸变化观察器
     await nextTick()
     if (shelfViewportRef.value) {
       shelfObserver = new ResizeObserver(updateShelfDimensions)
       shelfObserver.observe(shelfViewportRef.value)
     }
-    updateShelfDimensions()
+    updateShelfDimensions() // 立即执行一次以获取初始尺寸
 
+    // 检查URL参数，如果 action=new，则自动打开新建 Prompt 模态框
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('action') === 'new') {
       createNewPrompt()
@@ -825,6 +1007,10 @@ onMounted(async () => {
   }
 })
 
+/**
+ * @description Vue 组件卸载生命周期钩子。
+ * 清理 ResizeObserver，防止内存泄漏。
+ */
 onUnmounted(() => {
   if (shelfObserver) shelfObserver.disconnect()
 })
