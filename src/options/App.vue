@@ -384,7 +384,7 @@ import { generateHighlightedHtml } from '@/utils/highlighter'
 import { nanoid } from 'nanoid'
 import { createSafePrompt, validatePrompt, clonePrompt } from '@/utils/promptUtils'
 import { useModal } from '@/composables/useModal'
-import { onKeyStroke, refDebounced, onClickOutside } from '@vueuse/core'
+import { useMagicKeys, whenever, useEventListener, refDebounced, onClickOutside } from '@vueuse/core'
 import { parseQuery } from '@/utils/queryParser'
 import PromptEditorModal from '@/options/components/PromptEditorModal.vue'
 import Settings from './components/Settings.vue'
@@ -443,10 +443,14 @@ useModal(computed(() => !!editingPrompt.value), closeEditor) // 监听编辑框�
 onClickOutside(categorySettingsRef, () => isCategorySettingsOpen.value = false)
 onClickOutside(sortMenuRef, () => (showSortMenu.value = false))
 
-// 监听 Ctrl+K / Cmd+K 快捷键，聚焦到搜索框
-onKeyStroke(['Control+k', 'Meta+k'], (e) => {
-  e.preventDefault()
-  searchInputRef.value?.focus()
+
+// 快捷键定位搜索栏
+useEventListener(window, 'keydown', (e: KeyboardEvent) => {
+  // 当 Ctrl+K 或 Meta+K 被按下
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()          // 现在可以安全阻止
+    searchInputRef.value?.focus()
+  }
 })
 
 // --- “时间机器” (版本控制) 功能状态 ---
