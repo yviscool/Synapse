@@ -443,14 +443,19 @@ useModal(computed(() => !!editingPrompt.value), closeEditor) // 监听编辑框�
 onClickOutside(categorySettingsRef, () => isCategorySettingsOpen.value = false)
 onClickOutside(sortMenuRef, () => (showSortMenu.value = false))
 
-
 // 快捷键定位搜索栏
-useEventListener(window, 'keydown', (e: KeyboardEvent) => {
-  // 当 Ctrl+K 或 Meta+K 被按下
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault()          // 现在可以安全阻止
-    searchInputRef.value?.focus()
+const { current, Ctrl_K, Meta_K } = useMagicKeys({
+  passive: false,          // 关键点：关闭 passive
+  onEventFired(e) {       // 统一拦截
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault()    
+    }
   }
+})
+
+// 业务逻辑照常响应式
+whenever(() => Ctrl_K.value || Meta_K.value, () => {
+  searchInputRef.value?.focus()
 })
 
 // --- “时间机器” (版本控制) 功能状态 ---
