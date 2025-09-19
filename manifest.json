@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Synapse",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy4MuYUxwAILDMeP0kNCNgJxE2c/SDvosc3ynJygQtuTKuNA25BFOeLduNk6npDadSx+9jiJAXPWzB5mnGDaRjv7DYs141SPqAD09Z0rfa6e2KAJsacBgHAKOwpPjZSZGs+RVb7koK94rBpgWvQHL4bP2YFd8+DnO6+Imr6fxAeMW3DdWokjzr4SwcL+rk0BGX3FHbW385UOYHByOlNR8jcGifyacHQwezN2Bf4CIPsUbAuyXZGaPPT+37oPpJbaQx3f9vQguRGFaL1muEM9mZH35NTnXgDvQbM+WqR6jv8zezT+/tJ4q3NCeXqpDXe9oUPQ9DMkYHRYr+mkUA949rQIDAQAB",
-  "version": "1.2.15",
+  "version": "1.2.16",
   "description": "Synapse 是一款浏览器扩展，专为 AI 提示词管理 而生。它让你在一个地方集中管理提示词，支持 版本历史、智能分类，并能在 AI 网站中自动注入提示词，同时生成 长对话大纲，实现高效、条理清晰的 AI 使用体验。",
   "permissions": [
     "identity",
