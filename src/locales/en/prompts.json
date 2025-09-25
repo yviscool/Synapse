@@ -1,0 +1,16 @@
+{
+  "new": "New Prompt",
+  "search": "Search Prompts",
+  "searchPlaceholder": "Search titles or content... (Ctrl+K)",
+  "favoritesOnly": "Favorites Only",
+  "noPrompts": "No Prompts Yet",
+  "noMatch": "No matching prompts found.",
+  "createYourFirst": "Start by creating your first AI Prompt!",
+  "create": "Create Prompt",
+  "doubleClickToEdit": "Double-click to edit",
+  "unfavorite": "Unfavorite",
+  "favorite": "Favorite",
+  "copyContent": "Copy Content",
+  "copied": "Copied",
+  "copy": "Copy"
+}

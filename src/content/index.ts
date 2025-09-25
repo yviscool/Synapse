@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
+import i18n from '@/i18n'
 import '@/outline/OutlineGenerator'
 import "@/styles"
 
@@ -27,5 +28,7 @@ import "@/styles"
   shadowRoot.appendChild(appContainer)
 
   // 5. Mount the Vue app onto the container inside the shadow root.
-  createApp(App).mount(appContainer)
+  const app = createApp(App)
+  app.use(i18n)
+  app.mount(appContainer)
 })()

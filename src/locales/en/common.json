@@ -1,0 +1,21 @@
+{
+  "appName": "Synapse",
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "confirm": "Confirm",
+  "success": "Success",
+  "error": "Error",
+  "loading": "Loading...",
+  "feedback": "Feedback or Contribute",
+  "more": "More",
+  "edit": "Edit",
+  "allLoaded": "All loaded",
+  "toast": {
+    "saveSuccess": "Saved successfully!",
+    "deleteSuccess": "Deleted successfully!",
+    "operationSuccess": "Operation successful!",
+    "operationFailed": "Operation failed.",
+    "copySuccess": "Copied to clipboard!"
+  }
+}

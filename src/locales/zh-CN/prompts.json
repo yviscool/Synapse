@@ -1,0 +1,16 @@
+{
+  "new": "新建 Prompt",
+  "search": "搜索 Prompts",
+  "searchPlaceholder": "搜索 Prompts 标题或内容...（Ctrl+K）",
+  "favoritesOnly": "仅收藏",
+  "noPrompts": "暂无 Prompts",
+  "noMatch": "没有找到匹配的 Prompts",
+  "createYourFirst": "开始创建你的第一个 AI Prompt 吧！",
+  "create": "创建 Prompt",
+  "doubleClickToEdit": "双击编辑",
+  "unfavorite": "取消收藏",
+  "favorite": "收藏",
+  "copyContent": "复制内容",
+  "copied": "已复制",
+  "copy": "复制"
+}

@@ -19,18 +19,18 @@
         </div>
         
         <div class="flex items-center gap-2">
-          <button @click="showSettings = true" class="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900" title="设置">
+          <button @click="showSettings = true" class="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900" :title="t('settings.title')">
             <div class="i-carbon-settings text-lg"></div>
-            <span class="hidden sm:inline">设置</span>
+            <span class="hidden sm:inline">{{ t('settings.title') }}</span>
           </button>
           <button @click="createNewPrompt" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-105">
             <div class="i-carbon-add"></div>
-            <span>新建 Prompt</span>
+            <span>{{ t('prompts.new') }}</span>
           </button>
 
           <div class="w-px h-6 bg-gray-200/80 ml-3 mr-1"></div>
 
-          <a href="https://github.com/yviscool/Synapse" target="_blank" rel="noopener noreferrer" title="反馈问题或贡献代码" class="p-2 rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900">
+          <a href="https://github.com/yviscool/Synapse" target="_blank" rel="noopener noreferrer" :title="t('common.feedback')" class="p-2 rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900">
             <div class="i-carbon-logo-github text-xl"></div>
           </a>
         </div>
@@ -47,8 +47,8 @@
               v-model="searchQuery"
               ref="searchInputRef"
               type="text"
-              aria-label="搜索 Prompts"
-              placeholder="搜索 Prompts 标题或内容...（Ctrl+K）"
+              :aria-label="t('prompts.search')"
+              :placeholder="t('prompts.searchPlaceholder')"
               class="w-full pl-12 pr-40 py-4 text-lg border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
             >
             <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-32 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1">
@@ -100,7 +100,7 @@
                   :class="['flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', selectedCategories.length === 0 ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 hover:bg-gray-50']"
                 >
                   <div class="i-ph-books"></div>
-                  <span>全部分类</span>
+                  <span>{{ t('categories.all') }}</span>
                 </button>
 
                 <div class="relative group flex-1 min-w-0">
@@ -130,14 +130,14 @@
                   :class="['flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors', showFavoriteOnly ? 'bg-yellow-100 border-yellow-300 text-yellow-800' : 'bg-white border-gray-200 hover:bg-gray-50']"
                 >
                   <div :class="showFavoriteOnly ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" class="text-yellow-500"></div>
-                  <span>仅收藏</span>
+                  <span>{{ t('prompts.favoritesOnly') }}</span>
                 </button>
 
                 <div class="w-px h-6 bg-gray-200/80 ml-2 mr-1"></div>
 
                 <!-- New Category Settings Dropdown -->
                 <div class="relative" ref="categorySettingsRef">
-                  <button @click="isCategorySettingsOpen = !isCategorySettingsOpen" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" title="分类设置">
+                  <button @click="isCategorySettingsOpen = !isCategorySettingsOpen" class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400" :title="t('categories.settings')">
                     <div class="i-carbon-settings-adjust text-lg"></div>
                   </button>
                   <div
@@ -149,14 +149,14 @@
                       class="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100"
                     >
                       <div class="i-carbon-edit"></div>
-                      <span>分类管理</span>
+                      <span>{{ t('categories.manage') }}</span>
                     </button>
                     <button
                       @click="showMergeImport = true; isCategorySettingsOpen = false"
                       class="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100"
                     >
                       <div class="i-carbon-document-import"></div>
-                      <span>导入/合并</span>
+                      <span>{{ t('categories.importMerge') }}</span>
                     </button>
                     <div class="h-px bg-gray-200 my-1"></div>
                     <button
@@ -164,7 +164,7 @@
                       class="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50"
                     >
                       <div class="i-carbon-trash-can"></div>
-                      <span>批量删除</span>
+                      <span>{{ t('categories.batchDelete') }}</span>
                     </button>
                   </div>
                 </div>
@@ -177,7 +177,7 @@
                 @click="toggleTag('')"
                 :class="['px-3 py-1 text-sm rounded-md transition-colors', selectedTags.length === 0 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300']"
               >
-                全部
+                {{ t('tags.all') }}
               </button>
               <button
                 v-for="tag in availableTags"
@@ -198,13 +198,13 @@
           <div class="mb-6">
             <div class="i-carbon-document-blank text-6xl text-gray-300"></div>
           </div>
-          <h3 class="text-xl font-semibold text-gray-900 mb-2">暂无 Prompts</h3>
+          <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ t('prompts.noPrompts') }}</h3>
           <p class="text-gray-600 mb-6 max-w-md">
-            {{ searchQueryDebounced ? '没有找到匹配的 Prompts' : '开始创建你的第一个 AI Prompt 吧！' }}
+            {{ searchQueryDebounced ? t('prompts.noMatch') : t('prompts.createYourFirst') }}
           </p>
           <button v-if="!searchQuery" @click="createNewPrompt" class="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
             <div class="i-carbon-add"></div>
-            创建 Prompt
+            {{ t('prompts.create') }}
           </button>
         </div>
         
@@ -214,7 +214,7 @@
             :key="prompt.id"
             class="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 p-6 hover:shadow-lg transition-transform duration-200 hover:-translate-y-1"
             @dblclick="editPrompt(prompt)"
-            title="双击编辑"
+            :title="t('prompts.doubleClickToEdit')"
           >
             <div class="flex items-start justify-between mb-4">
               <div class="flex-1 min-w-0">
@@ -230,7 +230,7 @@
                   @click.stop="toggleFavorite(prompt)" 
                   @dblclick.stop
                   :class="['p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors', { 'text-yellow-500 hover:text-yellow-600': prompt.favorite }]"
-                  :title="prompt.favorite ? '取消收藏' : '收藏'"
+                  :title="prompt.favorite ? t('prompts.unfavorite') : t('prompts.favorite')"
                 >
                   <div :class="prompt.favorite ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'"></div>
                 </button>
@@ -238,7 +238,7 @@
                   @click.stop="menuOpenId = menuOpenId === prompt.id ? null : prompt.id"
                   @dblclick.stop
                   class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                  title="更多"
+                  :title="t('common.more')"
                 >
                   <div class="i-carbon-overflow-menu-horizontal"></div>
                 </button>
@@ -251,14 +251,14 @@
                     class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50"
                   >
                     <div class="i-carbon-edit"></div>
-                    <span>编辑</span>
+                    <span>{{ t('common.edit') }}</span>
                   </button>
                   <button
                     @click.stop="deletePrompt(prompt.id); menuOpenId = null"
                     class="w-full flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50"
                   >
                     <div class="i-carbon-trash-can"></div>
-                    <span>删除</span>
+                    <span>{{ t('common.delete') }}</span>
                   </button>
                 </div>
               </div>
@@ -289,10 +289,10 @@
                 @click.stop="copyPrompt(prompt)"
                 @dblclick.stop
                 :class="['flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors', copiedId === prompt.id ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700']"
-                title="复制内容"
+                :title="t('prompts.copyContent')"
               >
                 <div :class="copiedId === prompt.id ? 'i-carbon-checkmark' : 'i-carbon-copy'"></div>
-                <span>{{ copiedId === prompt.id ? '已复制' : '复制' }}</span>
+                <span>{{ copiedId === prompt.id ? t('prompts.copied') : t('prompts.copy') }}</span>
               </button>
             </div>
           </div>
@@ -302,10 +302,10 @@
         <div ref="loaderRef" class="col-span-full mt-6 flex justify-center items-center h-10">
           <div v-if="isLoading && prompts.length > 0" class="flex items-center gap-2 text-gray-500">
             <div class="i-carbon-circle-dash w-6 h-6 animate-spin"></div>
-            <span>加载中...</span>
+            <span>{{ t('common.loading') }}</span>
           </div>
           <div v-if="!hasMore && prompts.length > 0" class="text-gray-500">
-            --- 已加载全部 ---
+            --- {{ t('common.allLoaded') }} ---
           </div>
         </div>
       </div>
@@ -337,7 +337,7 @@
           <div class="flex-1">
             <h2 class="flex items-center gap-3 text-xl font-semibold text-gray-900">
               <div class="i-carbon-settings"></div>
-              设置
+              {{ t('settings.title') }}
             </h2>
           </div>
           <button @click="showSettings = false" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/50 transition-colors">
@@ -376,7 +376,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ui, useUI } from '@/stores/ui'
+import { getSettings } from '@/stores/db'
+import { MSG, type DataUpdatedPayload } from '@/utils/messaging'
 import { db, queryPrompts, type PromptWithMatches } from '@/stores/db'
 import { repository } from '@/stores/repository'
 import type { Prompt, Category, Tag, PromptVersion } from '@/types/prompt'
@@ -392,7 +395,33 @@ import CategoryManager from './components/CategoryManager.vue'
 import MergeImportModal from './components/MergeImportModal.vue'
 import DeleteCategoryModal from './components/DeleteCategoryModal.vue'
 
+const { t, locale } = useI18n()
 const { showToast, askConfirm, handleConfirm, hideToast } = useUI()
+
+// --- i18n & Real-time Sync ---
+const systemLanguage = computed(() => {
+  const lang = navigator.language.toLowerCase();
+  return lang.startsWith('zh') ? '中文' : 'English';
+});
+
+async function setLocale() {
+  const settings = await getSettings()
+  if (settings.locale === 'system') {
+    locale.value = systemLanguage.value === '中文' ? 'zh-CN' : 'en'
+  } else {
+    locale.value = settings.locale
+  }
+}
+
+const handleMessage = (message: { type: string; data: any }) => {
+  if (message.type === MSG.DATA_UPDATED) {
+    const { scope } = message.data as DataUpdatedPayload
+    if (scope === 'settings') {
+      console.log('Settings updated, updating locale...')
+      setLocale()
+    }
+  }
+}
 
 // --- 数据与筛选状态 ---
 const prompts = ref<PromptWithMatches[]>([]) // Prompt 列表，包含匹配高亮信息
@@ -980,6 +1009,9 @@ async function handleCategoryDeletion() {
  */
 onMounted(async () => {
   try {
+    await setLocale() // Set initial locale
+    chrome.runtime.onMessage.addListener(handleMessage)
+
     await loadInitialData()
 
     // 设置无限滚动观察器
@@ -1022,6 +1054,7 @@ onMounted(async () => {
  */
 onUnmounted(() => {
   if (shelfObserver) shelfObserver.disconnect()
+  chrome.runtime.onMessage.removeListener(handleMessage)
 })
 </script>
 

@@ -40,6 +40,7 @@ export interface Settings {
   panelPos: { x: number; y: number } | null
   theme: 'light' | 'dark' | 'auto'
   outlineEnabled: boolean
+  locale: 'zh-CN' | 'en' | 'system',
   
   // Cloud Sync Settings
   syncProvider?: 'google-drive' | 'onedrive'
