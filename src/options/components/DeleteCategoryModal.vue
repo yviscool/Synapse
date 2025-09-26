@@ -115,6 +115,7 @@ const emit = defineEmits<{
   (e: 'updated'): void
 }>()
 
+const { t, locale } = useI18n()
 const { showToast, askConfirm } = useUI()
 
 const selectedCategoryId = ref('')
