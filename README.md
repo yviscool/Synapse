@@ -1,3 +1,5 @@
+[简体中文](README.zh-CN.md)
+
 # Synapse - Your AI Prompt Manager
 
 > **Manage your prompts with Synapse — Efficient, Smart, Organized**
