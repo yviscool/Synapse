@@ -39,7 +39,7 @@
               ref="searchInputRef"
               v-model="searchQuery"
               type="text"
-              placeholder="搜索或新建..."
+              :placeholder="t('popup.searchPlaceholder')"
               class="w-full rounded-lg border-2 border-transparent bg-gray-100 py-2 pl-9 pr-4 text-base transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:bg-gray-800"
             />
           </div>
@@ -47,7 +47,7 @@
             ref="settingsButtonRef"
             @click="openOptionsPage($event.currentTarget as HTMLElement)"
             class="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-            aria-label="设置"
+            :aria-label="t('settings.title')"
           >
             <div class="i-carbon-settings text-xl"></div>
           </button>
@@ -87,7 +87,7 @@
                   <div class="truncate font-semibold">{{ item.data.title }}</div>
                   <div class="mt-1 truncate text-sm text-gray-600 dark:text-gray-400">{{ item.data.content }}</div>
                 </div>
-                <button @click.stop="editPrompt(item.data, $event.currentTarget as HTMLElement)" class="ml-2 rounded-full p-2 text-gray-500 opacity-0 transition-all hover:bg-gray-200/60 group-hover:opacity-100 focus:opacity-100 dark:hover:bg-gray-700/50" aria-label="编辑">
+                <button @click.stop="editPrompt(item.data, $event.currentTarget as HTMLElement)" class="ml-2 rounded-full p-2 text-gray-500 opacity-0 transition-all hover:bg-gray-200/60 group-hover:opacity-100 focus:opacity-100 dark:hover:bg-gray-700/50" :aria-label="t('common.edit')">
                   <div class="i-carbon-edit text-lg"></div>
                 </button>
               </div>
@@ -95,8 +95,8 @@
           </template>
         </ul>
         <div v-else class="py-8 text-center text-gray-500">
-          <p class="text-lg font-semibold">{{ searchQuery ? '未找到结果' : '这里空空如也' }}</p>
-          <p class="mt-2 text-sm">{{ searchQuery ? '试试换个关键词，或直接按 Enter 新建。' : '试试搜索或创建你的第一个 Prompt！' }}</p>
+          <p class="text-lg font-semibold">{{ searchQuery ? t('popup.noResults') : t('popup.empty') }}</p>
+          <p class="mt-2 text-sm">{{ searchQuery ? t('popup.noResultsHint') : t('popup.emptyHint') }}</p>
         </div>
       </div>
     </div>
@@ -105,10 +105,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, onBeforeUpdate, watch } from 'vue'
-import { db } from '@/stores/db'
+import { useI18n } from 'vue-i18n'
+import { db, getSettings } from '@/stores/db'
 import { repository } from '@/stores/repository'
 import type { Prompt } from '@/types'
-import { MSG } from '@/utils/messaging'
+import { MSG, type DataUpdatedPayload } from '@/utils/messaging'
 
 // --- Refs & State ---
 const searchQuery = ref('')
@@ -118,6 +119,7 @@ const searchInputRef = ref<HTMLInputElement | null>(null)
 const settingsButtonRef = ref<HTMLButtonElement | null>(null)
 const listItemsRef = ref<HTMLElement[]>([])
 const isKeyboardNavigating = ref(false)
+const { t, locale } = useI18n()
 
 // [JOBS] SIMPLIFIED: One state to rule all exits.
 const isExiting = ref(false)
@@ -127,6 +129,7 @@ const exitState = ref({ top: 0, left: 0, width: 0, height: 0 })
 onMounted(async () => {
   searchInputRef.value?.focus()
   await db.open()
+  await setLocale()
   await loadPrompts()
   chrome.runtime.onMessage.addListener(handleMessage)
 })
@@ -145,9 +148,28 @@ async function loadPrompts() {
   allPrompts.value = promptsFromDB.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
 }
 
-function handleMessage(msg: any) {
+const systemLanguage = computed(() => {
+  const lang = navigator.language.toLowerCase();
+  return lang.startsWith('zh') ? '中文' : 'English';
+});
+
+async function setLocale() {
+  const settings = await getSettings()
+  if (settings.locale === 'system') {
+    locale.value = systemLanguage.value === '中文' ? 'zh-CN' : 'en'
+  } else {
+    locale.value = settings.locale
+  }
+}
+
+function handleMessage(msg: { type: string; data: any }) {
   if (msg?.type === MSG.DATA_UPDATED) {
-    loadPrompts()
+    const { scope } = msg.data as DataUpdatedPayload
+    if (scope === 'settings') {
+      setLocale()
+    } else {
+      loadPrompts()
+    }
   }
 }
 
@@ -174,7 +196,7 @@ const displayList = computed(() => {
     // Default View
     const favorites = allPrompts.value.filter(p => p.favorite).slice(0, 5)
     if (favorites.length) {
-      list.push({ type: 'header', key: 'fav-header', title: '我的收藏', icon: 'i-carbon-favorite-filled text-yellow-500' })
+      list.push({ type: 'header', key: 'fav-header', title: t('popup.myFavorites'), icon: 'i-carbon-favorite-filled text-yellow-500' })
       favorites.forEach(p => list.push({ type: 'prompt', key: p.id, data: p }))
     }
 
@@ -185,7 +207,7 @@ const displayList = computed(() => {
       .slice(0, 5)
 
     if (recents.length) {
-      list.push({ type: 'header', key: 'rec-header', title: '最近使用', icon: 'i-carbon-time' })
+      list.push({ type: 'header', key: 'rec-header', title: t('popup.recentlyUsed'), icon: 'i-carbon-time' })
       recents.forEach(p => list.push({ type: 'prompt', key: p.id, data: p }))
     }
   }

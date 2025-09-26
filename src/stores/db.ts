@@ -42,15 +42,22 @@ export const DEFAULT_SETTINGS: Settings = {
   panelPos: null,
   theme: 'auto',
   outlineEnabled: true,
+  locale: 'system',
   // Sync settings
   syncEnabled: false,
 }
 
 export async function getSettings(): Promise<Settings> {
-  const s = await db.settings.get('global')
+  let s = await db.settings.get('global')
   if (!s) {
-    await db.settings.put(DEFAULT_SETTINGS)
-    return DEFAULT_SETTINGS
+    // If no settings exist, create them from default
+    s = { ...DEFAULT_SETTINGS }
+    await db.settings.put(s)
+  } else if (!s.locale) {
+    // If settings exist but locale is missing (e.g., older version), add it
+    const lang = navigator.language.toLowerCase()
+    s.locale = lang.startsWith('zh') ? 'zh-CN' : 'en'
+    await db.settings.put(s)
   }
   return s
 }

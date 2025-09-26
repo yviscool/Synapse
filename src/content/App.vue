@@ -32,7 +32,9 @@
 // === 导入依赖 ===
 import { ui, useUI } from '@/stores/ui'
 import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock } from '@vueuse/core'
+import { getSettings } from '@/stores/db'
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
@@ -40,6 +42,22 @@ import type { FuseResultMatch, FuseResult } from 'fuse.js'
 
 // === UI 控制 ===
 const { showToast, hideToast } = useUI()
+const { t, locale } = useI18n()
+
+// === i18n & Real-time Sync ---
+const systemLanguage = computed(() => {
+  const lang = navigator.language.toLowerCase();
+  return lang.startsWith('zh') ? '中文' : 'English';
+});
+
+async function setLocale() {
+  const settings = await getSettings()
+  if (settings.locale === 'system') {
+    locale.value = systemLanguage.value === '中文' ? 'zh-CN' : 'en'
+  } else {
+    locale.value = settings.locale
+  }
+}
 
 // === 组件引用和状态 ===
 /** 提示词选择器组件引用 */
@@ -306,9 +324,9 @@ async function handleSelect(p: PromptDTO) {
     if (!target) {
       try { 
         await navigator.clipboard.writeText(p.content) 
-        showToast('已复制到剪贴板', 'success')
+        showToast(t('common.toast.copySuccess'), 'success')
       } catch {
-        showToast('复制失败', 'error')
+        showToast(t('common.toast.operationFailed'), 'error')
       }
       return
     }
@@ -319,10 +337,10 @@ async function handleSelect(p: PromptDTO) {
     // 在光标位置插入提示词内容，并告知函数是否需要替换触发符
     insertAtCursor(target, p.content, isTriggered)
     
-    showToast('提示词已插入', 'success')
+    showToast(t('common.toast.operationSuccess'), 'success')
   } catch (error) {
     console.error('处理提示词选择时出错:', error)
-    showToast('插入失败', 'error')
+    showToast(t('common.toast.operationFailed'), 'error')
   } finally {
     closePanel()
   }
@@ -341,9 +359,9 @@ async function handleCopy(p: PromptDTO) {
   
   try { 
     await navigator.clipboard.writeText(p.content)
-    showToast('复制成功！', 'success')
+    showToast(t('common.toast.copySuccess'), 'success')
   } catch {
-    showToast('复制失败', 'error')
+    showToast(t('common.toast.operationFailed'), 'error')
   }
   
   closePanel()
@@ -413,8 +431,9 @@ useEventListener(document, 'keydown', onKeydown, true)
  * 组件挂载后的初始化操作
  */
 onMounted(() => {
+  setLocale()
   // 监听来自后台脚本的消息
-  chrome.runtime.onMessage.addListener((msg: RequestMessage) => {
+  chrome.runtime.onMessage.addListener((msg: RequestMessage & { data: any }) => {
     // 处理打开面板的消息
     if (msg?.type === MSG.OPEN_PANEL) {
       openPanel()
@@ -422,8 +441,12 @@ onMounted(() => {
     
     // 处理数据更新的消息
     if (msg?.type === MSG.DATA_UPDATED) {
+      const { scope, version } = msg.data
+      if (scope === 'settings') {
+        setLocale()
+      }
       // 如果面板正在显示且数据版本不同，则刷新数据
-      if (visible.value && msg.data?.version !== dataVersion) {
+      if (visible.value && version !== dataVersion) {
         resetAndFetch()
         fetchCategories()
       }

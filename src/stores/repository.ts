@@ -2,6 +2,7 @@ import { db, DEFAULT_SETTINGS } from './db'
 import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
 import { MSG } from '@/utils/messaging'
 import { createSafePrompt } from '@/utils/promptUtils'
+import type { Dexie, Transaction } from 'dexie'
 
 // A simple, typed event emitter (a tiny version of 'mitt')
 type EventType = 'promptsChanged' | 'tagsChanged' | 'categoriesChanged' | 'settingsChanged' | 'allChanged'
@@ -37,7 +38,7 @@ const events = {
  */
 async function withCommitNotification(
   tables: (keyof typeof db | Dexie.Table)[],
-  operation: (trans: Dexie.Transaction) => Promise<any>,
+  operation: (trans: Transaction) => Promise<any>,
   eventType: EventType,
   eventData?: any,
 ) {
