@@ -34,7 +34,7 @@ import { ui, useUI } from '@/stores/ui'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock } from '@vueuse/core'
-import { getSettings } from '@/stores/db'
+
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
@@ -51,11 +51,17 @@ const systemLanguage = computed(() => {
 });
 
 async function setLocale() {
-  const settings = await getSettings()
-  if (settings.locale === 'system') {
-    locale.value = systemLanguage.value === '中文' ? 'zh-CN' : 'en'
-  } else {
-    locale.value = settings.locale
+  try {
+    const res: ResponseMessage<any> = await chrome.runtime.sendMessage({ type: MSG.GET_SETTINGS })
+    const settings = res?.data
+    if (!res?.ok || !settings) return
+    if (settings.locale === 'system') {
+      locale.value = systemLanguage.value === '中文' ? 'zh-CN' : 'en'
+    } else {
+      locale.value = settings.locale
+    }
+  } catch (e) {
+    console.error('获取设置失败:', e)
   }
 }
 
