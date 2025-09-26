@@ -204,7 +204,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUI } from '@/stores/ui'
 import { db, getSettings } from '@/stores/db'
@@ -259,7 +259,8 @@ onMounted(async () => {
 
 async function refreshSettings() {
   const currentSettings = await getSettings()
-  settings.value = { ...currentSettings }
+  // 确保设置对象是纯 JavaScript 对象
+  settings.value = JSON.parse(JSON.stringify(currentSettings))
   if (settings.value.locale === 'system') {
     locale.value = systemLanguage.value === '中文' ? 'zh-CN' : 'en'
   } else {
@@ -269,7 +270,9 @@ async function refreshSettings() {
 
 async function handleLocaleChange(newLocale: LocaleOption) {
   if (settings.value) {
-    const newSettings = { ...settings.value, locale: newLocale }
+    // 使用 toRaw 确保传递纯 JavaScript 对象，避免 DataCloneError
+    const rawSettings = toRaw(settings.value)
+    const newSettings = { ...rawSettings, locale: newLocale }
     await repository.setSettings(newSettings);
     await refreshSettings();
     showToast(t('common.toast.saveSuccess'), 'success');
