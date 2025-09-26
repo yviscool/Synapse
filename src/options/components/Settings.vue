@@ -149,7 +149,7 @@
                       :disabled="isDeletingMap[file.id]"
                       class="px-3 py-1 text-sm text-red-600 bg-transparent rounded-md hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {{ isDeletingMap[file.id] ? t('common.delete') + '...' : t('common.delete') }}
+                      {{ isDeletingMap[file.id] ? t('common.deleting') : t('common.delete') }}
                     </button>
                   </div>
                 </li>
@@ -185,7 +185,7 @@
               </div>
               <div v-else class="space-y-3">
                 <p class="text-sm font-semibold text-red-800">{{ t('settings.data.danger.confirm') }}</p>
-                <input v-model="resetConfirmationText" type="text" class="w-full px-3 py-2 border border-red-400 rounded-md focus:ring-red-500 focus:border-red-500" placeholder="DELETE">
+                <input v-model="resetConfirmationText" type="text" class="w-full px-3 py-2 border border-red-400 rounded-md focus:ring-red-500 focus:border-red-500" :placeholder="t('settings.data.danger.confirmPlaceholder')">
                 <div class="flex gap-4">
                   <button @click="executeResetData" :disabled="resetConfirmationText !== 'DELETE'" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {{ t('settings.data.danger.confirmButton') }}
@@ -246,7 +246,7 @@ const languageOptions = computed(() => [
 
 const systemLanguage = computed(() => {
   const lang = navigator.language.toLowerCase();
-  return lang.startsWith('zh') ? '中文' : 'English';
+  return lang.startsWith('zh') ? t('settings.language.systemLang.chinese') : t('settings.language.systemLang.english');
 });
 
 onMounted(async () => {
@@ -511,7 +511,7 @@ const importData = async (event: Event) => {
     const importedData = JSON.parse(text)
     
     if (!importedData.prompts && !importedData.settings) {
-      throw new Error('Invalid backup file format')
+      throw new Error(t('settings.data.local.invalidFileError'))
     }
 
     const confirmed = await askConfirm(t('settings.sync.confirmation.restore'), { type: 'danger' })
@@ -536,7 +536,7 @@ const importData = async (event: Event) => {
 
 const executeResetData = async () => {
   if (resetConfirmationText.value !== 'DELETE') {
-    showToast(t('common.error'), 'error');
+    showToast(t('settings.data.danger.confirmPlaceholder'), 'error');
     return;
   }
 

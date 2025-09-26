@@ -3,6 +3,7 @@
   "save": "Save",
   "cancel": "Cancel",
   "delete": "Delete",
+  "deleting": "Deleting...",
   "confirm": "Confirm",
   "success": "Success",
   "error": "Error",

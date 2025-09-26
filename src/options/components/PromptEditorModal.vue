@@ -9,7 +9,7 @@
         <div class="flex-1">
           <h2 class="flex items-center gap-3 text-xl font-semibold text-gray-900">
             <div class="i-carbon-edit"></div>
-            {{ modelValue?.id ? '编辑 Prompt' : '新建 Prompt' }}
+            {{ modelValue?.id ? t('prompts.editor.titleEdit') : t('prompts.editor.titleCreate') }}
           </h2>
           <div class="text-sm text-gray-500 mt-1" v-if="modelValue?.id">
             ID: {{ modelValue.id }}
@@ -21,7 +21,7 @@
             v-if="modelValue?.id"
             @click="showVersionHistoryLocal = !showVersionHistoryLocal"
             :class="['p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/50 transition-colors', { 'text-blue-600 bg-blue-100': showVersionHistoryLocal }]"
-            title="版本历史"
+            :title="t('prompts.editor.versionHistory')"
           >
             <div class="i-carbon-time"></div>
           </button>
@@ -47,21 +47,21 @@
         <div class="flex-1 flex overflow-hidden">
           <!-- 中间元数据面板 -->
           <div class="w-96 border-r border-gray-200 p-4 flex flex-col space-y-4 overflow-y-auto">
-            <h3 class="text-lg font-semibold text-gray-800 tracking-wide">元数据</h3>
+            <h3 class="text-lg font-semibold text-gray-800 tracking-wide">{{ t('prompts.editor.metadata') }}</h3>
 
             <div class="space-y-5">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">标题</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('prompts.editor.promptTitle') }}</label>
                 <input
                   v-model="titleProxy"
                   type="text"
                   class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="为你的 Prompt 起个好名字..."
+                  :placeholder="t('prompts.editor.titlePlaceholder')"
                 >
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">分类 (可多选)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('prompts.editor.category') }}</label>
                 <div class="w-full p-2 border border-gray-200 rounded-lg flex flex-wrap gap-2">
                   <button
                     v-for="category in availableCategories"
@@ -80,7 +80,7 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">标签</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('prompts.editor.tags') }}</label>
                 <div class="w-full px-3 py-2 border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent flex flex-wrap items-center gap-2">
                   <span
                     v-for="tag in editingTags"
@@ -96,7 +96,7 @@
                     v-model="tagInputLocal"
                     type="text"
                     class="flex-1 bg-transparent outline-none min-w-[80px] h-8"
-                    placeholder="添加标签后回车..."
+                    :placeholder="t('prompts.editor.tagsPlaceholder')"
                     @keydown.enter.prevent="addCurrentTag"
                     @keydown.backspace="handleTagBackspace"
                   >
@@ -104,12 +104,12 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">变更说明</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('prompts.editor.changeNote') }}</label>
                 <input
                   v-model="changeNoteProxy"
                   type="text"
                   class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="描述本次修改的内容 (可选)..."
+                  :placeholder="t('prompts.editor.changeNotePlaceholder')"
                 >
               </div>
 
@@ -118,7 +118,7 @@
                   <input type="checkbox" v-model="favoriteProxy" class="rounded text-blue-600 focus:ring-blue-500">
                   <span class="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <div class="i-carbon-favorite"></div>
-                    标记为收藏
+                    {{ t('prompts.editor.markAsFavorite') }}
                   </span>
                 </label>
               </div>
@@ -127,25 +127,25 @@
 
           <!-- 右侧编辑器区域 -->
           <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50 min-w-0">
-            <label class="block text-sm font-medium text-gray-700">Prompt 内容</label>
+            <label class="block text-sm font-medium text-gray-700">{{ t('prompts.editor.promptContent') }}</label>
 
             <!-- Time Machine Banner -->
             <div v-if="isReadonly && previewingVersion" class="p-2 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm flex items-center justify-between">
-              <span class="font-medium">正在预览 v{{ previewingVersion.versionNumber }} (只读模式)</span>
-              <button @click="$emit('edit-from-preview')" class="px-3 py-1 bg-white border border-yellow-400 rounded-md hover:bg-yellow-50 transition-colors">✍️ 基于此版本编辑</button>
+              <span class="font-medium">{{ t('prompts.editor.previewing', { version: previewingVersion.versionNumber }) }}</span>
+              <button @click="$emit('edit-from-preview')" class="px-3 py-1 bg-white border border-yellow-400 rounded-md hover:bg-yellow-50 transition-colors">{{ t('prompts.editor.editFromPreview') }}</button>
             </div>
             <div v-if="!isReadonly && baseVersionForEdit" class="p-2 rounded-lg bg-blue-100 border border-blue-300 text-blue-800 text-sm flex items-center justify-between">
-              <span class="font-medium">正在编辑 (基于 v{{ baseVersionForEdit.versionNumber }})</span>
+              <span class="font-medium">{{ t('prompts.editor.editingBasedOn', { version: baseVersionForEdit.versionNumber }) }}</span>
             </div>
             <div v-if="!isReadonly && !baseVersionForEdit" class="p-2 rounded-lg bg-green-100 border border-green-300 text-green-800 text-sm flex items-center">
-              <span class="font-medium">正在编辑新版本</span>
+              <span class="font-medium">{{ t('prompts.editor.editingNew') }}</span>
             </div>
 
             <div class="flex-1 relative border border-gray-200 rounded-lg overflow-hidden shadow-inner bg-white flex flex-col">
               <MarkdownEditor
                 v-model="contentProxy"
                 :readonly="isReadonly"
-                placeholder="在这里编写你的 AI Prompt..."
+                :placeholder="t('prompts.editor.contentPlaceholder')"
                 @change="$emit('content-change')"
               />
             </div>
@@ -156,13 +156,13 @@
       <div class="flex items-center justify-between p-2 border-t border-gray-200 bg-gray-50">
         <div class="text-sm text-gray-500">
           <span v-if="modelValue?.content">
-            {{ (modelValue.content || '').length }} 字符
+            {{ t('prompts.editor.charCount', { count: (modelValue.content || '').length }) }}
           </span>
         </div>
         <div class="flex items-center gap-3">
           <button @click="$emit('save')" class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg">
             <div class="i-carbon-save"></div>
-            保存 
+            {{ t('prompts.editor.save') }}
           </button>
         </div>
       </div>
@@ -172,6 +172,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useModal } from '@/composables/useModal'
 import { useMagicKeys } from '@vueuse/core'
 import MarkdownEditor from '@/options/components/MarkdownEditor.vue'
@@ -200,6 +201,8 @@ const emit = defineEmits<{
   (e: 'version-deleted', id: string): void
   (e: 'preview-version', payload: { version: PromptVersion, versionNumber: number }): void
 }>()
+
+const { t } = useI18n()
 
 const isOpen = computed(() => !!props.modelValue)
 useModal(isOpen, () => emit('close'))

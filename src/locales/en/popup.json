@@ -4,7 +4,7 @@
   "empty": "It's empty here",
   "noResultsHint": "Try different keywords, or press Enter to create.",
   "emptyHint": "Try searching or create your first Prompt!",
-  "newPrompt": "New \"{query}\"",
+  "newPromptHtml": "New \"<span class='truncate font-bold'>{query}</span>\"",
   "myFavorites": "My Favorites",
   "recentlyUsed": "Recently Used"
 }

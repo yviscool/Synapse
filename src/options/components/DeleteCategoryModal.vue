@@ -9,19 +9,19 @@
         <div class="text-2xl text-orange-500">
           <div class="i-carbon-trash-can"></div>
         </div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">批量删除提示词</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ t('categories.batchDeleteModal.title') }}</h3>
       </div>
 
       <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
         <!-- 1. Category Selector -->
         <div class="space-y-3">
-          <label for="category-select" class="font-semibold text-gray-700 dark:text-gray-300">第一步：选择分类</label>
+          <label for="category-select" class="font-semibold text-gray-700 dark:text-gray-300">{{ t('categories.batchDeleteModal.step1') }}</label>
           <select
             id="category-select"
             v-model="selectedCategoryId"
             class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 transition-colors"
           >
-            <option disabled value="">请选择一个分类</option>
+            <option disabled value="">{{ t('categories.batchDeleteModal.selectCategoryPlaceholder') }}</option>
             <option v-for="category in categories" :key="category.id" :value="category.id">
               {{ category.name }}
             </option>
@@ -34,19 +34,19 @@
 
         <!-- 2. Deletion Options -->
         <div v-if="selectedCategoryId && !isLoading" class="space-y-4">
-          <label class="font-semibold text-gray-700 dark:text-gray-300">第二步：选择删除范围</label>
+          <label class="font-semibold text-gray-700 dark:text-gray-300">{{ t('categories.batchDeleteModal.step2') }}</label>
           
           <!-- Tab-like buttons -->
           <div class="flex items-center border border-gray-200 dark:border-gray-600 rounded-lg p-1 bg-gray-100 dark:bg-gray-700">
-            <button @click="deletionMode = 'all'" class="flex-1 px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200" :class="deletionMode === 'all' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'">全部删除</button>
-            <button @click="deletionMode = 'byTag'" class="flex-1 px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200" :class="deletionMode === 'byTag' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'">按标签删除</button>
+            <button @click="deletionMode = 'all'" class="flex-1 px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200" :class="deletionMode === 'all' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'">{{ t('categories.batchDeleteModal.deleteAll') }}</button>
+            <button @click="deletionMode = 'byTag'" class="flex-1 px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200" :class="deletionMode === 'byTag' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'">{{ t('categories.batchDeleteModal.deleteByTag') }}</button>
           </div>
 
           <!-- Tag Selector for 'byTag' mode -->
           <div v-if="deletionMode === 'byTag'" class="pt-2">
-            <p v-if="tagsInCategory.length === 0" class="text-sm text-center text-gray-500 py-4">该分类下没有可供筛选的标签。</p>
+            <p v-if="tagsInCategory.length === 0" class="text-sm text-center text-gray-500 py-4">{{ t('categories.batchDeleteModal.noTags') }}</p>
             <div v-else class="space-y-3">
-              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">选择标签 (将删除包含<strong class="text-orange-500">任一</strong>所选标签的提示词):</p>
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400" v-html="t('categories.batchDeleteModal.selectTagsLabel')"></p>
               <div class="max-h-36 overflow-y-auto flex flex-wrap gap-2 pt-1">
                 <label v-for="tag in tagsInCategory" :key="tag.id" class="flex items-center px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 text-sm border"
                   :class="selectedTagIds.includes(tag.id) ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-500'">
@@ -61,7 +61,7 @@
 
         <!-- 3. Preview -->
         <div v-if="selectedCategoryId && !isLoading" class="space-y-3">
-          <h4 class="font-semibold text-gray-700 dark:text-gray-300">第三步：预览结果</h4>
+          <h4 class="font-semibold text-gray-700 dark:text-gray-300">{{ t('categories.batchDeleteModal.step3') }}</h4>
           <div class="min-h-[8rem] max-h-48 overflow-y-auto border rounded-lg p-3 bg-gray-50 dark:bg-gray-900/50 space-y-1">
             <p v-if="affectedPrompts.length > 0" v-for="prompt in affectedPrompts" :key="prompt.id" class="text-sm text-gray-800 dark:text-gray-300 truncate animate-fade-in">
               - {{ prompt.title }}
@@ -75,12 +75,12 @@
 
       <!-- Footer -->
       <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end items-center gap-4 bg-gray-50 dark:bg-gray-800/50">
-        <span class="text-sm text-gray-600 dark:text-gray-400">将删除 <strong class="text-red-500 text-base">{{ affectedPrompts.length }}</strong> 个提示词</span>
+        <span class="text-sm text-gray-600 dark:text-gray-400" v-html="t('categories.batchDeleteModal.summary', { count: affectedPrompts.length })"></span>
         <button
           @click="onCancel"
           class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600"
         >
-          取消
+          {{ t('categories.batchDeleteModal.cancel') }}
         </button>
         <button
           @click="handleDelete"
@@ -90,7 +90,7 @@
         >
           <div v-if="isProcessing" class="i-carbon-circle-dash w-5 h-5 animate-spin"></div>
           <div v-else class="i-carbon-trash-can"></div>
-          确认删除
+          {{ t('categories.batchDeleteModal.confirm') }}
         </button>
       </div>
     </div>
@@ -99,6 +99,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Category, Prompt, Tag } from '@/types/prompt'
 import { db } from '@/stores/db'
 import { repository } from '@/stores/repository'
@@ -145,9 +146,11 @@ const isDeleteButtonEnabled = computed(() => {
 })
 
 const previewMessage = computed(() => {
-  if (deletionMode.value === 'all') return '该分类下没有提示词。'
+  if (deletionMode.value === 'all') return t('categories.batchDeleteModal.previewMessage.noPrompts')
   if (deletionMode.value === 'byTag') {
-    return selectedTagIds.value.length === 0 ? '请选择至少一个标签以预览匹配结果。' : '没有找到匹配所有已选标签的提示词。'
+    return selectedTagIds.value.length === 0
+      ? t('categories.batchDeleteModal.previewMessage.selectTags')
+      : t('categories.batchDeleteModal.previewMessage.noMatch')
   }
   return ''
 })
@@ -169,7 +172,7 @@ watch(selectedCategoryId, async (newId) => {
     }
   } catch (error) {
     console.error('Failed to fetch data for category:', error)
-    showToast('加载分类数据失败', 'error')
+    showToast(t('categories.batchDeleteModal.loadFailed'), 'error')
   } finally {
     isLoading.value = false
   }
@@ -202,10 +205,10 @@ async function handleDelete() {
   let result: { ok: boolean; error?: any; }
 
   if (deletionMode.value === 'all') {
-    confirmMessage = `你确定要删除分类 "${selectedCategoryName.value}" 下的全部 ${promptCount} 个提示词吗？分类本身将被保留。此操作不可恢复。`
+    confirmMessage = t('categories.batchDeleteModal.confirmMessageAll', { count: promptCount, categoryName: selectedCategoryName.value })
   } else { // byTag
     const selectedTags = tagsInCategory.value.filter(t => selectedTagIds.value.includes(t.id)).map(t => t.name)
-    confirmMessage = `你确定要删除分类 "${selectedCategoryName.value}" 下，包含标签 [${selectedTags.join(', ')}] 的 ${promptCount} 个提示词吗？此操作不可恢复。`
+    confirmMessage = t('categories.batchDeleteModal.confirmMessageByTag', { count: promptCount, categoryName: selectedCategoryName.value, tags: selectedTags.join(', ') })
   }
 
   const confirm = await askConfirm(confirmMessage, { type: 'danger' })
@@ -220,15 +223,15 @@ async function handleDelete() {
     }
 
     if (result.ok) {
-      showToast('删除成功', 'success')
+      showToast(t('categories.batchDeleteModal.deleteSuccess'), 'success')
       emit('updated')
       onCancel()
     } else {
-      throw result.error || new Error('删除操作失败')
+      throw result.error || new Error(t('categories.batchDeleteModal.operationFailedError'))
     }
   } catch (error) {
     console.error('Deletion failed:', error)
-    showToast(`删除失败: ${(error as Error).message}`, 'error')
+    showToast(t('categories.batchDeleteModal.deleteFailedWithError', { error: (error as Error).message }), 'error')
   } finally {
     isProcessing.value = false
   }

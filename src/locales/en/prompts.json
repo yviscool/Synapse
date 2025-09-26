@@ -12,5 +12,61 @@
   "favorite": "Favorite",
   "copyContent": "Copy Content",
   "copied": "Copied",
-  "copy": "Copy"
+  "copy": "Copy",
+  "editor": {
+    "titleEdit": "Edit Prompt",
+    "titleCreate": "New Prompt",
+    "versionHistory": "Version History",
+    "metadata": "Metadata",
+    "promptTitle": "Title",
+    "titlePlaceholder": "Give your prompt a catchy name...",
+    "category": "Category (multi-select)",
+    "tags": "Tags",
+    "tagsPlaceholder": "Add a tag and press Enter...",
+    "changeNote": "Change Note",
+    "changeNotePlaceholder": "Describe the changes in this version (optional)...",
+    "markAsFavorite": "Mark as favorite",
+    "promptContent": "Prompt Content",
+    "previewing": "Previewing v{version} (Read-only mode)",
+    "editFromPreview": "✍️ Edit from this version",
+    "editingBasedOn": "Editing (based on v{version})",
+    "editingNew": "Editing a new version",
+    "contentPlaceholder": "Write your AI prompt here...",
+    "charCount": "{count} characters",
+    "save": "Save"
+  },
+  "versionHistory": {
+    "title": "Version History",
+    "total": "({count})",
+    "refresh": "Refresh",
+    "cleanup": "Cleanup Old Versions",
+    "noHistory": "No version history yet",
+    "current": "Current",
+    "compare": "Compare with Current",
+    "revert": "Set as Current",
+    "delete": "Delete Version",
+    "comparisonTitle": "Version Comparison",
+    "version": "Version {version}",
+    "currentVersion": "Current Version",
+    "additions": "+{count} additions",
+    "deletions": "-{count} deletions",
+    "justNow": "Just now",
+    "toast": {
+      "loadFailed": "Failed to load version history",
+      "refreshed": "Version history refreshed",
+      "compareFailed": "Failed to compare versions",
+      "revertSuccess": "v{version} has been set as the current version",
+      "operationFailed": "Operation failed",
+      "deleteOnly": "Cannot delete the only version",
+      "deleteSuccess": "Version {version} has been deleted",
+      "deleteFailed": "Failed to delete version",
+      "cleanupSuccess": "Old versions cleaned up",
+      "cleanupFailed": "Failed to cleanup versions"
+    },
+    "confirm": {
+      "revert": "Are you sure you want to set v{version} as the current version? Your current unsaved changes will be automatically saved as a new version.",
+      "delete": "Are you sure you want to permanently delete version {version}? This action cannot be undone.",
+      "cleanup": "Are you sure you want to clean up old versions? Only the 10 most recent versions will be kept."
+    }
+  }
 }

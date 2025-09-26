@@ -6,7 +6,7 @@
             <div class="flex items-center justify-between p-5 border-b border-gray-200/80">
                 <h2 class="flex items-center gap-3 text-lg font-semibold text-gray-900">
                     <div class="i-carbon-folder-details-reference text-xl"></div>
-                    整理你的灵感集
+                    {{ t('categories.title') }}
                 </h2>
                 <button @click="close"
                     class="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-200/70 transition-colors">
@@ -20,17 +20,17 @@
                         <div
                             :class="[newCategoryIcon || 'i-carbon-add', 'absolute left-3 top-1/2 -translate-y-1/2 text-lg text-gray-400']">
                         </div>
-                        <input v-model="newCategoryName" type="text" placeholder="创建一个新分类..." @keyup.enter="addCategory"
+                        <input v-model="newCategoryName" type="text" :placeholder="t('categories.createPlaceholder')" @keyup.enter="addCategory"
                             class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
                     <button @click.prevent="toggleIconPicker($event, 'add')"
                         class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 flex items-center justify-center gap-2 transition-colors"
-                        title="选择图标">
+                        :title="t('categories.iconTooltip')">
                         <div :class="[newCategoryIcon || 'i-carbon-image-search', 'text-lg']"></div>
                     </button>
                     <button @click="addCategory" :disabled="!newCategoryName.trim()"
                         class="flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all shadow hover:shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed disabled:shadow-none">
-                        <span class="hidden sm:inline">添加</span>
+                        <span class="hidden sm:inline">{{ t('categories.add') }}</span>
                         <div class="i-carbon-arrow-right sm:hidden"></div>
                     </button>
                 </div>
@@ -51,7 +51,7 @@
 
                         <template v-if="editingCategoryId === category.id">
                             <div class="flex-1 w-0 flex gap-2 items-stretch">
-                                <button @click.prevent="toggleIconPicker($event, category.id)" title="更换图标"
+                                <button @click.prevent="toggleIconPicker($event, category.id)" :title="t('categories.changeIconTooltip')"
                                     class="px-2 py-1 border border-blue-400 rounded-md hover:bg-blue-50 flex items-center gap-2 bg-white">
                                     <div :class="[editingCategoryIcon || 'i-carbon-image', 'text-lg']"></div>
                                 </button>
@@ -60,11 +60,11 @@
                                     @keyup.enter="saveCategoryEdit" @keyup.esc="cancelCategoryEdit" />
                             </div>
                             <div class="flex items-center gap-2 ml-4">
-                                <button @click="saveCategoryEdit" title="保存"
+                                <button @click="saveCategoryEdit" :title="t('categories.saveTooltip')"
                                     class="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors">
                                     <div class="i-carbon-checkmark"></div>
                                 </button>
-                                <button @click="cancelCategoryEdit" title="取消"
+                                <button @click="cancelCategoryEdit" :title="t('categories.cancelTooltip')"
                                     class="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
                                     <div class="i-carbon-close"></div>
                                 </button>
@@ -79,16 +79,16 @@
                                 <div v-if="category.icon" :class="[category.icon, 'text-xl text-gray-700']"></div>
                                 <div class="flex-1 truncate">
                                     <div class="font-medium text-gray-800 truncate">{{ category.name }}</div>
-                                    <div class="text-sm text-gray-500">{{ getPromptCount(category.id) }} 个灵感</div>
+                                    <div class="text-sm text-gray-500">{{ t('categories.promptCount', { count: getPromptCount(category.id) }) }}</div>
                                 </div>
                             </div>
                             <div
                                 class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                <button @click="editCategory(category)" title="编辑"
+                                <button @click="editCategory(category)" :title="t('categories.editTooltip')"
                                     class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors">
                                     <div class="i-carbon-edit"></div>
                                 </button>
-                                <button @click="deleteCategory(category.id)" title="删除"
+                                <button @click="deleteCategory(category.id)" :title="t('categories.deleteTooltip')"
                                     class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors">
                                     <div class="i-carbon-trash-can"></div>
                                 </button>
@@ -104,7 +104,7 @@
         class="fixed z-[60] bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
         :style="{ top: `${iconPicker.y}px`, left: `${iconPicker.x}px` }">
         <div class="p-3">
-            <input v-model="iconSearch" type="text" placeholder="搜索图标..." ref="iconSearchInputRef"
+            <input v-model="iconSearch" type="text" :placeholder="t('categories.searchIconPlaceholder')" ref="iconSearchInputRef"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow" />
         </div>
         <div class="p-3 grid grid-cols-8 sm:grid-cols-10 gap-2 overflow-y-auto max-h-[40vh]">
@@ -126,7 +126,9 @@ import { useUI } from '@/stores/ui'
 import type { Category, Prompt } from '@/types/prompt'
 import { onClickOutside, useVModel, useFocus, useDebounceFn, whenever } from '@vueuse/core'
 import { useModal } from '@/composables/useModal'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'updated'): void }>()
 
@@ -347,13 +349,13 @@ async function addCategory() {
 
     const { ok } = await repository.addCategory({ name, icon: newCategoryIcon.value || '' })
     if (ok) {
-        showToast('分类添加成功', 'success')
+        showToast(t('categories.addSuccess'), 'success')
         newCategoryName.value = ''
         newCategoryIcon.value = ''
         await loadCategories() // Reload to get the new category
         emit('updated')
     } else {
-        showToast('添加失败', 'error')
+        showToast(t('categories.addFailed'), 'error')
     }
 }
 
@@ -378,26 +380,26 @@ async function saveCategoryEdit() {
     }
     const { ok } = await repository.updateCategory(id, { name, icon: editingCategoryIcon.value })
     if (ok) {
-        showToast('分类更新成功', 'success')
+        showToast(t('categories.updateSuccess'), 'success')
         await loadCategories()
         emit('updated')
     } else {
-        showToast('更新失败', 'error')
+        showToast(t('categories.updateFailed'), 'error')
     }
     cancelCategoryEdit()
 }
 
 async function deleteCategory(id: string) {
-    const confirm = await askConfirm('确定要删除这个分类吗？相关的灵感不会被删除。', { type: 'danger' })
+    const confirm = await askConfirm(t('categories.deleteConfirm'), { type: 'danger' })
     if (!confirm) return
 
     const { ok } = await repository.deleteCategory(id)
     if (ok) {
-        showToast('分类删除成功', 'success')
+        showToast(t('categories.deleteSuccess'), 'success')
         await loadCategories()
         emit('updated')
     } else {
-        showToast('删除失败', 'error')
+        showToast(t('categories.deleteFailed'), 'error')
     }
 }
 
@@ -466,10 +468,10 @@ function handleCategoryDragLeave() {
 const debouncedSaveOrder = useDebounceFn(async (updatedCategories: Category[]) => {
     const { ok } = await repository.updateCategoryOrder(updatedCategories)
     if (ok) {
-        showToast('顺序已更新', 'success')
+        showToast(t('categories.orderUpdateSuccess'), 'success')
         emit('updated')
     } else {
-        showToast('顺序更新失败', 'error')
+        showToast(t('categories.orderUpdateFailed'), 'error')
     }
 }, 500)
 

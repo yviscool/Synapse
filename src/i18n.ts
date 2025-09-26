@@ -5,12 +5,14 @@ import enSettings from './locales/en/settings.json'
 import enPrompts from './locales/en/prompts.json'
 import enCategories from './locales/en/categories.json'
 import enPopup from './locales/en/popup.json'
+import enContent from './locales/en/content.json'
 import zhCommon from './locales/zh-CN/common.json'
 import zhMenu from './locales/zh-CN/menu.json'
 import zhSettings from './locales/zh-CN/settings.json'
 import zhPrompts from './locales/zh-CN/prompts.json'
 import zhCategories from './locales/zh-CN/categories.json'
 import zhPopup from './locales/zh-CN/popup.json'
+import zhContent from './locales/zh-CN/content.json'
 
 // Combine messages
 const messages = {
@@ -21,6 +23,7 @@ const messages = {
     prompts: enPrompts,
     categories: enCategories,
     popup: enPopup,
+    content: enContent,
   },
   'zh-CN': {
     common: zhCommon,
@@ -29,6 +32,7 @@ const messages = {
     prompts: zhPrompts,
     categories: zhCategories,
     popup: zhPopup,
+    content: zhContent,
   },
 }
 
