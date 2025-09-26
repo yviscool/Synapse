@@ -1,99 +1,97 @@
-# Synapse - 你的 AI 提示词管理器
+# Synapse - Your AI Prompt Manager
 
-> **管理提示词，就用 Synapse —— 高效、智能、有条理**
+> **Manage your prompts with Synapse — Efficient, Smart, Organized**
 
-Synapse 是一款浏览器扩展，专为 **AI 提示词管理** 而生。它让你在一个地方集中管理提示词，支持 **版本历史**、**智能分类**，并能在 AI 网站中自动注入提示词，同时生成 **长对话大纲**，实现高效、条理清晰的 AI 使用体验。
+Synapse is a browser extension designed for **AI Prompt Management**. It allows you to centrally manage your prompts, supports **version history**, **smart categorization**, and can automatically inject prompts into AI websites while generating **outlines for long conversations**, enabling an efficient and well-organized AI experience.
 
-## ✨ 核心功能
+## ✨ Core Features
 
-* **AI 提示词管理**
-  集中创建、编辑、分类、搜索提示词，支持 Markdown，随时调用。
+*   **AI Prompt Management**
+    Create, edit, categorize, and search for prompts in one place, with Markdown support, ready to be used anytime.
 
-* **版本历史**
-  自动保存提示词的历史版本，随时回溯与恢复。
+*   **Version History**
+    Automatically saves historical versions of your prompts, allowing you to review and restore them at any time.
 
-* **长对话大纲生成**
-  智能分析对话，生成结构化大纲，支持 **顶部 / 中部 / 底部快速跳转**，并配合图标分类（问题、代码、解释…）。
+*   **Long Conversation Outline Generation**
+    Intelligently analyzes conversations to generate a structured outline, supporting **quick navigation to the top, middle, or bottom**, along with icon-based categorization (questions, code, explanations, etc.).
 
-* **无缝注入**
-  在 ChatGPT、Gemini、Kimi、Deepseek、通义千问等主流 AI 网站的输入框旁，一键注入提示词。
+*   **Seamless Injection**
+    Inject prompts with a single click next to the input boxes of major AI websites like ChatGPT, Gemini, Kimi, Deepseek, and Tongyi Qianwen.
 
-* **快速保存**
+*   **Quick Save**
+    *   `Ctrl + Shift + S` to quickly save selected text as a prompt
+    *   Save directly from the right-click context menu
 
-  * `Ctrl + Shift + S` 快速保存选中文本为提示词
-  * 右键菜单直接保存
+*   **Full-Text Search**
+    Supports full-text search for prompts to quickly locate the content you need.
 
-* **全文搜索**
-  支持全文搜索提示词，快速定位所需内容。
+*   **Local Backup and Restore**
+    Supports local backup and restore to ensure data security.
 
-* **本地备份恢复**
-  支持本地备份和恢复，保障数据安全。
+*   **Cloud Backup and Sync**
+    Supports Google Drive cloud sync, with more cloud storage services to be added in the future.
 
-* **云端备份同步**
-  支持谷歌 Drive 云同步，后续将继续增加其他云存储服务。
+*   **Category Management**
+    Intelligently categorize prompts for easy management and retrieval.
 
-* **分类管理**
-  智能分类提示词，方便管理和查找。
+*   **Data Import and Merge**
+    Supports data import and merge for easy migration and integration.
 
-* **数据导入合并**
-  支持数据导入和合并，方便迁移和整合。
-
-* **智能体验**
-  数据本地安全存储，支持导入/导出备份。大纲界面可拖动，实时更新，适配暗色/亮色主题。
-
----
-
-## 📸 Demo 截图
-
-### 1. 后台大纲管理
-
-![后台大纲管理](./demo/1.png)
-
-### 2. 新增提示词
-
-![新增提示词](./demo/2.png)
-
-### 3. 版本管理
-
-![版本管理](./demo/3.png)
-
-### 4. 提示词选择器注入（AI 输入框）
-
-![提示词选择器](./demo/4.png)
-
-### 5. AI 网站大纲生成
-
-![AI 大纲生成 1](./demo/5.png)
-![AI 大纲生成 2](./demo/6.png)
-![AI 大纲生成 3](./demo/7.png)
+*   **Smart Experience**
+    Data is stored locally for security, with support for import/export backups. The outline interface is draggable, updates in real-time, and adapts to dark/light themes.
 
 ---
 
-## 🚀 使用指南
+## 📸 Demo Screenshots
 
-* 在 **AI 网站输入框** 输入 `/p` 或按 `Alt + K` 呼出 **提示词选择器**
-* 快速保存提示词：
+### 1. Backend Outline Management
 
-  * `Ctrl + Shift + S`
-  * 或选中文本 → 右键 → 保存为提示词
-* Synapse 会自动在 AI 网站注入提示词选择器，并生成长对话大纲
+![Backend Outline Management](./demo/1.png)
+
+### 2. Add New Prompt
+
+![Add New Prompt](./demo/2.png)
+
+### 3. Version Management
+
+![Version Management](./demo/3.png)
+
+### 4. Prompt Selector Injection (AI Input Box)
+
+![Prompt Selector](./demo/4.png)
+
+### 5. AI Website Outline Generation
+
+![AI Outline Generation 1](./demo/5.png)
+![AI Outline Generation 2](./demo/6.png)
+![AI Outline Generation 3](./demo/7.png)
 
 ---
 
-## 📦 安装指南
+## 🚀 Usage Guide
 
-### Chrome 商店下载
-[点击前往 Chrome 商店安装](https://chromewebstore.google.com/detail/synapse/mdnfmfgnnbeodhpfnkeobmhifodhhjcj?authuser=0&hl=zh-CN)
-
-### Releases 手动安装
-1. 前往 [Releases](https://github.com/your-repo/synapse/releases) 页面
-2. 下载 `extension-版本号.zip`
-3. 打开浏览器扩展管理页面，开启 **开发者模式**
-4. 将 `extension-版本号.zip` 拖拽安装
-5. 点击工具栏 Synapse 图标开始使用，或直接访问 AI 网站体验
+*   In the **AI website input box**, type `/p` or press `Alt + K` to bring up the **Prompt Selector**
+*   Quickly save a prompt:
+    *   `Ctrl + Shift + S`
+    *   Or select text → right-click → Save as prompt
+*   Synapse will automatically inject the prompt selector on AI websites and generate outlines for long conversations.
 
 ---
 
-## 📜 开源许可
+## 📦 Installation Guide
 
-本项目基于 [MIT License](./LICENSE) 开源
+### Download from Chrome Web Store
+[Click here to install from the Chrome Web Store](https://chromewebstore.google.com/detail/synapse/mdnfmfgnnbeodhpfnkeobmhifodhhjcj?authuser=0&hl=en)
+
+### Manual Installation from Releases
+1.  Go to the [Releases](https://github.com/your-repo/synapse/releases) page
+2.  Download `extension-vX.X.X.zip`
+3.  Open your browser's extension management page and enable **Developer mode**
+4.  Drag and drop the `extension-vX.X.X.zip` file to install
+5.  Click the Synapse icon in the toolbar to get started, or visit an AI website directly to experience it.
+
+---
+
+## 📜 License
+
+This project is licensed under the [MIT License](./LICENSE).

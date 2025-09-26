@@ -13,7 +13,7 @@
           <input
             ref="searchInput"
             v-model="query"
-            placeholder="搜索提示..."
+            :placeholder="t('content.searchPlaceholder')"
             class="w-full py-2 outline-none bg-transparent"
           />
         </div>
@@ -47,7 +47,7 @@
                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 shadow-lg'
                 : 'border-gray-300/50 dark:border-gray-700/50 hover:border-blue-500/50 hover:bg-gray-500/5',
             ]"
-            title="回车使用"
+            :title="t('content.useWithEnter')"
           >
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1 min-w-0">
@@ -59,7 +59,7 @@
               <button
                 class="p-2 rounded-full text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-500/10 flex-shrink-0"
                 @click.stop="$emit('copy', p)"
-                title="复制 (Ctrl+C)"
+                :title="t('content.copy')"
               >
                 <div class="i-carbon-copy text-lg" />
               </button>
@@ -89,7 +89,7 @@
           </div>
         </template>
         <div v-if="prompts.length === 0 && !isLoading" class="text-center py-10 text-gray-500">
-          没有找到匹配的提示
+          {{ t('content.noMatch') }}
         </div>
         <div ref="loaderRef" class="h-1"></div>
       </div>
@@ -98,17 +98,17 @@
         class="p-2 text-xs text-gray-400 dark:text-gray-600 border-t border-black/10 dark:border-white/10 flex items-center justify-between flex-shrink-0"
       >
         <div>
-          <span class="font-semibold">↑</span>/<span class="font-semibold">↓</span> 导航
+          <span class="font-semibold">↑</span>/<span class="font-semibold">↓</span> {{ t('content.navTip') }}
           <span class="mx-2">·</span>
-          <span class="font-semibold">Tab</span> 切换分类
+          <span class="font-semibold">Tab</span> {{ t('content.categoryTip') }}
         </div>
         <div class="text-gray-500">
           <span v-if="isLoading && prompts.length > 0" class="flex items-center gap-1">
             <div class="i-carbon-circle-dash w-4 h-4 animate-spin"></div>
-            加载中...
+            {{ t('common.loading') }}
           </span>
           <span v-else>
-            共 {{ prompts.length }} / {{ totalPrompts }} 个提示
+            {{ t('content.total', { total: totalPrompts }) }}
           </span>
         </div>
       </div>
@@ -116,7 +116,7 @@
       <button
         class="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-500/10 transition-colors flex-shrink-0"
         @click="$emit('close')"
-        title="关闭 (Esc)"
+        :title="t('content.closeTip')"
       >
         <div class="i-carbon-close text-xl" />
       </button>
@@ -130,6 +130,9 @@ import { useFocus, useVModel } from '@vueuse/core'
 import type { PromptDTO } from '@/utils/messaging'
 import { generateHighlightedHtml } from '@/utils/highlighter'
 import type { FuseResultMatch } from 'fuse.js'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   prompts: (PromptDTO & { matches?: readonly FuseResultMatch[] })[]

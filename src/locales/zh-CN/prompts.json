@@ -12,5 +12,61 @@
   "favorite": "收藏",
   "copyContent": "复制内容",
   "copied": "已复制",
-  "copy": "复制"
+  "copy": "复制",
+  "editor": {
+    "titleEdit": "编辑 Prompt",
+    "titleCreate": "新建 Prompt",
+    "versionHistory": "版本历史",
+    "metadata": "元数据",
+    "promptTitle": "标题",
+    "titlePlaceholder": "为你的 Prompt 起个好名字...",
+    "category": "分类 (可多选)",
+    "tags": "标签",
+    "tagsPlaceholder": "添加标签后回车...",
+    "changeNote": "变更说明",
+    "changeNotePlaceholder": "描述本次修改的内容 (可选)...",
+    "markAsFavorite": "标记为收藏",
+    "promptContent": "Prompt 内容",
+    "previewing": "正在预览 v{version} (只读模式)",
+    "editFromPreview": "✍️ 基于此版本编辑",
+    "editingBasedOn": "正在编辑 (基于 v{version})",
+    "editingNew": "正在编辑新版本",
+    "contentPlaceholder": "在这里编写你的 AI Prompt...",
+    "charCount": "{count} 字符",
+    "save": "保存"
+  },
+  "versionHistory": {
+    "title": "版本历史",
+    "total": "({count})",
+    "refresh": "刷新",
+    "cleanup": "清理旧版本",
+    "noHistory": "暂无历史版本",
+    "current": "当前",
+    "compare": "与当前版本比较",
+    "revert": "设为当前版本",
+    "delete": "删除版本",
+    "comparisonTitle": "版本比较",
+    "version": "版本 {version}",
+    "currentVersion": "当前版本",
+    "additions": "+{count} 处增加",
+    "deletions": "-{count} 处删除",
+    "justNow": "刚刚",
+    "toast": {
+      "loadFailed": "加载版本历史失败",
+      "refreshed": "版本历史已刷新",
+      "compareFailed": "版本比较失败",
+      "revertSuccess": "v{version} 已设为当前版本",
+      "operationFailed": "操作失败",
+      "deleteOnly": "无法删除唯一的版本",
+      "deleteSuccess": "版本 {version} 已删除",
+      "deleteFailed": "删除版本失败",
+      "cleanupSuccess": "旧版本清理完毕",
+      "cleanupFailed": "清理版本失败"
+    },
+    "confirm": {
+      "revert": "确定要将 v{version} 设为当前版本吗？您当前未保存的修改将被自动保存为一个新版本。",
+      "delete": "确定要永久删除版本 {version} 吗？此操作不可撤销。",
+      "cleanup": "确定要清理旧版本吗？将仅保留最近 10 个版本。"
+    }
+  }
 }

@@ -4,14 +4,14 @@
     <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700/60 shrink-0">
       <h3 class="flex items-center gap-2 font-semibold text-lg text-gray-800 dark:text-gray-200">
         <div class="i-carbon-time text-xl"></div>
-        <span>版本历史</span>
-        <span v-if="versions.length > 0" class="text-sm font-normal text-gray-500">({{ versions.length }})</span>
+        <span>{{ t('prompts.versionHistory.title') }}</span>
+        <span v-if="versions.length > 0" class="text-sm font-normal text-gray-500">{{ t('prompts.versionHistory.total', { count: versions.length }) }}</span>
       </h3>
       <div class="flex items-center gap-1">
-        <button @click="refreshVersions" title="刷新" class="p-2 rounded-md text-gray-500 hover:bg-gray-200/60 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200">
+        <button @click="refreshVersions" :title="t('prompts.versionHistory.refresh')" class="p-2 rounded-md text-gray-500 hover:bg-gray-200/60 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200">
           <div class="i-carbon-refresh text-base"></div>
         </button>
-        <button @click="cleanupOldVersions" title="清理旧版本" class="p-2 rounded-md text-gray-500 hover:bg-gray-200/60 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200">
+        <button @click="cleanupOldVersions" :title="t('prompts.versionHistory.cleanup')" class="p-2 rounded-md text-gray-500 hover:bg-gray-200/60 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200">
           <div class="i-carbon-clean text-base"></div>
         </button>
       </div>
@@ -21,7 +21,7 @@
     <div class="flex-1 overflow-y-auto">
       <div v-if="versions.length === 0" class="flex flex-col items-center justify-center h-full text-gray-500">
         <div class="i-carbon-document-blank text-4xl mb-2"></div>
-        <p>暂无历史版本</p>
+        <p>{{ t('prompts.versionHistory.noHistory') }}</p>
       </div>
       <div v-else class="relative px-4 py-3">
         <!-- Timeline Line -->
@@ -68,7 +68,7 @@
                 <div class="flex items-center gap-2 text-sm">
                   <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">v{{ versions.length - index }}</span>
                   <span class="text-gray-500 dark:text-gray-400">{{ formatRelativeTime(version.createdAt) }}</span>
-                  <span v-if="version.id === currentVersionId" class="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium dark:bg-green-900/50 dark:text-green-300">当前</span>
+                  <span v-if="version.id === currentVersionId" class="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium dark:bg-green-900/50 dark:text-green-300">{{ t('prompts.versionHistory.current') }}</span>
                 </div>
                 <div class="text-xs text-gray-400 mt-0.5 dark:text-gray-500">{{ formatDate(version.createdAt) }}</div>
               </div>
@@ -77,7 +77,7 @@
               <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button
                   @click.stop="compareWithCurrent(version)"
-                  title="与当前版本比较"
+                  :title="t('prompts.versionHistory.compare')"
                   :disabled="version.id === currentVersionId"
                   class="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                 >
@@ -85,7 +85,7 @@
                 </button>
                 <button
                   @click.stop="revertToVersion(version)"
-                  title="设为当前版本"
+                  :title="t('prompts.versionHistory.revert')"
                   :disabled="version.id === currentVersionId"
                   class="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                 >
@@ -93,7 +93,7 @@
                 </button>
                 <button
                   @click.stop="deleteVersion(version)"
-                  title="删除版本"
+                  :title="t('prompts.versionHistory.delete')"
                   :disabled="versions.length <= 1"
                   class="p-1.5 rounded-md text-red-500/80 hover:bg-red-100/60 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed dark:text-red-400/80 dark:hover:bg-red-900/40 dark:hover:text-red-400"
                 >
@@ -115,7 +115,7 @@
         <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <h3 class="font-semibold text-lg dark:text-white flex items-center gap-2">
             <div class="i-carbon-compare"></div>
-            版本比较
+            {{ t('prompts.versionHistory.comparisonTitle') }}
           </h3>
           <button @click="closeComparison" class="p-2 rounded-full text-gray-400 hover:bg-gray-200/60 dark:text-gray-500 dark:hover:bg-gray-700/50">
             <div class="i-carbon-close text-lg"></div>
@@ -125,18 +125,18 @@
         <div class="p-5 overflow-y-auto">
           <div class="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
             <div class="text-center">
-              <h4 class="font-semibold text-gray-900 dark:text-gray-100">版本 {{ getVersionNumber(comparisonData?.oldVersion) }}</h4>
+              <h4 class="font-semibold text-gray-900 dark:text-gray-100">{{ t('prompts.versionHistory.version', { version: getVersionNumber(comparisonData?.oldVersion) }) }}</h4>
               <span class="text-sm text-gray-500 dark:text-gray-400">{{ formatDate(comparisonData?.oldVersion.createdAt || 0) }}</span>
             </div>
             <div class="text-center">
-              <h4 class="font-semibold text-gray-900 dark:text-gray-100">当前版本</h4>
+              <h4 class="font-semibold text-gray-900 dark:text-gray-100">{{ t('prompts.versionHistory.currentVersion') }}</h4>
               <span class="text-sm text-gray-500 dark:text-gray-400">{{ formatDate(Date.now()) }}</span>
             </div>
           </div>
           
           <div v-if="comparisonData?.diff" class="flex items-center justify-center gap-6 mb-4 text-sm">
-            <span class="text-green-600 font-mono dark:text-green-400 flex items-center gap-1"><div class="i-carbon-add-alt"></div>+{{ comparisonData.diff.stats.additions }} additions</span>
-            <span class="text-red-600 font-mono dark:text-red-400 flex items-center gap-1"><div class="i-carbon-subtract-alt"></div>-{{ comparisonData.diff.stats.deletions }} deletions</span>
+            <span class="text-green-600 font-mono dark:text-green-400 flex items-center gap-1"><div class="i-carbon-add-alt"></div>{{ t('prompts.versionHistory.additions', { count: comparisonData.diff.stats.additions }) }}</span>
+            <span class="text-red-600 font-mono dark:text-red-400 flex items-center gap-1"><div class="i-carbon-subtract-alt"></div>{{ t('prompts.versionHistory.deletions', { count: comparisonData.diff.stats.deletions }) }}</span>
           </div>
           
           <div v-if="comparisonData?.diff">
@@ -152,13 +152,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
 import { useUI } from '@/stores/ui'
 import type { PromptVersion } from '@/types/prompt'
-import { 
-  getVersionHistory, 
-  compareVersions, 
+import {
+  getVersionHistory,
+  compareVersions,
   revertToVersion as revertVersion,
   deleteVersion as removeVersion,
   cleanupOldVersions as cleanupVersions
@@ -185,6 +186,7 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const { t, locale } = useI18n()
 const { showToast, askConfirm } = useUI()
 
 // Reactive data
@@ -207,14 +209,13 @@ watch(() => props.currentVersionId, (newId) => {
   selectedVersionId.value = newId
 })
 
-
 // Methods
 async function loadVersions() {
   if (!props.promptId) {
     versions.value = []
     return
   }
-  
+
   try {
     versions.value = await getVersionHistory(props.promptId)
     if (!selectedVersionId.value && versions.value.length > 0) {
@@ -222,13 +223,13 @@ async function loadVersions() {
     }
   } catch (error) {
     console.error('Failed to load versions:', error)
-    showToast('加载版本历史失败', 'error')
+    showToast(t('prompts.versionHistory.toast.loadFailed'), 'error')
   }
 }
 
 async function refreshVersions() {
   await loadVersions()
-  showToast('版本历史已刷新', 'success')
+  showToast(t('prompts.versionHistory.toast.refreshed'), 'success')
 }
 
 function selectVersion(version: PromptVersion) {
@@ -247,55 +248,57 @@ async function compareWithCurrent(version: PromptVersion) {
     showComparison.value = true
   } catch (error) {
     console.error('Failed to compare versions:', error)
-    showToast('版本比较失败', 'error')
+    showToast(t('prompts.versionHistory.toast.compareFailed'), 'error')
   }
 }
 
 async function revertToVersion(version: PromptVersion) {
-  const confirmed = await askConfirm(`确定要将 v${getVersionNumber(version)} 设为当前版本吗？您当前未保存的修改将被自动保存为一个新版本。`, { type: 'default' })
+  const versionNumber = getVersionNumber(version)
+  const confirmed = await askConfirm(t('prompts.versionHistory.confirm.revert', { version: versionNumber }), { type: 'default' })
   if (!confirmed) return
-  
+
   try {
     const newVersion = await revertVersion(props.promptId, version.id, props.currentContent)
     await loadVersions()
     emit('version-restored', newVersion)
-    showToast(`v${getVersionNumber(version)} 已设为当前版本`, 'success')
+    showToast(t('prompts.versionHistory.toast.revertSuccess', { version: versionNumber }), 'success')
   } catch (error) {
     console.error('Failed to revert version:', error)
-    showToast('操作失败', 'error')
+    showToast(t('prompts.versionHistory.toast.operationFailed'), 'error')
   }
 }
 
 async function deleteVersion(version: PromptVersion) {
   if (versions.value.length <= 1) {
-    showToast('无法删除唯一的版本', 'warning')
+    showToast(t('prompts.versionHistory.toast.deleteOnly'), 'warning')
     return
   }
-  const confirmed = await askConfirm(`确定要永久删除版本 ${getVersionNumber(version)} 吗？此操作不可撤销。`, { type: 'danger' })
+  const versionNumber = getVersionNumber(version)
+  const confirmed = await askConfirm(t('prompts.versionHistory.confirm.delete', { version: versionNumber }), { type: 'danger' })
   if (!confirmed) return
-  
+
   try {
     await removeVersion(version.id)
     await loadVersions()
     emit('version-deleted', version.id)
-    showToast(`版本 ${getVersionNumber(version)} 已删除`, 'success')
+    showToast(t('prompts.versionHistory.toast.deleteSuccess', { version: versionNumber }), 'success')
   } catch (error) {
     console.error('Failed to delete version:', error)
-    showToast('删除版本失败', 'error')
+    showToast(t('prompts.versionHistory.toast.deleteFailed'), 'error')
   }
 }
 
 async function cleanupOldVersions() {
-  const confirmed = await askConfirm('确定要清理旧版本吗？将仅保留最近 10 个版本。', { type: 'danger' })
+  const confirmed = await askConfirm(t('prompts.versionHistory.confirm.cleanup'), { type: 'danger' })
   if (!confirmed) return
-  
+
   try {
     await cleanupVersions(props.promptId, 10)
     await loadVersions()
-    showToast('旧版本清理完毕', 'success')
+    showToast(t('prompts.versionHistory.toast.cleanupSuccess'), 'success')
   } catch (error) {
     console.error('Failed to cleanup versions:', error)
-    showToast('清理版本失败', 'error')
+    showToast(t('prompts.versionHistory.toast.cleanupFailed'), 'error')
   }
 }
 
@@ -317,7 +320,7 @@ function getPreview(content: string): string {
 
 function formatDate(timestamp: number): string {
   if (!timestamp) return ''
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(locale.value, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -343,7 +346,7 @@ function formatRelativeTime(timestamp: number): string {
     { unit: 'second', seconds: 1 }
   ]
 
-  const rtf = new Intl.RelativeTimeFormat('zh-CN', { numeric: 'auto' })
+  const rtf = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
 
   for (const { unit, seconds } of units) {
     const interval = diffInSeconds / seconds

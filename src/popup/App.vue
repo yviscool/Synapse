@@ -150,7 +150,7 @@ async function loadPrompts() {
 
 const systemLanguage = computed(() => {
   const lang = navigator.language.toLowerCase();
-  return lang.startsWith('zh') ? '中文' : 'English';
+  return lang.startsWith('zh') ? t('settings.language.systemLang.chinese') : t('settings.language.systemLang.english');
 });
 
 async function setLocale() {
@@ -185,7 +185,7 @@ const displayList = computed(() => {
       type: 'action',
       key: 'add-action',
       icon: 'i-carbon-add-alt',
-      htmlTitle: `新建 “<span class="truncate font-bold">${searchQuery.value}</span>”`,
+      htmlTitle: t('popup.newPromptHtml', { query: searchQuery.value }),
       action: createNewPromptFromSearch
     });
     const filtered = allPrompts.value.filter(p =>
