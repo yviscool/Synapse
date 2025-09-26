@@ -4,59 +4,56 @@ on:
   workflow_dispatch:
     inputs:
       level:
-        description: '版本级别 (Version Level)'
+        description: '版本级别'
         required: true
         type: choice
         options: [patch, minor, major]
+
+env:
+  NODE_VERSION: 20
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Needed to create tags and releases
-
+      contents: write   # 创建 tag / release
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          # This token is required to push commits and tags
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm' 
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - run: npm install
 
-      # Configure Git user for version bump commit
+      # 修复 git commit 身份问题 + 去掉 CRLF 警告
       - name: Setup Git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global core.autocrlf false
 
-      # Bump version, sync manifest.json, and set output
+      # 自动 bump 版本 & 同步 manifest.json
       - name: Bump version & sync manifest
         id: version
         run: |
-          bun version ${{ inputs.level }}
-          # Extract the new version from package.json
-          CLEAN_VER=$(bun --silent run -e "console.log(require('./package.json').version)")
+          npm version ${{ inputs.level }}
+          CLEAN_VER=$(node -p "require('./package.json').version")
           echo "new_version=$CLEAN_VER" >> $GITHUB_OUTPUT
 
-      # Push the version bump commit and the new tag
+      # 推送 commit 和 tag 到远程
       - name: Push changes & tags
         run: |
           git push origin HEAD
           git push origin --tags
 
-      - name: Build & pack extension
+      - name: Build & pack
         run: |
-          bun run build
-          bun run pack:zip
-          # Rename the zip file to include the version number
+          npm run build
+          npm run pack:zip
           mv dist/dist.zip extension-${{ steps.version.outputs.new_version }}.zip
 
       - name: Create GitHub Release
@@ -68,7 +65,7 @@ jobs:
           generate_release_notes: true
 
 
-  # This job is disabled but updated to use Bun for future use
+  # 预留：Chrome Web Store 发布（暂时禁用）
   publish-chrome:
     if: false
     runs-on: ubuntu-latest
@@ -77,17 +74,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Build project
-        run: bun run build
+        run: npm run build
 
       - name: Pack extension
-        run: bun run pack:zip
+        run: npm run pack:zip
 
       - name: Rename zip
         run: mv dist/dist.zip extension.zip
