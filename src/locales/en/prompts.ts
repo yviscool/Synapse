@@ -1,4 +1,4 @@
-{
+export default {
   "new": "New Prompt",
   "search": "Search Prompts",
   "searchPlaceholder": "Search titles or content... (Ctrl+K)",

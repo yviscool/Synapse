@@ -1,4 +1,4 @@
-{
+export default {
   "searchPlaceholder": "搜索或新建...",
   "noResults": "未找到结果",
   "empty": "这里空空如也",

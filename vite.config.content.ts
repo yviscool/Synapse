@@ -22,7 +22,6 @@ export default defineConfig({
     },
   },
   build: {
-    minify: 'terser', // esbuild 存在问题, 会出现utf-8编码问题无法加载插件
     emptyOutDir: false,
     outDir: 'dist',
     rollupOptions: {

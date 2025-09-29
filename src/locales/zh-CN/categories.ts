@@ -1,4 +1,4 @@
-{
+export default {
   "all": "全部分类",
   "settings": "分类设置",
   "manage": "分类管理",
