@@ -1,4 +1,4 @@
-{
+export default {
   "searchPlaceholder": "搜索提示...",
   "useWithEnter": "回车使用",
   "copy": "复制 (Ctrl+C)",

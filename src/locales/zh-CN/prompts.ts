@@ -1,4 +1,4 @@
-{
+export default {
   "new": "新建 Prompt",
   "search": "搜索 Prompts",
   "searchPlaceholder": "搜索 Prompts 标题或内容...（Ctrl+K）",

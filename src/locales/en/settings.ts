@@ -1,11 +1,15 @@
-{
+export default {
   "title": "Settings",
   "language": {
     "title": "Language",
     "chinese": "中文",
     "english": "English",
     "followSystem": "Follow System",
-    "currentSystem": "Current system language is {lang}"
+    "currentSystem": "Current system language is {lang}",
+    "systemLang": {
+      "chinese": "Chinese",
+      "english": "English"
+    }
   },
   "sync": {
     "title": "Cloud Sync",
@@ -51,7 +55,8 @@
       "title": "Local Snapshot",
       "description": "Create a full local backup for peace of mind. You can also restore from a backup file.",
       "create": "Create Snapshot",
-      "import": "Import from File"
+      "import": "Import from File",
+      "invalidFileError": "Invalid backup file format"
     },
     "danger": {
       "title": "Danger Zone",
@@ -60,24 +65,6 @@
       "confirm": "To confirm this action, please type 'DELETE'",
       "confirmPlaceholder": "Type DELETE to confirm",
       "confirmButton": "Permanently Delete"
-    },
-    "local": {
-      "title": "Local Snapshot",
-      "description": "Create a full local backup for peace of mind. You can also restore from a backup file.",
-      "create": "Create Snapshot",
-      "import": "Import from File",
-      "invalidFileError": "Invalid backup file format"
-    }
-  },
-  "language": {
-    "title": "Language",
-    "chinese": "中文",
-    "english": "English",
-    "followSystem": "Follow System",
-    "currentSystem": "Current system language is {lang}",
-    "systemLang": {
-      "chinese": "Chinese",
-      "english": "English"
     }
   }
 }

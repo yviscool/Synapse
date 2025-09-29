@@ -1,4 +1,4 @@
-{
+export default {
   "appName": "Synapse",
   "save": "保存",
   "cancel": "取消",

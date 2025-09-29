@@ -1,4 +1,4 @@
-{
+export default {
   "all": "All Categories",
   "settings": "Category Settings",
   "manage": "Manage Categories",

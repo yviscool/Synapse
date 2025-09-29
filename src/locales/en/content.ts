@@ -1,4 +1,4 @@
-{
+export default {
   "searchPlaceholder": "Search prompts...",
   "useWithEnter": "Use with Enter",
   "copy": "Copy (Ctrl+C)",

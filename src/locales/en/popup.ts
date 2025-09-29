@@ -1,4 +1,4 @@
-{
+export default {
   "searchPlaceholder": "Search or create...",
   "noResults": "No results found",
   "empty": "It's empty here",

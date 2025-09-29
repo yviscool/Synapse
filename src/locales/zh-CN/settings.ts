@@ -1,11 +1,15 @@
-{
+export default {
   "title": "设置",
   "language": {
     "title": "语言",
     "chinese": "中文",
     "english": "English",
     "followSystem": "跟随系统",
-    "currentSystem": "当前系统语言为 {lang}"
+    "currentSystem": "当前系统语言为 {lang}",
+    "systemLang": {
+      "chinese": "中文",
+      "english": "英文"
+    }
   },
   "sync": {
     "title": "云同步",
@@ -49,9 +53,10 @@
     },
     "local": {
       "title": "本地快照",
-      "description": "创建一份完整的本地备份，以备不时之需。您也可以从备份文件恢复。",
+      "description": "创建完整的本地备份，让您高枕无忧。您也可以从备份文件恢复。",
       "create": "创建快照",
-      "import": "从文件导入"
+      "import": "从文件导入",
+      "invalidFileError": "无效的备份文件格式"
     },
     "danger": {
       "title": "危险操作",
@@ -60,24 +65,6 @@
       "confirm": "为确认此操作，请输入 'DELETE'",
       "confirmPlaceholder": "输入 DELETE 以确认",
       "confirmButton": "永久删除"
-    },
-    "local": {
-      "title": "本地快照",
-      "description": "创建完整的本地备份，让您高枕无忧。您也可以从备份文件恢复。",
-      "create": "创建快照",
-      "import": "从文件导入",
-      "invalidFileError": "无效的备份文件格式"
-    }
-  },
-  "language": {
-    "title": "语言",
-    "chinese": "中文",
-    "english": "English",
-    "followSystem": "跟随系统",
-    "currentSystem": "当前系统语言为 {lang}",
-    "systemLang": {
-      "chinese": "中文",
-      "english": "英文"
     }
   }
 }
