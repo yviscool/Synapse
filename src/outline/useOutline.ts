@@ -1,15 +1,16 @@
 // src/outline/useOutline.ts
 
-import { ref, watch, onMounted, onUnmounted, Ref } from 'vue';
-import { useMutationObserver, useScroll, useDebounceFn } from '@vueuse/core';
+import { ref, watch, onMounted, Ref } from 'vue';
+import { useMutationObserver, useScroll, useDebounceFn, until } from '@vueuse/core';
 import type { SiteConfig } from './site-configs';
 import type { OutlineItem } from '@/types/outline';
-import { _smartTruncate, _getMessageIcon } from './utils'; // 将旧的工具函数移到这里
+import { _smartTruncate, _getMessageIcon } from './utils';
 
 // 传入配置和目标元素的 Ref
 export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null>) {
   const items = ref<OutlineItem[]>([]);
   const highlightedIndex = ref(-1);
+  const isReady = ref(false); // A flag to ensure we only run when the page is ready
 
   // 核心功能：扫描 DOM 并更新 items 数组
   const updateItems = () => {
@@ -21,22 +22,49 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       let title = (textEl.textContent || '').trim();
       if (!title) return;
 
-      title = _smartTruncate(title, 35); // 复用逻辑
+      title = _smartTruncate(title, 35);
       newItems.push({
         id: index,
         title: title,
-        icon: _getMessageIcon(title), // 复用逻辑
+        icon: _getMessageIcon(title),
         element: msg,
       });
     });
     items.value = newItems;
   };
 
-  // 使用 useMutationObserver 监听 DOM 变化，自动更新
-  useMutationObserver(targetRef, updateItems, {
+  // Set up the observer. It will only call updateItems if isReady is true.
+  useMutationObserver(targetRef, () => {
+    if (isReady.value) {
+      updateItems();
+    }
+  }, {
     childList: true,
     subtree: true,
   });
+
+  onMounted(async () => {
+    // Wait until the main observation target is available in the DOM.
+    await until(targetRef).not.toBeNull({ timeout: 10000, throwOnTimeout: false });
+    if (!targetRef.value) {
+      console.error("Synapse Outline: observeTarget not found", config.observeTarget);
+      return;
+    }
+
+    // If a specific element needs to be ready, wait for it.
+    if (config.waitForElement) {
+      const readyEl = await until(() => document.querySelector(config.waitForElement!)).not.toBeNull({ timeout: 10000, throwOnTimeout: false });
+      if (!readyEl) {
+        console.error("Synapse Outline: waitForElement not found", config.waitForElement);
+        return;
+      }
+    }
+
+    // Now that everything is loaded, perform the initial scan and allow the observer to work.
+    isReady.value = true;
+    updateItems();
+  });
+
 
   // 滚动高亮逻辑
   const getScrollContainer = (): HTMLElement | Window => {
@@ -97,9 +125,6 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
 
 
   watch(scrollY, updateHighlight);
-
-  // 挂载后立即执行一次扫描
-  onMounted(updateItems);
 
   return {
     items,

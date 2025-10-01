@@ -13,6 +13,9 @@ export default {
     "searchPlaceholder": "Search conversation...",
     "total": "{count} items in total",
     "empty": "No items found.",
-    "filtered": "Showing {visible} of {total}"
+    "filtered": "Showing {visible} of {total}",
+    "scrollToTop": "Scroll to top",
+    "scrollToCenter": "Scroll to center",
+    "scrollToBottom": "Scroll to bottom"
   }
 }
