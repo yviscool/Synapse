@@ -18,5 +18,7 @@ export default {
     "operationSuccess": "Operation successful!",
     "operationFailed": "Operation failed.",
     "copySuccess": "Copied to clipboard!"
-  }
+  },
+  "refresh": "Refresh",
+  "collapse": "Collapse"
 }

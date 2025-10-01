@@ -39,14 +39,29 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   });
 
   // 滚动高亮逻辑
-  const scrollContainer = config.scrollContainer === window ? window : (document.querySelector(config.scrollContainer || 'main') || window);
-  const { y: scrollY } = useScroll(scrollContainer as any, { throttle: 150 });
+  const getScrollContainer = (): HTMLElement | Window => {
+    if (config.scrollContainer === window) {
+      return window
+    }
+    if (typeof config.scrollContainer === 'string') {
+      const el = document.querySelector<HTMLElement>(config.scrollContainer)
+      if (el) return el
+    }
+    // Fallback to main element or window
+    return document.querySelector<HTMLElement>('main') || window
+  }
+
+  const scrollContainer = getScrollContainer()
+  const { y: scrollY } = useScroll(scrollContainer, { throttle: 150 });
 
   const updateHighlight = useDebounceFn(() => {
-    const containerEl = scrollContainer === window ? document.documentElement : scrollContainer as HTMLElement;
-    if (!containerEl) return;
+    const isWindow = scrollContainer === window
+    const containerHeight = isWindow
+      ? window.innerHeight
+      : (scrollContainer as HTMLElement).clientHeight
 
-    const containerHeight = containerEl.clientHeight;
+    if (!containerHeight) return
+
     let mostVisibleIndex = -1;
     let maxVisibility = 0;
 
@@ -89,5 +104,6 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   return {
     items,
     highlightedIndex,
+    updateItems,
   };
 }

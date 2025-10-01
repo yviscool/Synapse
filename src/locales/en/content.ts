@@ -11,6 +11,8 @@ export default {
   "outline": {
     "title": "Conversation Outline",
     "searchPlaceholder": "Search conversation...",
-    "total": "{count} items in total"
+    "total": "{count} items in total",
+    "empty": "No items found.",
+    "filtered": "Showing {visible} of {total}"
   }
 }

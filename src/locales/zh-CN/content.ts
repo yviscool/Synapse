@@ -11,6 +11,8 @@ export default {
   "outline": {
     "title": "对话大纲",
     "searchPlaceholder": "搜索对话内容...",
-    "total": "共 {count} 条"
+    "total": "共 {count} 条",
+    "empty": "未找到任何项目。",
+    "filtered": "显示 {visible} / {total} 条"
   }
 }
