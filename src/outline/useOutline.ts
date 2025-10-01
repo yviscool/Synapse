@@ -60,6 +60,11 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       }
     }
 
+    // If an additional delay is needed for certain sites
+    if (config.initDelay) {
+      await new Promise(resolve => setTimeout(resolve, config.initDelay));
+    }
+
     // Now that everything is loaded, perform the initial scan and allow the observer to work.
     isReady.value = true;
     updateItems();

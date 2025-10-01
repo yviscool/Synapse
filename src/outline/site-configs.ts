@@ -7,6 +7,7 @@ export interface SiteConfig {
   observeTarget: string;
   scrollContainer?: string | Window;
   waitForElement?: string;
+  initDelay?: number;
 }
 
 // 导出一个不可变的配置映射
@@ -40,12 +41,14 @@ export const siteConfigs: { [key: string]: SiteConfig } = {
     messageText: '.prompt-text-item',
     observeTarget: 'div[class*="mx-auto"][class*="space-y-"]',
     waitForElement: '[data-type="prompt-item"]',
+    initDelay: 500,
   },
   'yuanbao.tencent.com': {
     userMessage: '.agent-chat__list__item--human',
     messageText: '.hyc-content-text',
     observeTarget: '.agent-chat__list__content',
     waitForElement: '.agent-chat__list__item--human',
+    initDelay: 500,
   },
   'tongyi.com': {
     userMessage: '.questionItem--UrcRIuHd',
