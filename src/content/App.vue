@@ -19,7 +19,7 @@
       @load-more="handleLoadMore"
     />
     <Transition name="slide-right">
-      <Outline v-if="outlineConfig" :config="outlineConfig" :key="currentUrl" />
+      <Outline v-if="outlineConfig" :config="outlineConfig" :key="outlineKey" />
     </Transition>
     <!-- 消息提示组件 -->
     <UiToast
@@ -36,7 +36,7 @@
 import { ui, useUI } from '@/stores/ui'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock, useUrl } from '@vueuse/core'
+import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock } from '@vueuse/core'
 
 import Outline from '@/outline/Outline.vue'; // <-- Import new component
 import { siteConfigs } from '@/outline/site-configs'; // <-- Import configs
@@ -52,12 +52,19 @@ const outlineConfig = computed(() => {
   return key ? siteConfigs[key] : null;
 });
 
-// --- SPA Navigation Handling ---
-const currentUrl = useUrl();
-
 // === UI 控制 ===
 const { showToast, hideToast } = useUI()
 const { t, locale } = useI18n()
+
+// --- SPA Navigation Handling ---
+const outlineKey = ref(window.location.href)
+onMounted(() => {
+  if (window.navigation) {
+    window.navigation.addEventListener('navigatesuccess', () => {
+      outlineKey.value = window.location.href
+    })
+  }
+})
 
 // === i18n & Real-time Sync ---
 const systemLanguage = computed(() => {
