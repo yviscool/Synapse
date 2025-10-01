@@ -1,58 +1,42 @@
 <template>
-  <div
-    ref="el"
-    :style="style"
-    :class="[
-      'fixed z-[9999] flex flex-col transition-all duration-300',
-      isCollapsed
-        ? 'w-16 h-16 rounded-full cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-lg'
-        : 'w-80 max-h-[calc(100vh-100px)] rounded-2xl shadow-2xl'
-    ]"
-    class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
-  >
+  <div ref="el" :style="style" :class="[
+    'fixed z-[9999] flex flex-col transition-all duration-300',
+    isCollapsed
+      ? 'w-16 h-16 rounded-full cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-lg'
+      : 'w-80 max-h-[calc(100vh-100px)] rounded-2xl shadow-2xl'
+  ]"
+    class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
     <!-- Header -->
-    <div
-      :class="[
-        'flex justify-between items-center flex-shrink-0',
-        isCollapsed ? 'p-0 justify-center h-full' : 'p-4 border-b border-gray-200 dark:border-gray-700'
-      ]"
-      class="bg-gray-100/80 dark:bg-gray-800/80"
-      @click="isCollapsed && toggleCollapse()"
-    >
-      <h3
-        :class="['font-semibold dark:text-white flex items-center gap-2', { 'cursor-pointer': isCollapsed }]"
-      >
+    <div :class="[
+      'flex justify-between items-center flex-shrink-0',
+      isCollapsed ? 'p-0 justify-center h-full' : 'p-4 border-b border-gray-200 dark:border-gray-700'
+    ]" class="bg-gray-100/80 dark:bg-gray-800/80" @click="isCollapsed && toggleCollapse()">
+      <h3 :class="['font-semibold dark:text-white flex items-center gap-2', { 'cursor-pointer': isCollapsed }]">
         <span :class="['transition-transform', { 'rotate-15': isCollapsed && isHovering }]" v-html="ICONS.title">
         </span>
         <span v-if="!isCollapsed">{{ t('content.outline.title') }}</span>
       </h3>
       <div v-if="!isCollapsed" class="flex items-center gap-2">
-        <button @click.stop="handleRefresh" :title="t('common.refresh')" class="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" v-html="ICONS.refresh">
+        <button @click.stop="handleRefresh" :title="t('common.refresh')"
+          class="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" v-html="ICONS.refresh">
         </button>
-        <button @click.stop="toggleCollapse" :title="t('common.collapse')" class="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" v-html="ICONS.collapse">
+        <button @click.stop="toggleCollapse" :title="t('common.collapse')"
+          class="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" v-html="ICONS.collapse">
         </button>
       </div>
     </div>
 
     <!-- Content (only when expanded) -->
     <template v-if="!isCollapsed">
-      <input
-        v-model="searchQuery"
-        :placeholder="t('content.outline.searchPlaceholder')"
-        class="p-2 m-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-      />
+      <input v-model="searchQuery" :placeholder="t('content.outline.searchPlaceholder')"
+        class="p-2 m-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
 
       <ul class="overflow-y-auto flex-grow px-2 pb-2">
         <TransitionGroup name="fade">
-          <li
-            v-for="(item, index) in filteredItems"
-            :key="item.id"
-            @click="handleItemClick($event, item.element)"
-            @mousemove="handleItemHover($event, index)"
-            @mouseleave="handleItemLeave"
+          <li v-for="(item, index) in filteredItems" :key="item.id" @click="handleItemClick($event, item.element)"
+            @mousemove="handleItemHover($event, index)" @mouseleave="handleItemLeave"
             :class="{ 'bg-blue-100 dark:bg-blue-900': index === highlightedIndex }"
-            class="p-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200/60 dark:hover:bg-gray-700/60 rounded-lg transition-colors duration-150"
-          >
+            class="p-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200/60 dark:hover:bg-gray-700/60 rounded-lg transition-colors duration-150">
             <span class="text-lg w-5 h-5 flex items-center justify-center" v-html="getDisplayIcon(item, index)"></span>
             <span class="truncate text-sm text-gray-800 dark:text-gray-200">{{ item.title }}</span>
           </li>
@@ -68,14 +52,10 @@
     </template>
   </div>
 
-  <!-- Hint Overlay using Teleport -->
-  <Teleport to="body">
-    <div
-      :class="['scroll-hint-overlay', { 'visible': hint.visible }]"
-    >
-      <span class="scroll-hint-text">{{ hint.text }}</span>
-    </div>
-  </Teleport>
+  <!-- Hint Overlay-->
+  <div :class="['scroll-hint-overlay', { 'visible': hint.visible }]">
+    <span class="scroll-hint-text">{{ hint.text }}</span>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -162,9 +142,9 @@ function handleItemHover(event: MouseEvent, index: number) {
   hoveredItem.value = { index, zone };
 
   hint.value.visible = true;
-  if (zone === 'start') hint.text = t('content.outline.scrollToTop');
-  else if (zone === 'center') hint.text = t('content.outline.scrollToCenter');
-  else if (zone === 'end') hint.text = t('content.outline.scrollToBottom');
+  if (zone === 'start') hint.value.text = t('content.outline.scrollToTop');
+  else if (zone === 'center') hint.value.text = t('content.outline.scrollToCenter');
+  else if (zone === 'end') hint.value.text = t('content.outline.scrollToBottom');
 }
 
 function handleItemLeave() {
@@ -211,9 +191,11 @@ function handleRefresh() {
   opacity: 0;
   pointer-events: none;
 }
+
 .scroll-hint-overlay.visible {
   opacity: 1;
 }
+
 .scroll-hint-text {
   color: white;
   font-size: 18px;
@@ -233,6 +215,7 @@ function handleRefresh() {
 .slide-right-enter-active {
   transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
+
 .slide-right-enter-from {
   transform: translateX(100%);
   opacity: 0;
@@ -242,6 +225,7 @@ function handleRefresh() {
 .fade-enter-active {
   transition: opacity 0.3s ease;
 }
+
 .fade-enter-from {
   opacity: 0;
 }
