@@ -15,4 +15,14 @@ export default defineConfig({
     // 转换器Directives - 支持@apply等CSS指令
     transformerDirectives(),
   ],
+  safelist: [
+    'i-ph-question-bold',
+    'i-ph-code-bold',
+    'i-ph-book-open-bold',
+    'i-ph-info-bold',
+    'i-carbon-language',
+    'i-ph-note-pencil-bold',
+    'i-ph-magnifying-glass-bold',
+    'i-ph-chat-teardrop-text-bold',
+  ]
 })
