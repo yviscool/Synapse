@@ -7,5 +7,10 @@ export default {
   "total": "共 {total} 个提示",
   "navTip": "↑/↓ 导航",
   "categoryTip": "Tab 切换分类",
-  "closeTip": "关闭 (Esc)"
+  "closeTip": "关闭 (Esc)",
+  "outline": {
+    "title": "对话大纲",
+    "searchPlaceholder": "搜索对话内容...",
+    "total": "共 {count} 条"
+  }
 }

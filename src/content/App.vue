@@ -18,6 +18,7 @@
       @close="closePanel"
       @load-more="handleLoadMore"
     />
+    <Outline v-if="outlineConfig" :config="outlineConfig" />
     <!-- 消息提示组件 -->
     <UiToast
       v-if="ui.toast"
@@ -35,10 +36,19 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock } from '@vueuse/core'
 
+import Outline from '@/outline/Outline.vue'; // <-- Import new component
+import { siteConfigs } from '@/outline/site-configs'; // <-- Import configs
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
 import type { FuseResultMatch, FuseResult } from 'fuse.js'
+
+// Logic to select the correct config for the current site
+const outlineConfig = computed(() => {
+  const host = window.location.hostname;
+  const key = Object.keys(siteConfigs).find(domain => host.includes(domain));
+  return key ? siteConfigs[key] : null;
+});
 
 // === UI 控制 ===
 const { showToast, hideToast } = useUI()
