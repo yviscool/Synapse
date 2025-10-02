@@ -17,7 +17,22 @@ export default {
     "deleteSuccess": "删除成功！",
     "operationSuccess": "操作成功！",
     "operationFailed": "操作失败。",
-    "copySuccess": "已复制到剪贴板！"
+    "copySuccess": "已复制到剪贴板！",
+    "loadPromptsFailed": "加载 Prompts 失败",
+    "addedToFavorites": "已添加到收藏",
+    "removedFromFavorites": "已取消收藏",
+    "pleaseEnterTitle": "请输入标题",
+    "saveFailed": "保存失败: {message}",
+    "deleteFailed": "删除失败",
+    "copyFailed": "复制失败",
+    "versionRestored": "版本已恢复",
+    "versionDeleted": "版本已删除",
+    "loadCategoriesFailed": "加载 Categories 失败",
+    "loadTagsFailed": "加载 Tags 失败",
+    "dbConnectionFailed": "数据库连接失败，请检查控制台获取详细信息。"
+  },
+  "confirmMessage": {
+    "deletePrompt": "确定要删除这个 Prompt 吗？其所有历史版本也将被删除。"
   },
   "refresh": "刷新",
   "collapse": "折叠"

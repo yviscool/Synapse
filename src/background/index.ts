@@ -196,7 +196,7 @@ async function saveSelectionAsPrompt(text: string) {
     return
 
   // 从文本内容生成一个简短的标题
-  const title = text.trim().slice(0, 40) + (text.trim().length > 40 ? '...' : '')
+  const title = text.trim().slice(0, 30) + (text.trim().length > 30 ? '...' : '')
 
   // 调用 repository 中的 savePrompt 方法来保存新的提示词
   // 注意：repository 中并没有 addPrompt 方法，正确的方法是 savePrompt

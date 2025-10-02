@@ -924,7 +924,7 @@ async function fetchPrompts() {
         totalPrompts.value = total; // 更新总数
     } catch (error) {
         console.error("Failed to fetch prompts:", error);
-        showToast("加载 Prompts 失败", "error");
+        showToast(t("common.toast.loadPromptsFailed"), "error");
     } finally {
         isLoading.value = false; // 结束加载状态
     }
@@ -1146,7 +1146,7 @@ async function loadCategories() {
         categories.value = await db.categories.toArray();
     } catch (error) {
         console.error("Failed to load categories:", error);
-        showToast("加载 Categories 失败", "error");
+        showToast(t("common.toast.loadCategoriesFailed"), "error");
     }
 }
 
@@ -1158,7 +1158,7 @@ async function loadTags() {
         tags.value = await db.tags.toArray();
     } catch (error) {
         console.error("Failed to load tags:", error);
-        showToast("加载 Tags 失败", "error");
+        showToast(t("common.toast.loadTagsFailed"), "error");
     }
 }
 
@@ -1226,12 +1226,12 @@ async function toggleFavorite(prompt: Prompt) {
         favorite: newFavoriteState,
     });
     if (ok) {
-        showToast(newFavoriteState ? "已添加到收藏" : "已取消收藏", "success");
+        showToast(newFavoriteState ? t("common.toast.addedToFavorites") : t("common.toast.removedFromFavorites"), "success");
         // 乐观更新UI
         const p = prompts.value.find((p) => p.id === prompt.id);
         if (p) p.favorite = newFavoriteState;
     } else {
-        showToast("操作失败", "error");
+        showToast(t("common.toast.operationFailed"), "error");
     }
 }
 
@@ -1242,7 +1242,7 @@ async function toggleFavorite(prompt: Prompt) {
 async function savePrompt() {
     // 基本校验
     if (!editingPrompt.value || !editingPrompt.value.title?.trim()) {
-        showToast("请输入标题", "error");
+        showToast(t("common.toast.pleaseEnterTitle"), "error");
         return;
     }
 
@@ -1266,13 +1266,13 @@ async function savePrompt() {
             await triggerRefetch(); // 刷新列表
             await loadTags(); // 重新加载标签列表，因为可能创建了新标签
             closeEditor(); // 关闭编辑器
-            showToast("保存成功", "success");
+            showToast(t("common.toast.saveSuccess"), "success");
         } else {
             throw error || new Error("保存 Prompt 时发生未知错误");
         }
     } catch (error) {
         console.error("Failed to save prompt:", error);
-        showToast(`保存失败: ${(error as Error).message}`, "error");
+        showToast(t("common.toast.saveFailed", { message: (error as Error).message }), "error");
     }
 }
 
@@ -1283,7 +1283,7 @@ async function savePrompt() {
  */
 async function deletePrompt(id: string) {
     const confirm = await askConfirm(
-        "确定要删除这个 Prompt 吗？其所有历史版本也将被删除。",
+        t("common.confirmMessage.deletePrompt"),
         { type: "danger" },
     );
     if (!confirm) return;
@@ -1291,9 +1291,9 @@ async function deletePrompt(id: string) {
     const { ok } = await repository.deletePrompt(id);
     if (ok) {
         await triggerRefetch();
-        showToast("删除成功", "success");
+        showToast(t("common.toast.deleteSuccess"), "success");
     } else {
-        showToast("删除失败", "error");
+        showToast(t("common.toast.deleteFailed"), "error");
     }
 }
 
@@ -1313,10 +1313,10 @@ async function copyPrompt(prompt: Prompt) {
         setTimeout(() => {
             if (copiedId.value === prompt.id) copiedId.value = null;
         }, 1500);
-        showToast("已复制到剪贴板", "success");
+        showToast(t("common.toast.copySuccess"), "success");
     } catch (error) {
         console.error("Failed to copy prompt:", error);
-        showToast("复制失败", "error");
+        showToast(t("common.toast.copyFailed"), "error");
     }
 }
 
@@ -1387,7 +1387,7 @@ async function reloadAndReEditCurrentPrompt() {
  * @description 处理版本恢复成功的事件。
  */
 async function handleVersionRestored(version: any) {
-    showToast("版本已恢复", "success");
+    showToast(t("common.toast.versionRestored"), "success");
     await reloadAndReEditCurrentPrompt();
 }
 
@@ -1395,7 +1395,7 @@ async function handleVersionRestored(version: any) {
  * @description 处理版本删除成功的事件。
  */
 async function handleVersionDeleted(versionId: string) {
-    showToast("版本已删除", "success");
+    showToast(t("common.toast.versionDeleted"), "success");
     // 如果删除的是正在预览的版本，则需要刷新编辑器
     if (
         previewingVersion.value &&
@@ -1486,7 +1486,7 @@ onMounted(async () => {
         }
     } catch (error) {
         console.error("Failed to open database:", error);
-        showToast("数据库连接失败，请检查控制台获取详细信息。", "error");
+        showToast(t("common.toast.dbConnectionFailed"), "error");
     }
 });
 
