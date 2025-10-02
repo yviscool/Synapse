@@ -734,17 +734,14 @@ import { db, queryPrompts, type PromptWithMatches } from "@/stores/db";
 import { repository } from "@/stores/repository";
 import type { Prompt, Category, Tag, PromptVersion } from "@/types/prompt";
 import { generateHighlightedHtml } from "@/utils/highlighter";
-import { nanoid } from "nanoid";
 import {
     createSafePrompt,
-    validatePrompt,
     clonePrompt,
 } from "@/utils/promptUtils";
 import { useModal } from "@/composables/useModal";
 import {
     useMagicKeys,
     whenever,
-    useEventListener,
     refDebounced,
     onClickOutside,
 } from "@vueuse/core";
@@ -1252,7 +1249,7 @@ async function savePrompt() {
 
         // 如果内容有变动，则设置版本备注。这被 `repository.savePrompt` 用来决定是否创建新版本。
         const note = hasContentChanged.value
-            ? changeNote.value || "内容更新"
+            ? changeNote.value || t("common.defaultContentUpdateNote")
             : undefined;
 
         // 调用核心的保存逻辑

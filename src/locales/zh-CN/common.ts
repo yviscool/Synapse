@@ -31,8 +31,13 @@ export default {
     "loadTagsFailed": "加载 Tags 失败",
     "dbConnectionFailed": "数据库连接失败，请检查控制台获取详细信息。"
   },
-  "confirmMessage": {
-    "deletePrompt": "确定要删除这个 Prompt 吗？其所有历史版本也将被删除。"
+  deleteFailed: '删除失败',
+  defaultContentUpdateNote: '内容更新',
+
+  // 确认消息
+  confirmMessage: {
+    deletePrompt: '确定要删除这个 Prompt 吗？此操作不可撤销。',
+    discardChanges: '您有未保存的更改，确定要放弃吗？',
   },
   "refresh": "刷新",
   "collapse": "折叠"

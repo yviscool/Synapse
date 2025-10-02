@@ -31,8 +31,13 @@ export default {
     "loadTagsFailed": "Failed to load tags",
     "dbConnectionFailed": "Database connection failed, please check the console for details."
   },
-  "confirmMessage": {
-    "deletePrompt": "Are you sure you want to delete this Prompt? All its history versions will also be deleted."
+  deleteFailed: 'Failed to delete',
+  defaultContentUpdateNote: 'Content updated',
+
+  // Confirm Messages
+  confirmMessage: {
+    deletePrompt: 'Are you sure you want to delete this prompt? This action cannot be undone.',
+    discardChanges: 'You have unsaved changes. Are you sure you want to discard them?',
   },
   "refresh": "Refresh",
   "collapse": "Collapse"

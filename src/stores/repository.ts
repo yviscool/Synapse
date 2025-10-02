@@ -156,6 +156,11 @@ export const repository = {
     return withCommitNotification(
       ["prompts", "tags", "prompt_versions"],
       async () => {
+        const existingPrompt = promptData.id
+          ? await db.prompts.get(promptData.id)
+          : null;
+        const isNewPrompt = !existingPrompt;
+
         // 1. Resolve Tags
         const tagIds: string[] = [];
         if (tagNames.length > 0) {
@@ -178,27 +183,29 @@ export const repository = {
         }
 
         // 2. Prepare Prompt
-        const isNewPrompt = !promptData.id;
         const safePrompt = createSafePrompt({ ...promptData, tagIds });
 
         // 3. Handle Versioning
-        if (!isNewPrompt && promptData.content) {
-          const originalPrompt = await db.prompts.get(safePrompt.id!);
-          if (originalPrompt && originalPrompt.content !== promptData.content) {
-            const version: PromptVersion = {
-              id: crypto.randomUUID(),
-              promptId: safePrompt.id!,
-              content: originalPrompt.content, // Save the *old* content as a version
-              note: changeNote || "内容更新",
-              parentVersionId: originalPrompt.currentVersionId || null,
-              createdAt: Date.now(),
-            };
-            await db.prompt_versions.add(version);
+        if (!isNewPrompt && changeNote) {
+          const originalPrompt = existingPrompt;
+          if (originalPrompt && originalPrompt.content !== safePrompt.content) {
+                            const version: PromptVersion = {
+                              id: crypto.randomUUID(),
+                              promptId: safePrompt.id!,
+                              content: originalPrompt.content, // Save the *old* content as a version
+                              note: changeNote,
+                              parentVersionId: originalPrompt.currentVersionId || null,
+                              createdAt: Date.now(),
+                            };            await db.prompt_versions.add(version);
             safePrompt.currentVersionId = version.id;
           }
         }
 
         // 4. Add or Update Prompt
+        if (!isNewPrompt) {
+          safePrompt.updatedAt = Date.now();
+        }
+
         await db.prompts.put(safePrompt);
       },
       "allChanged", // Use allChanged to ensure tags and prompts are updated everywhere
