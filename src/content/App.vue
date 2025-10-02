@@ -20,9 +20,7 @@
     />
     <!-- 大纲侧边栏 -->
     <!-- 仅在配置存在时渲染大纲组件 -->
-    <Transition name="slide-right">
-      <Outline v-if="outlineConfig" :config="outlineConfig" :key="outlineKey" />
-    </Transition>
+    <Outline v-if="outlineConfig" :config="outlineConfig" :key="outlineKey" />
     <!-- 消息提示组件 -->
     <UiToast
       v-if="ui.toast"
