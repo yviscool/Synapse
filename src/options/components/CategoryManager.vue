@@ -57,7 +57,7 @@
                                 </button>
                                 <input v-model="editingCategoryName" type="text" ref="editInputRef"
                                     class="flex-1 w-0 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
-                                    @keyup.enter="saveCategoryEdit" @keyup.esc="cancelCategoryEdit" />
+                                    @keyup.enter="saveCategoryEdit" @keyup.esc.stop="cancelCategoryEdit" />
                             </div>
                             <div class="flex items-center gap-2 ml-4">
                                 <button @click="saveCategoryEdit" :title="t('categories.saveTooltip')"
@@ -124,7 +124,7 @@ import { db } from '@/stores/db' // Keep for read-only operations
 import { repository } from '@/stores/repository'
 import { useUI } from '@/stores/ui'
 import type { Category, Prompt } from '@/types/prompt'
-import { onClickOutside, useVModel, useFocus, useDebounceFn, whenever } from '@vueuse/core'
+import { onClickOutside, useVModel, useFocus, onKeyStroke, useDebounceFn, whenever } from '@vueuse/core'
 import { useModal } from '@/composables/useModal'
 import { useI18n } from 'vue-i18n'
 
@@ -133,7 +133,8 @@ const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'updated'): void }>()
 
 const isOpen = useVModel(props, 'visible', emit)
-useModal(isOpen, close)
+// 禁用 useModal 的 Escape 功能
+useModal(isOpen, close, { closeOnEsc: false })
 
 // Refined state management
 const categories = ref<Category[]>([])
@@ -172,6 +173,24 @@ whenever(isOpen, (isVisible) => {
         cancelCategoryEdit() // Clean up edit state when closing
     }
 }, { immediate: true })
+
+onKeyStroke('Escape', (e) => {
+    if (iconPicker.value.visible) {
+        e.preventDefault()
+        // 使用 stopImmediatePropagation 阻止在 document 上注册的任何其他 'keydown' 监听器被调用
+        e.stopImmediatePropagation() 
+        closeIconPicker()
+        return
+    }
+
+    if (isOpen.value) {
+        e.preventDefault()
+        // 这里也一样，如果这个组件处理了事件，就不应该让其他 useModal 实例再处理
+        e.stopImmediatePropagation()
+        close()
+    }
+}, { target: document })
+
 
 // --- Data & Computed ---
 const orderedCategories = computed(() =>
@@ -329,6 +348,8 @@ const filteredIcons = computed(() => {
 // --- Core Functions ---
 function close() {
     emit('update:visible', false)
+    // 确保关闭主 modal 时，也一并关闭 icon picker
+    closeIconPicker() 
 }
 
 // --- Database Operations ---
