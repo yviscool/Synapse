@@ -63,5 +63,8 @@ export default defineConfig({
     'i-ph-bowl-food',               // 食物/菜谱
     'i-ph-users',                   // 社交媒体内容
     'i-ph-envelope-simple',         // 撰写邮件
+    'i-mdi-question-mark-circle',   // 其他未分类\
+    'i-mdi-work',                   // 工作/职业
+    'i-simple-icons:taichilang',    // 易经
   ]
 })

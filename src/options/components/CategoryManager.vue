@@ -180,8 +180,8 @@ const orderedCategories = computed(() =>
 
 const icons = ref<string[]>([
     'i-carbon-code', 'i-carbon-book', 'i-carbon-pen', 'i-carbon-idea', 'i-carbon-presentation-file', 'i-carbon-home', 'i-carbon-search', 'i-carbon-folder', 'i-carbon-settings', 'i-carbon-star',
-    'i-carbon-favorite', 'i-carbon-time', 'i-carbon-calendar', 'i-carbon-download', 'i-carbon-upload', 'i-carbon-cloud', 'i-carbon-database', 'i-carbon-document', 'i-carbon-bot', 'i-carbon-terminal',
-    'i-carbon-bug', 'i-carbon-tools', 'i-carbon-phone', 'i-carbon-email', 'i-carbon-chat', 'i-carbon-user', 'i-carbon-user-multiple', 'i-carbon-location', 'i-carbon-map', 'i-carbon-globe',
+    'i-carbon-favorite', 'i-carbon-time', 'i-carbon-calendar', 'i-carbon-download', 'i-carbon-upload', 'i-carbon-cloud', 'i-carbon-document', 'i-carbon-bot', 'i-carbon-terminal',
+    'i-carbon-tools', 'i-carbon-phone', 'i-carbon-email', 'i-carbon-chat', 'i-carbon-user', 'i-carbon-user-multiple', 'i-carbon-location', 'i-carbon-map', 'i-carbon-globe',
     'i-carbon-translate', 'i-carbon-locked', 'i-carbon-unlocked', 'i-carbon-warning', 'i-carbon-information', 'i-carbon-help', 'i-carbon-camera', 'i-carbon-video', 'i-carbon-music', 'i-carbon-game-console',
     // --- 核心通用 (Core & General) ---
     'i-carbon-idea',               // 想法
@@ -219,8 +219,8 @@ const icons = ref<string[]>([
     // --- 编程 & 开发 (Coding & Development) ---
     'i-carbon-code',               // 代码
     'i-carbon-terminal',           // 终端/命令行
-    'i-carbon-bug',                // Debug
-    'i-carbon-database',           // 数据库
+    'i-mdi-bug-outline',                // Debug
+    'i-mdi-database-outline',           // 数据库
     'i-carbon-cloud',              // 云服务/部署
     'i-carbon-network-4',          // API/网络
     'i-carbon-box',                // 组件/模块
