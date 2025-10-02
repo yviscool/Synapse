@@ -196,7 +196,6 @@ let highlightTimeout: number | null = null;
 
 // --- 初始化与核心逻辑 ---
 onMounted(async () => {
-  // ★ 优雅的创生：先让组件以透明状态挂载，下一帧再变为不透明，触发CSS入场动画
   await nextTick();
   isMounted.value = true;
   containerRef.value?.classList.add("animate-slide-in-right");
@@ -245,18 +244,17 @@ function handleHeaderClick() {
 async function handleRefresh() {
   if (isRefreshing.value) return;
   isRefreshing.value = true;
-
-  // 强制列表播放离开动画
+  // 1. 触发离开动画：递增 key，让 Vue 认为列表是“新”的，从而触发旧列表的 <TransitionGroup> leave 动画。
   listKey.value++;
-
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
-  baseUpdateItems(); // 更新数据
-  listKey.value++; // 再次更新 key，强制新列表播放进入动画
-
-  setTimeout(() => {
-    isRefreshing.value = false;
-  }, 50);
+  // 2. 等待 DOM 更新：确保 Vue 的更新周期已完成，离开动画已经开始。
+  await nextTick();
+  // 3. 更新数据并触发进入动画：
+  //    - baseUpdateItems() 获取新数据。
+  //    - 再次递增 key，强制 Vue 销毁旧列表并创建新列表，从而触发新列表的 enter 动画。
+  baseUpdateItems();
+  listKey.value++;
+  // 4. 重置状态：这是一个纯粹的 UI 状态，可以快速重置。
+  isRefreshing.value = false;
 }
 
 // --- 数据处理 (无变化) ---
