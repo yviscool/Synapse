@@ -1,90 +1,146 @@
-import Dexie, { type Table } from 'dexie'
-import type { FuseResult, FuseResultMatch} from 'fuse.js'
-import type { Prompt, PromptVersion, Category, Tag, Settings } from '@/types/prompt'
-import { MSG, type PerformSearchResult } from '@/utils/messaging'
-import { createSafePrompt } from '@/utils/promptUtils'
+import Dexie, { type Table } from "dexie";
+import type { FuseResult, FuseResultMatch } from "fuse.js";
+import type {
+  Prompt,
+  PromptVersion,
+  Category,
+  Tag,
+  Settings,
+} from "@/types/prompt";
+import { MSG, type PerformSearchResult } from "@/utils/messaging";
+import { createSafePrompt } from "@/utils/promptUtils";
+import { getDefaultCategories } from "@/utils/categoryUtils";
 
 export class APMDB extends Dexie {
-  prompts!: Table<Prompt, string>
-  prompt_versions!: Table<PromptVersion, string>
-  categories!: Table<Category, string>
-  tags!: Table<Tag, string>
-  settings!: Table<Settings, string>
+  prompts!: Table<Prompt, string>;
+  prompt_versions!: Table<PromptVersion, string>;
+  categories!: Table<Category, string>;
+  tags!: Table<Tag, string>;
+  settings!: Table<Settings, string>;
 
   constructor() {
-    super('apm')
+    super("apm");
     this.version(1).stores({
-      prompts: 'id, title, tagIds, updatedAt, favorite, createdAt',
-      prompt_versions: 'id, promptId, createdAt',
-      categories: 'id, name, sort, icon',
-      tags: 'id, name',
-      settings: 'id',
-    })
+      prompts: "id, title, tagIds, updatedAt, favorite, createdAt",
+      prompt_versions: "id, promptId, createdAt",
+      categories: "id, name, sort, icon",
+      tags: "id, name",
+      settings: "id",
+    });
     // Version 2: Add multi-entry indexes for efficient filtering
     this.version(2).stores({
-      prompts: 'id, title, *categoryIds, *tagIds, updatedAt, favorite, createdAt',
-    })
+      prompts:
+        "id, title, *categoryIds, *tagIds, updatedAt, favorite, createdAt",
+    });
   }
 }
 
-export const db = new APMDB()
+export const db = new APMDB();
 
 // All database write operations and their corresponding notifications are now handled
 // by the Repository pattern in `repository.ts`.
 // This ensures that notifications are only sent *after* a transaction is complete,
 // preventing race conditions and "Transaction committed too early" errors.
 
+/**
+ * Gets default categories with internationalized names.
+ * This function should be called at runtime to ensure proper i18n context.
+ *
+ * Categories cover common AI use cases:
+ * - Writing & Content Creation
+ * - Programming & Development
+ * - Business & Office Work
+ * - Learning & Education
+ * - Creative & Design
+ * - Analysis & Research
+ * - Marketing & SEO
+ * - Productivity Tools
+ * - Translation
+ * - Role Playing
+ * - Lifestyle
+ * - Other
+ *
+ * @returns Array of internationalized default categories
+ */
+export function getDefaultCategoriesForInit(): Category[] {
+  return getDefaultCategories();
+}
+
 export const DEFAULT_SETTINGS: Settings = {
-  id: 'global',
-  hotkeyOpen: 'Alt+K',
+  id: "global",
+  hotkeyOpen: "Alt+K",
   enableSlash: true,
   enableSites: {},
   panelPos: null,
-  theme: 'auto',
+  theme: "auto",
   outlineEnabled: true,
-  locale: 'system',
+  locale: "system",
   // Sync settings
   syncEnabled: false,
-}
+};
 
 export async function getSettings(): Promise<Settings> {
-  let s = await db.settings.get('global')
+  let s = await db.settings.get("global");
   if (!s) {
     // If no settings exist, create them from default
-    s = { ...DEFAULT_SETTINGS }
-    await db.settings.put(s)
+    s = { ...DEFAULT_SETTINGS };
+    await db.settings.put(s);
   } else if (!s.locale) {
     // If settings exist but locale is missing (e.g., older version), add it
-    const lang = navigator.language.toLowerCase()
-    s.locale = lang.startsWith('zh') ? 'zh-CN' : 'en'
-    await db.settings.put(s)
+    const lang = navigator.language.toLowerCase();
+    s.locale = lang.startsWith("zh") ? "zh-CN" : "en";
+    await db.settings.put(s);
   }
-  return s
+  return s;
 }
 
 // The setSettings function has been removed.
 // All settings modifications must go through the repository.
 
 /**
+ * Ensures default categories exist in the database.
+ * This should be called on app initialization.
+ * @returns true if categories were initialized, false if they already existed
+ */
+/**
+ * Ensures default categories exist in the database.
+ * This should be called on app initialization.
+ *
+ * The categories are internationalized based on the current locale,
+ * providing a user-friendly experience in multiple languages.
+ *
+ * @returns true if categories were initialized, false if they already existed
+ */
+export async function ensureDefaultCategories(): Promise<boolean> {
+  const existingCategories = await db.categories.toArray();
+  if (existingCategories.length === 0) {
+    const defaultCategories = getDefaultCategoriesForInit();
+    await db.categories.bulkPut(defaultCategories);
+    return true;
+  }
+  return false;
+}
+
+/**
  * Defines the parameters for querying prompts.
  */
 export interface QueryPromptsParams {
-  searchQuery?: string
-  category?: string // Legacy from content script, will be merged into categoryNames
-  categoryNames?: string[]
-  tagNames?: string[]
-  favoriteOnly?: boolean
-  sortBy?: 'updatedAt' | 'createdAt' | 'title'
-  page?: number
-  limit?: number
+  searchQuery?: string;
+  category?: string; // Legacy from content script, will be merged into categoryNames
+  categoryNames?: string[];
+  tagNames?: string[];
+  favoriteOnly?: boolean;
+  sortBy?: "updatedAt" | "createdAt" | "title";
+  page?: number;
+  limit?: number;
 }
 
 /**
  * Extends the Prompt type to include Fuse.js match details for highlighting.
  */
 export type PromptWithMatches = Prompt & {
-  matches?: readonly FuseResultMatch[]
-}
+  matches?: readonly FuseResultMatch[];
+};
 
 /**
  * Defines the structure of the returned data from queryPrompts.
@@ -101,104 +157,122 @@ export interface QueryPromptsResult {
  * @param params - The query parameters.
  * @returns A promise that resolves to an object containing the prompts for the page and the total count of matching prompts.
  */
-export async function queryPrompts(params: QueryPromptsParams = {}): Promise<QueryPromptsResult> {
+export async function queryPrompts(
+  params: QueryPromptsParams = {},
+): Promise<QueryPromptsResult> {
   const {
     searchQuery,
     category,
     categoryNames: initialCategoryNames,
     tagNames,
     favoriteOnly,
-    sortBy = 'updatedAt',
+    sortBy = "updatedAt",
     page = 1,
     limit = 20,
-  } = params
+  } = params;
 
-  const offset = (page - 1) * limit
-  let filteredPrompts: PromptWithMatches[] = []
+  const offset = (page - 1) * limit;
+  let filteredPrompts: PromptWithMatches[] = [];
 
   if (searchQuery) {
     // 1. Delegate search to the background script
     const response = await chrome.runtime.sendMessage({
       type: MSG.PERFORM_SEARCH,
       data: { query: searchQuery },
-    })
+    });
 
     if (!response.ok || !response.data) {
-      console.error('Failed to perform search via background script:', response.error)
-      return { prompts: [], total: 0 }
+      console.error(
+        "Failed to perform search via background script:",
+        response.error,
+      );
+      return { prompts: [], total: 0 };
     }
 
-    const searchResults = response.data as PerformSearchResult[]
+    const searchResults = response.data as PerformSearchResult[];
     if (searchResults.length === 0) {
-      return { prompts: [], total: 0 }
+      return { prompts: [], total: 0 };
     }
 
-    const resultIds = searchResults.map(res => res.item.id)
-    const matchesMap = new Map(searchResults.map(res => [res.item.id, res.matches]))
+    const resultIds = searchResults.map((res) => res.item.id);
+    const matchesMap = new Map(
+      searchResults.map((res) => [res.item.id, res.matches]),
+    );
 
     // 2. Fetch only the matching prompts from Dexie
-    const promptsFromDb = await db.prompts.where('id').anyOf(resultIds).toArray()
+    const promptsFromDb = await db.prompts
+      .where("id")
+      .anyOf(resultIds)
+      .toArray();
 
     // Create a map for quick reordering based on search score
-    const promptsMap = new Map(promptsFromDb.map(p => [p.id, p]))
+    const promptsMap = new Map(promptsFromDb.map((p) => [p.id, p]));
 
     // 3. Reorder the prompts according to Fuse.js relevance score and attach matches
     filteredPrompts = resultIds
       .map((id) => {
-        const prompt = promptsMap.get(id)
-        if (!prompt) return null
-        return { ...prompt, matches: matchesMap.get(id) }
+        const prompt = promptsMap.get(id);
+        if (!prompt) return null;
+        return { ...prompt, matches: matchesMap.get(id) };
       })
-      .filter(Boolean) as PromptWithMatches[]
-  }
-  else {
+      .filter(Boolean) as PromptWithMatches[];
+  } else {
     // No search query, start with a Dexie collection sorted as requested
-    let collection = db.prompts.orderBy(sortBy)
-    if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
-      collection = collection.reverse()
+    let collection = db.prompts.orderBy(sortBy);
+    if (sortBy === "updatedAt" || sortBy === "createdAt") {
+      collection = collection.reverse();
     }
-    filteredPrompts = await collection.toArray()
+    filteredPrompts = await collection.toArray();
   }
 
   // 4. Resolve name-based filters to IDs before applying them
-  const categoryNames = [...(initialCategoryNames || [])]
-  if (category && category !== '全部') {
-    categoryNames.push(category)
+  const categoryNames = [...(initialCategoryNames || [])];
+  if (category && category !== "全部") {
+    categoryNames.push(category);
   }
 
-  let categoryIds: string[] | undefined
+  let categoryIds: string[] | undefined;
   if (categoryNames.length > 0) {
     // Use a Set to handle potential duplicates
-    const uniqueNames = [...new Set(categoryNames)]
-    const categories = await db.categories.where('name').anyOf(uniqueNames).toArray()
-    categoryIds = categories.map(c => c.id)
+    const uniqueNames = [...new Set(categoryNames)];
+    const categories = await db.categories
+      .where("name")
+      .anyOf(uniqueNames)
+      .toArray();
+    categoryIds = categories.map((c) => c.id);
   }
 
-  let tagIds: string[] | undefined
+  let tagIds: string[] | undefined;
   if (tagNames && tagNames.length > 0) {
-    const tags = await db.tags.where('name').anyOf(tagNames).toArray()
-    tagIds = tags.map(t => t.id)
+    const tags = await db.tags.where("name").anyOf(tagNames).toArray();
+    tagIds = tags.map((t) => t.id);
   }
 
   // 5. Apply additional filters (favorite, categories, tags) on the (potentially search-filtered) list
-  const filterConditions: ((p: Prompt) => boolean)[] = []
+  const filterConditions: ((p: Prompt) => boolean)[] = [];
   if (favoriteOnly) {
-    filterConditions.push(p => !!p.favorite)
+    filterConditions.push((p) => !!p.favorite);
   }
   if (categoryIds && categoryIds.length > 0) {
-    filterConditions.push(p => categoryIds.some(catId => p.categoryIds.includes(catId)))
+    filterConditions.push((p) =>
+      categoryIds.some((catId) => p.categoryIds.includes(catId)),
+    );
   }
   if (tagIds && tagIds.length > 0) {
-    filterConditions.push(p => tagIds.every(tagId => p.tagIds.includes(tagId)))
+    filterConditions.push((p) =>
+      tagIds.every((tagId) => p.tagIds.includes(tagId)),
+    );
   }
 
   if (filterConditions.length > 0) {
-    filteredPrompts = filteredPrompts.filter(p => filterConditions.every(cond => cond(p)))
+    filteredPrompts = filteredPrompts.filter((p) =>
+      filterConditions.every((cond) => cond(p)),
+    );
   }
 
   // 5. Apply pagination
-  const total = filteredPrompts.length
-  const paginatedPrompts = filteredPrompts.slice(offset, offset + limit)
+  const total = filteredPrompts.length;
+  const paginatedPrompts = filteredPrompts.slice(offset, offset + limit);
 
-  return { prompts: paginatedPrompts, total }
+  return { prompts: paginatedPrompts, total };
 }

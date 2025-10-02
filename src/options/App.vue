@@ -1135,48 +1135,15 @@ async function loadInitialData() {
 
 /**
  * @description 从数据库加载分类列表。
- * 如果数据库中没有分类，则会创建并插入一组默认分类。
+ * 首次运行时会自动初始化默认分类。
  */
 async function loadCategories() {
     try {
-        const allCategories = await db.categories.toArray();
-        categories.value = allCategories;
-        // 如果是首次运行，数据库为空，则植入默认分类
-        if (categories.value.length === 0) {
-            const defaultCategories: Category[] = [
-                { id: "work", name: "工作", sort: 1, icon: "i-mdi-work" },
-                { id: "coding", name: "编程", sort: 2, icon: "i-carbon-code" },
-                { id: "study", name: "学习", sort: 3, icon: "i-carbon-book" },
-                { id: "writing", name: "写作", sort: 4, icon: "i-carbon-pen" },
-                {
-                    id: "creation",
-                    name: "创作",
-                    sort: 5,
-                    icon: "i-carbon-idea",
-                },
-                {
-                    id: "teaching",
-                    name: "教学",
-                    sort: 6,
-                    icon: "i-carbon-presentation-file",
-                },
-                {
-                    id: "yijing",
-                    name: "易经",
-                    sort: 7,
-                    icon: "i-simple-icons:taichilang",
-                },
-                { id: "life", name: "生活", sort: 8, icon: "i-carbon-home" },
-                {
-                    id: "other",
-                    name: "其他",
-                    sort: 9,
-                    icon: "i-mdi-question-mark-circle",
-                },
-            ];
-            await db.categories.bulkPut(defaultCategories);
-            categories.value = defaultCategories;
-        }
+        // 确保默认分类已初始化（仅在首次运行时执行）
+        await repository.initializeDefaultCategories();
+
+        // 加载所有分类
+        categories.value = await db.categories.toArray();
     } catch (error) {
         console.error("Failed to load categories:", error);
         showToast("加载 Categories 失败", "error");
