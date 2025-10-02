@@ -18,5 +18,7 @@ export default {
     "operationSuccess": "操作成功！",
     "operationFailed": "操作失败。",
     "copySuccess": "已复制到剪贴板！"
-  }
+  },
+  "refresh": "刷新",
+  "collapse": "折叠"
 }

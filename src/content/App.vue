@@ -18,6 +18,9 @@
       @close="closePanel"
       @load-more="handleLoadMore"
     />
+    <!-- 大纲侧边栏 -->
+    <!-- 仅在配置存在时渲染大纲组件 -->
+    <Outline v-if="outlineConfig" :config="outlineConfig" :key="outlineKey" />
     <!-- 消息提示组件 -->
     <UiToast
       v-if="ui.toast"
@@ -35,14 +38,33 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEventListener, refDebounced, useMagicKeys, whenever, useScrollLock } from '@vueuse/core'
 
+import Outline from '@/outline/Outline.vue'; // <-- Import new component
+import { siteConfigs } from '@/outline/site-configs'; // <-- Import configs
 import PromptSelector from './components/PromptSelector.vue'
 import { findActiveInput, insertAtCursor } from '@/utils/inputAdapter'
 import { MSG, type RequestMessage, type ResponseMessage, type PromptDTO } from '@/utils/messaging'
 import type { FuseResultMatch, FuseResult } from 'fuse.js'
 
+// Logic to select the correct config for the current site
+const outlineConfig = computed(() => {
+  const host = window.location.hostname;
+  const key = Object.keys(siteConfigs).find(domain => host.includes(domain));
+  return key ? siteConfigs[key] : null;
+});
+
 // === UI 控制 ===
 const { showToast, hideToast } = useUI()
 const { t, locale } = useI18n()
+
+// --- SPA Navigation Handling ---
+const outlineKey = ref(window.location.href)
+onMounted(() => {
+  if (window.navigation) {
+    window.navigation.addEventListener('navigatesuccess', () => {
+      outlineKey.value = window.location.href
+    })
+  }
+})
 
 // === i18n & Real-time Sync ---
 const systemLanguage = computed(() => {
