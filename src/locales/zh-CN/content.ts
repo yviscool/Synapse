@@ -1,21 +1,22 @@
 export default {
-  "searchPlaceholder": "搜索提示...",
-  "useWithEnter": "回车使用",
-  "copy": "复制 (Ctrl+C)",
-  "noMatch": "没有找到匹配的提示",
-  "loading": "加载中...",
-  "total": "共 {total} 个提示",
-  "navTip": "↑/↓ 导航",
-  "categoryTip": "Tab 切换分类",
-  "closeTip": "关闭 (Esc)",
-  "outline": {
-    "title": "对话大纲",
-    "searchPlaceholder": "搜索对话内容...",
-    "total": "共 {count} 条",
-    "empty": "未找到任何项目。",
-    "filtered": "显示 {visible} / {total} 条",
-    "scrollToTop": "滚动到顶部",
-    "scrollToCenter": "滚动到中央",
-    "scrollToBottom": "滚动到底部"
-  }
-}
+  searchPlaceholder: "搜索提示...",
+  useWithEnter: "回车使用",
+  copy: "复制 (Ctrl+C)",
+  noMatch: "没有找到匹配的提示",
+  loading: "加载中...",
+  total: "共 {total} 个提示",
+  navTip: "导航",
+  categoryTip: "Tab 切换分类",
+  closeTip: "关闭 (Esc)",
+  allCategories: "全部",
+  outline: {
+    title: "对话大纲",
+    searchPlaceholder: "搜索对话内容...",
+    total: "共 {count} 条",
+    empty: "未找到任何项目。",
+    filtered: "显示 {visible} / {total} 条",
+    scrollToTop: "滚动到顶部",
+    scrollToCenter: "滚动到中央",
+    scrollToBottom: "滚动到底部",
+  },
+};
