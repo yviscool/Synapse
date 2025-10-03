@@ -176,11 +176,12 @@ class SyncManager {
     return gdrive.listBackupFiles();
   }
 
-  async restoreFromCloudBackup(fileId:string) {
-    await this.downloadRemoteData(fileId)
-    // The repository notifications will handle the index rebuild.
-    const currentSettings = await getSettings()
-    await repository.setSettings({ ...currentSettings, lastSyncTimestamp: new Date().getTime() })
+  async restoreFromCloudBackup(fileId: string) {
+    const data = await this.downloadCloudBackup(fileId);
+    const { ok, error } = await repository.importDataFromBackup(data);
+    if (!ok) {
+      throw error;
+    }
   }
 
   async downloadCloudBackup(fileId: string) {
