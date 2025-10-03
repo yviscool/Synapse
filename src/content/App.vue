@@ -59,6 +59,7 @@ import {
     type PromptDTO,
 } from "@/utils/messaging";
 import type { FuseResultMatch, FuseResult } from "fuse.js";
+import { getCategoryNameById, isDefaultCategory } from "@/utils/categoryUtils";
 
 // Logic to select the correct config for the current site
 const outlineConfig = computed(() => {
@@ -123,6 +124,7 @@ const allPrompts = ref<
 >([]);
 /** 分类选项列表 */
 const categoryOptions = ref<string[]>([t("content.allCategories")]);
+const categoryNameIdMap = ref<Record<string, string>>({});
 /** 当前选中的分类 */
 const selectedCategory = ref<string>(t("content.allCategories"));
 /** 搜索查询字符串 */
@@ -184,12 +186,22 @@ async function fetchData() {
         });
 
         if (res.ok && res.data) {
+            const processedData = res.data.map(p => {
+                if (p.categoryName) {
+                    const catId = categoryNameIdMap.value[p.categoryName];
+                    if (catId && isDefaultCategory(catId)) {
+                        return { ...p, categoryName: getCategoryNameById(catId) };
+                    }
+                }
+                return p;
+            });
+
             if (currentPage.value === 1) {
                 // 第一页：替换所有数据
-                allPrompts.value = res.data;
+                allPrompts.value = processedData;
             } else {
                 // 后续页：追加数据（无限滚动）
-                allPrompts.value.push(...res.data);
+                allPrompts.value.push(...processedData);
             }
             totalPrompts.value = res.total || 0;
             dataVersion = res.version || "0";
@@ -206,14 +218,21 @@ async function fetchData() {
  */
 async function fetchCategories() {
     try {
-        const res: ResponseMessage<{ id: string; name: string }[]> =
+        const res: ResponseMessage<{ id: string; name: string; sort?: number }[]> =
             await chrome.runtime.sendMessage({ type: MSG.GET_CATEGORIES });
 
         if (res.ok && res.data) {
+            const nameIdMap: Record<string, string> = {};
+
+            const sortedData = res.data.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0));
+
+            sortedData.forEach(c => { nameIdMap[c.name] = c.id; });
+            categoryNameIdMap.value = nameIdMap;
+
             // 在分类列表前添加"全部"选项
             categoryOptions.value = [
                 t("content.allCategories"),
-                ...res.data.map((c) => c.name),
+                ...sortedData.map((c) => isDefaultCategory(c.id) ? getCategoryNameById(c.id) : c.name),
             ];
         }
     } catch (e) {
@@ -257,7 +276,9 @@ function openPanel() {
     searchQuery.value = "";
 
     // 获取数据
-    resetAndFetch();
+    fetchCategories().then(() => {
+        resetAndFetch();
+    });
     fetchCategories();
 }
 
@@ -515,8 +536,9 @@ onMounted(() => {
                 }
                 // 如果面板正在显示且数据版本不同，则刷新数据
                 if (visible.value && version !== dataVersion) {
-                    resetAndFetch();
-                    fetchCategories();
+                    fetchCategories().then(() => {
+                        resetAndFetch();
+                    });
                 }
             }
         },

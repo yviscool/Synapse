@@ -127,6 +127,7 @@ import type { Category, Prompt } from '@/types/prompt'
 import { onClickOutside, useVModel, useFocus, onKeyStroke, useDebounceFn, whenever } from '@vueuse/core'
 import { useModal } from '@/composables/useModal'
 import { useI18n } from 'vue-i18n'
+import { getCategoryNameById, isDefaultCategory } from '@/utils/categoryUtils'
 
 const { t } = useI18n()
 const props = defineProps<{ visible: boolean }>()
@@ -194,7 +195,10 @@ onKeyStroke('Escape', (e) => {
 
 // --- Data & Computed ---
 const orderedCategories = computed(() =>
-    categories.value.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    categories.value.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0)).map(c => ({
+        ...c,
+        name: isDefaultCategory(c.id) ? getCategoryNameById(c.id) : c.name
+    }))
 )
 
 const icons = ref<string[]>([

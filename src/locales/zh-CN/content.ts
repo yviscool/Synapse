@@ -6,7 +6,7 @@ export default {
   loading: "加载中...",
   total: "共 {total} 个提示",
   navTip: "导航",
-  categoryTip: "Tab 切换分类",
+  categoryTip: "切换分类",
   closeTip: "关闭 (Esc)",
   allCategories: "全部",
   outline: {

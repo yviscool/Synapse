@@ -746,6 +746,7 @@ import {
     onClickOutside,
 } from "@vueuse/core";
 import { parseQuery } from "@/utils/queryParser";
+import { getCategoryNameById, isDefaultCategory } from "@/utils/categoryUtils";
 import PromptEditorModal from "@/options/components/PromptEditorModal.vue";
 import Settings from "./components/Settings.vue";
 import CategoryManager from "./components/CategoryManager.vue";
@@ -998,7 +999,11 @@ const getTagNames = (tagIds: string[]): string[] => {
 const availableCategories = computed(() => {
     return categories.value
         .slice()
-        .sort((a: Category, b: Category) => (a.sort || 0) - (b.sort || 0));
+        .sort((a: Category, b: Category) => (a.sort || 0) - (b.sort || 0))
+        .map(c => ({
+            ...c,
+            name: isDefaultCategory(c.id) ? getCategoryNameById(c.id) : c.name
+        }));
 });
 
 // --- Category & Tag Management ---
@@ -1165,6 +1170,9 @@ async function loadTags() {
  * @returns {string} 分类名称，如果找不到则返回原始ID。
  */
 function getCategoryName(categoryId: string): string {
+    if (isDefaultCategory(categoryId)) {
+        return getCategoryNameById(categoryId);
+    }
     const category = categories.value.find((c) => c.id === categoryId);
     return category?.name || categoryId;
 }

@@ -23,18 +23,17 @@ interface CategoryDefinition {
  * These are the base definitions that will be internationalized
  */
 const DEFAULT_CATEGORY_DEFINITIONS: CategoryDefinition[] = [
-  { id: 'writing', translationKey: 'writing', sort: 1, icon: 'i-carbon-pen' },
-  { id: 'coding', translationKey: 'coding', sort: 2, icon: 'i-carbon-code' },
-  { id: 'business', translationKey: 'business', sort: 3, icon: 'i-carbon-business' },
-  { id: 'education', translationKey: 'education', sort: 4, icon: 'i-carbon-education' },
-  { id: 'creative', translationKey: 'creative', sort: 5, icon: 'i-carbon-idea' },
-  { id: 'analysis', translationKey: 'analysis', sort: 6, icon: 'i-carbon-chart-line' },
-  { id: 'marketing', translationKey: 'marketing', sort: 7, icon: 'i-carbon-shopping-catalog' },
-  { id: 'productivity', translationKey: 'productivity', sort: 8, icon: 'i-carbon-task' },
-  { id: 'translation', translationKey: 'translation', sort: 9, icon: 'i-carbon-translate' },
-  { id: 'roleplay', translationKey: 'roleplay', sort: 10, icon: 'i-carbon-user-avatar' },
-  { id: 'lifestyle', translationKey: 'lifestyle', sort: 11, icon: 'i-carbon-home' },
-  { id: 'other', translationKey: 'other', sort: 12, icon: 'i-carbon-help' },
+  { id: 'creative', translationKey: 'creative', sort: 1, icon: 'i-carbon-idea' },
+  { id: 'image', translationKey: 'image', sort: 2, icon: 'i-carbon-image' },
+  { id: 'writing', translationKey: 'writing', sort: 3, icon: 'i-carbon-pen' },
+  { id: 'coding', translationKey: 'coding', sort: 4, icon: 'i-carbon-code' },
+  { id: 'analysis', translationKey: 'analysis', sort: 5, icon: 'i-carbon-chart-line' },
+  { id: 'marketing', translationKey: 'marketing', sort: 6, icon: 'i-carbon-chart-bar' },
+  { id: 'education', translationKey: 'education', sort: 7, icon: 'i-carbon-education' },
+  { id: 'roleplay', translationKey: 'roleplay', sort: 8, icon: 'i-carbon-user-avatar' },
+  { id: 'lifestyle', translationKey: 'lifestyle', sort: 9, icon: 'i-carbon-home' },
+  { id: 'translation', translationKey: 'translation', sort: 10, icon: 'i-carbon-translate' },
+  { id: 'other', translationKey: 'other', sort: 11, icon: 'i-carbon-help' },
 ]
 
 /**

@@ -6,7 +6,7 @@ export default {
   loading: "Loading...",
   total: "Total {total} prompts",
   navTip: "to navigate",
-  categoryTip: "Tab to switch category",
+  categoryTip: "to switch category",
   closeTip: "Close (Esc)",
   allCategories: "All",
   outline: {
