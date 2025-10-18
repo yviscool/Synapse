@@ -58,13 +58,26 @@
       <Transition name="content-bloom">
         <div v-show="!isCollapsed" class="flex items-center gap-1">
           <div class="relative group/btn">
-            <button @click.stop="handleRefresh" class="control-btn text-gray-500 dark:text-white/90" aria-label="Refresh">
-              <span :class="[ICONS.refresh, 'text-lg transition-transform duration-700', isRefreshing ? 'animate-spin-fast' : '']"></span>
+            <button
+              @click.stop="handleRefresh"
+              class="control-btn text-gray-500 dark:text-white/90"
+              aria-label="Refresh"
+            >
+              <span
+                :class="[
+                  ICONS.refresh,
+                  'text-lg transition-transform duration-700',
+                  isRefreshing ? 'animate-spin-fast' : ''
+                ]"
+              ></span>
             </button>
             <ElegantTooltip :text="t('common.refresh')" />
           </div>
           <div class="relative group/btn">
-            <button @click.stop="toggleCollapse" class="control-btn text-gray-500 dark:text-white/90 hover:text-blue-500 dark:hover:text-blue-400">
+            <button
+              @click.stop="toggleCollapse"
+              class="control-btn text-gray-500 dark:text-white/90 hover:text-blue-500 dark:hover:text-blue-400"
+            >
               <span :class="[ICONS.collapse, 'text-lg']"></span>
             </button>
             <ElegantTooltip :text="t('common.collapse')" />
@@ -75,12 +88,19 @@
 
     <!-- 内容区域 -->
     <Transition name="content-bloom">
-      <div v-show="!isCollapsed" class="flex-1 flex flex-col min-h-0 overflow-hidden bg-transparent">
+      <div
+        v-show="!isCollapsed"
+        class="flex-1 flex flex-col min-h-0 overflow-hidden bg-transparent"
+      >
         <!-- 搜索框 -->
         <div class="px-4 py-3 flex-shrink-0">
           <div class="relative">
-            <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
-              <span :class="[ICONS.search, 'text-gray-400 dark:text-white/80 text-sm']"></span>
+            <div
+              class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none"
+            >
+              <span
+                :class="[ICONS.search, 'text-gray-400 dark:text-white/80 text-sm']"
+              ></span>
             </div>
             <input
               v-model="searchQuery"
@@ -91,11 +111,24 @@
         </div>
 
         <!-- 列表区域 -->
-        <div class="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar" ref="listContainerRef">
+        <div
+          class="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar"
+          ref="listContainerRef"
+        >
           <div v-if="isLoading" class="pt-4 space-y-3">
-            <div v-for="i in 5" :key="i" class="h-8 bg-gray-200/50 dark:bg-white/5 rounded-lg animate-pulse"></div>
+            <div
+              v-for="i in 5"
+              :key="i"
+              class="h-8 bg-gray-200/50 dark:bg-white/5 rounded-lg animate-pulse"
+            ></div>
           </div>
-          <TransitionGroup v-else name="list-item" tag="ul" class="space-y-1" :key="listKey">
+          <TransitionGroup
+            v-else
+            name="list-item"
+            tag="ul"
+            class="space-y-1"
+            :key="listKey"
+          >
             <li
               v-for="(item, index) in filteredItems"
               :key="item.id"
@@ -109,8 +142,9 @@
               @mouseenter="handleItemMouseEnter(item.element)"
             >
               <div class="outline-item-content">
-                <span class="item-index text-gray-400/80 dark:text-white/70">{{ index + 1 }}</span>
-                <!-- FIX: 强制所有 hover 状态的颜色为 100% 不透明 -->
+                <span class="item-index text-gray-400/80 dark:text-white/70">{{
+                  index + 1
+                }}</span>
                 <span
                   class="item-icon transition-all duration-200"
                   :class="[
@@ -132,15 +166,22 @@
 
           <!-- 空状态 -->
           <Transition name="fade">
-            <div v-if="!isLoading && filteredItems.length === 0" class="py-12 flex flex-col items-center justify-center text-gray-400 dark:text-white/80">
+            <div
+              v-if="!isLoading && filteredItems.length === 0"
+              class="py-12 flex flex-col items-center justify-center text-gray-400 dark:text-white/80"
+            >
               <span :class="[ICONS.empty, 'text-4xl mb-3 opacity-50']"></span>
-              <p class="text-sm font-medium">{{ t('content.outline.empty') }}</p>
+              <p class="text-sm font-medium">
+                {{ t('content.outline.empty') }}
+              </p>
             </div>
           </Transition>
         </div>
 
         <!-- 统计信息底部栏 -->
-        <div class="px-4 py-2 text-[11px] text-center text-gray-400 dark:text-white/70 border-t border-gray-100 dark:border-white/30 flex-shrink-0 bg-gray-50/30 dark:bg-transparent backdrop-blur-sm">
+        <div
+          class="px-4 py-2 text-[11px] text-center text-gray-400 dark:text-white/70 border-t border-gray-100 dark:border-white/30 flex-shrink-0 bg-gray-50/30 dark:bg-transparent backdrop-blur-sm"
+        >
           {{ stats }}
         </div>
       </div>
@@ -149,10 +190,18 @@
 
   <!-- 全局提示 -->
   <Transition name="overlay-fade">
-    <div v-if="hint.visible" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[9998] pointer-events-none">
-      <div class="bg-gray-900/85 dark:bg-black/85 px-6 py-3 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 transform scale-100 animate-pop-in" style="color: #fff !important">
+    <div
+      v-if="hint.visible"
+      class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[9998] pointer-events-none"
+    >
+      <div
+        class="bg-gray-900/85 dark:bg-black/85 px-6 py-3 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 transform scale-100 animate-pop-in"
+        style="color: #fff !important"
+      >
         <span :class="[hint.icon, 'text-2xl text-blue-400']"></span>
-        <span class="text-base font-medium tracking-wide text-shadow-sm">{{ hint.text }}</span>
+        <span class="text-base font-medium tracking-wide text-shadow-sm">{{
+          hint.text
+        }}</span>
       </div>
     </div>
   </Transition>
@@ -201,6 +250,9 @@ const isRefreshing = ref(false)
 const listKey = ref(0)
 const isMounted = ref(false)
 const searchQuery = ref('')
+// FIX START: 添加一个状态来区分拖拽和点击
+const wasDragged = ref(false)
+// FIX END
 
 type HoverZone = 'start' | 'center' | 'end' | ''
 const hoveredItem = ref<{ index: number; zone: HoverZone }>({
@@ -220,7 +272,7 @@ onMounted(async () => {
   await nextTick()
   isMounted.value = true
   containerRef.value?.classList.add('animate-slide-in-right')
-  injectGlobalStyles() // 注入全局样式
+  injectGlobalStyles()
 })
 
 const {
@@ -235,12 +287,21 @@ const { y: dragY, isDragging } = useDraggable(containerRef, {
   initialValue: { x: 0, y: 100 },
   preventDefault: true,
   disabled: computed(() => !isCollapsed.value),
+  // FIX START: 使用 onStart 和 onMove 回调来设置 wasDragged 状态
+  onStart: () => {
+    // 每次开始交互时，重置拖拽标记
+    wasDragged.value = false
+  },
   onMove(p) {
+    // 只要有移动，就标记为拖拽
+    wasDragged.value = true
     p.y = Math.max(20, Math.min(p.y, windowHeight.value - 80))
   }
+  // FIX END
 })
+
 const containerStyle = computed<CSSProperties>(() => ({
-  top: `${isCollapsed.value ? dragY.value : 100}px`,
+  top: `${dragY.value}px`,
   right: '24px',
   transition: isDragging.value ? 'none' : undefined,
   transform: isDragging.value ? 'scale(1.05)' : 'scale(1)',
@@ -259,6 +320,12 @@ function toggleCollapse() {
   }
 }
 function handleHeaderClick() {
+  // FIX START: 在处理点击前，检查是否是拖拽操作
+  if (wasDragged.value) {
+    // 如果是拖拽，则不执行任何操作。标记会在下一次 mousedown 时重置。
+    return
+  }
+  // FIX END
   if (isCollapsed.value) toggleCollapse()
 }
 
@@ -355,14 +422,12 @@ function handleItemLeave(element: Element | null = null) {
   if (element) {
     element.classList.remove('outline-hover-highlight')
   } else {
-    // Fallback to clear all if element is not passed
     document
       .querySelectorAll('.outline-hover-highlight')
       .forEach(el => el.classList.remove('outline-hover-highlight'))
   }
 }
 
-// 监听滚动自动高亮的变化，并更新页面目标元素的脉冲效果
 watch(highlightedIndex, (newIndex, oldIndex) => {
   if (oldIndex !== undefined && oldIndex >= 0 && items.value[oldIndex]) {
     items.value[oldIndex].element?.classList.remove('outline-active-highlight')
@@ -371,7 +436,6 @@ watch(highlightedIndex, (newIndex, oldIndex) => {
     items.value[newIndex].element?.classList.add('outline-active-highlight')
   }
 
-  // 列表滚动到高亮项
   if (newIndex >= 0 && listContainerRef.value && !isCollapsed.value) {
     const el = listContainerRef.value.querySelector(`[data-index="${newIndex}"]`)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -395,7 +459,7 @@ function getDisplayIcon(item: (typeof items.value)[0], index: number): string {
 onUnmounted(() => {
   if (hintTimeout) clearTimeout(hintTimeout)
   if (highlightTimeout) clearTimeout(highlightTimeout)
-});
+})
 
 // --- 微型组件 & 样式注入 ---
 import { defineComponent, h, Transition } from 'vue'
@@ -414,8 +478,9 @@ const ElegantTooltip = defineComponent({
               {
                 class: [
                   'absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1',
-                  // FIX: 强制 tooltip 文本颜色为 100% 不透明
-                  'bg-gray-800 text-white/100 text-xs font-medium rounded-md shadow-sm whitespace-nowrap',
+                  'bg-white dark:bg-gray-800 text-gray-700 dark:text-white/90',
+                  'border border-gray-200/80 dark:border-transparent',
+                  'text-xs font-medium rounded-md shadow-lg whitespace-nowrap',
                   'pointer-events-none z-50 backdrop-blur-sm',
                   'opacity-0 translate-y-[-4px] group-hover/btn:opacity-100 group-hover/btn:translate-y-0',
                   'transition-all duration-200 ease-out delay-300'
@@ -483,33 +548,126 @@ function injectGlobalStyles() {
   @apply p-2 rounded-lg transition-colors duration-200 flex items-center justify-center;
   @apply hover:bg-gray-200/50 dark:hover:bg-gray-700/50;
 }
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-gray-300/50 dark:bg-gray-600/50 rounded-full; @apply hover:bg-gray-400/70 dark:hover:bg-gray-500/70; }
-.outline-item-wrapper { @apply relative px-2 py-1 rounded-xl cursor-pointer transition-all duration-200; will-change: transform, background-color; }
-.outline-item-wrapper:hover { transform: translateY(-2px); @apply bg-gray-100/80 dark:bg-gray-800/50; }
-.outline-item-wrapper.is-active { @apply bg-blue-50/80 dark:bg-blue-900/20; }
-.outline-item-wrapper.is-active:hover { transform: translateY(-2px) scale(1.02); }
-.outline-item-wrapper:active { transform: scale(0.97); transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
-.outline-item-wrapper.is-active::before { content: ''; @apply absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-[3px] rounded-r-full bg-blue-500; }
-.outline-item-content { @apply flex items-center gap-2.5 py-1.5; }
-.item-index { @apply text-[10px] font-mono min-w-[16px] text-center; }
-.item-icon { @apply text-base w-5 h-5 flex items-center justify-center flex-shrink-0; }
-.item-title { @apply text-[13px] font-medium leading-snug; }
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-gray-300/50 dark:bg-gray-600/50 rounded-full;
+  @apply hover:bg-gray-400/70 dark:hover:bg-gray-500/70;
+}
+.outline-item-wrapper {
+  @apply relative px-2 py-1 rounded-xl cursor-pointer transition-all duration-200;
+  will-change: transform, background-color;
+}
+.outline-item-wrapper:hover {
+  transform: translateY(-2px);
+  @apply bg-gray-100/80 dark:bg-gray-800/50;
+}
+.outline-item-wrapper.is-active {
+  @apply bg-blue-50/80 dark:bg-blue-900/20;
+}
+.outline-item-wrapper.is-active:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+.outline-item-wrapper:active {
+  transform: scale(0.97);
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.outline-item-wrapper.is-active::before {
+  content: '';
+  @apply absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-[3px] rounded-r-full bg-blue-500;
+}
+.outline-item-content {
+  @apply flex items-center gap-2.5 py-1.5;
+}
+.item-index {
+  @apply text-[10px] font-mono min-w-[16px] text-center;
+}
+.item-icon {
+  @apply text-base w-5 h-5 flex items-center justify-center flex-shrink-0;
+}
+.item-title {
+  @apply text-[13px] font-medium leading-snug;
+}
 /* Animations */
-@keyframes spin-fast { to { transform: rotate(360deg); } }
-.animate-spin-fast { animation: spin-fast 0.7s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
-@keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-.animate-slide-in-right { animation: slideInRight 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
-@keyframes popIn { 0% { opacity: 0; transform: scale(0.9) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
-.animate-pop-in { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-.content-bloom-enter-active { transition: all 0.3s ease-out 0.1s; }
-.content-bloom-leave-active { transition: all 0.2s ease-in; }
-.content-bloom-enter-from, .content-bloom-leave-to { opacity: 0; transform: scale(0.95); }
-.list-item-enter-active, .list-item-leave-active { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-.list-item-enter-active { transition-delay: calc(0.03s * var(--stagger-index, 0)); }
-.list-item-enter-from, .list-item-leave-to { opacity: 0; transform: translateX(30px); }
-.list-item-leave-active { position: absolute; width: calc(100% - 1.5rem); }
-.fade-enter-active, .fade-leave-active, .overlay-fade-enter-active, .overlay-fade-leave-active, .tooltip-fade-enter-active, .tooltip-fade-leave-active { transition: opacity 0.2s ease; }
-.fade-enter-from, .fade-leave-to, .overlay-fade-enter-from, .overlay-fade-leave-to, .tooltip-fade-enter-from, .tooltip-fade-leave-to { opacity: 0; }
+@keyframes spin-fast {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin-fast {
+  animation: spin-fast 0.7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes slideInRight {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-pop-in {
+  animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+.content-bloom-enter-active {
+  transition: all 0.3s ease-out 0.1s;
+}
+.content-bloom-leave-active {
+  transition: all 0.2s ease-in;
+}
+.content-bloom-enter-from,
+.content-bloom-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.list-item-enter-active,
+.list-item-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.list-item-enter-active {
+  transition-delay: calc(0.03s * var(--stagger-index, 0));
+}
+.list-item-enter-from,
+.list-item-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+.list-item-leave-active {
+  position: absolute;
+  width: calc(100% - 1.5rem);
+}
+.fade-enter-active,
+.fade-leave-active,
+.overlay-fade-enter-active,
+.overlay-fade-leave-active,
+.tooltip-fade-enter-active,
+.tooltip-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to,
+.overlay-fade-enter-from,
+.overlay-fade-leave-to,
+.tooltip-fade-enter-from,
+.tooltip-fade-leave-to {
+  opacity: 0;
+}
 </style>
