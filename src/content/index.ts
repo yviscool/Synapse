@@ -26,6 +26,18 @@ import "@/styles"
 
   shadowRoot.appendChild(appContainer)
 
+  // Theme Logic
+  const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  function updateTheme(isDark: boolean) {
+    if (isDark) {
+      appContainer.classList.add('dark');
+    } else {
+      appContainer.classList.remove('dark');
+    }
+  }
+  updateTheme(darkModeMediaQuery.matches);
+  darkModeMediaQuery.addEventListener('change', (e) => updateTheme(e.matches));
+
   // 5. Mount the Vue app onto the container inside the shadow root.
   const app = createApp(App)
   app.use(i18n)
