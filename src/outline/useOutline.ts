@@ -53,7 +53,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       emptyStateTimeout = window.setTimeout(() => {
         items.value = [];
         isLoading.value = false;
-      }, 500);
+      }, 400);
       return;
     }
     
@@ -63,7 +63,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     }
 
     updateHighlight();
-  }, 250);
+  }, 200);
 
   const updateItems = () => {
     isLoading.value = true;
