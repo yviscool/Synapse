@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-full">
     <!-- Left Sidebar -->
-    <aside class="w-64 bg-gray-50 border-r p-4">
+    <aside class="w-48 bg-gray-50 border-r p-4">
       <nav class="space-y-2">
         <button
           @click="activeTab = 'general'"
