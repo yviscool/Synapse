@@ -8,7 +8,7 @@
     'bg-white/85 dark:bg-[#202127]/90 backdrop-blur-xl',
     'border border-gray-200/50 dark:border-white/20',
     isCollapsed
-      ? 'w-[56px] h-[56px] rounded-full shadow-lg hover:shadow-xl cursor-grab active:cursor-grabbing'
+      ? 'w-[56px] h-[56px] rounded-full cursor-grab active:cursor-grabbing is-collapsed'
       : 'w-[340px] max-h-[min(80vh,800px)] rounded-2xl shadow-2xl flex flex-col',
     isMounted ? 'opacity-100' : 'opacity-0'
   ]" @mousedown="handleDragStart" @touchstart.passive="handleDragStart" @mouseenter="isContainerHovered = true"
@@ -84,7 +84,7 @@
               <div class="outline-item-content">
                 <span class="item-index text-gray-400/80 dark:text-white/70">{{
                   index + 1
-                }}</span>
+                  }}</span>
                 <span class="item-icon transition-all duration-200" :class="[
                   getDisplayIcon(item, index),
                   hoveredItem.index === index
@@ -129,7 +129,7 @@
         <span :class="[hint.icon, 'text-2xl text-blue-400']"></span>
         <span class="text-base font-medium tracking-wide text-shadow-sm">{{
           hint.text
-        }}</span>
+          }}</span>
       </div>
     </div>
   </Transition>
@@ -514,6 +514,23 @@ function injectGlobalStyles() {
 
 .item-title {
   @apply text-[13px] font-medium leading-snug;
+}
+
+.is-collapsed {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.dark .is-collapsed {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+}
+
+.is-collapsed:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 169, 255, 0.3);
+}
+
+.is-collapsed:active {
+  transform: scale(1.05);
 }
 
 /* -------------------- */
