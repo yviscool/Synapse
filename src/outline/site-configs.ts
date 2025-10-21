@@ -92,4 +92,17 @@ export const siteConfigs: { [key: string]: SiteConfig } = {
     observeTarget: '[data-testid="message-list"]',
     waitForElement: 'div[data-testid="send_message"]',
   },
+  'longcat.chat': {
+    userMessage: '.user-message',
+    messageText: '.user-text',
+    observeTarget: '.message-list',
+    scrollContainer: '.page-content',
+    waitForElement: '.user-message .user-text',
+  },
+  'chat.inceptionlabs.ai': {
+    userMessage: '.user-message',
+    messageText: '.user-message p',
+    observeTarget: '#messages-container',
+    waitForElement: '.user-message',
+  },
 } as const;

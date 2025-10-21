@@ -26,7 +26,9 @@
     "https://chat.mistral.ai/*",
     "https://chat.z.ai/*",
     "https://openrouter.ai/*",
-    "https://www.doubao.com/*"
+    "https://www.doubao.com/*",
+    "https://longcat.chat/*",
+    "https://chat.inceptionlabs.ai/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -48,7 +50,9 @@
         "https://chat.mistral.ai/*",
         "https://chat.z.ai/*",
         "https://openrouter.ai/*",
-        "https://www.doubao.com/*"
+        "https://www.doubao.com/*",
+        "https://longcat.chat/*",
+        "https://chat.inceptionlabs.ai/*"
       ],
       "js": [
         "content.js"
