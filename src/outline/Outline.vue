@@ -311,23 +311,104 @@ function handleItemHover(event: MouseEvent, index: number) {
 }
 
 
-// ★ 修复点 2: 修改函数签名，接收传入的 `index`
-function handleItemClick(event: MouseEvent, element: Element, index: number) {
-  const zone = getHoverZone(event)
-  const block = (zone === '' ? 'center' : zone) as ScrollLogicalPosition
-  element.scrollIntoView({ behavior: 'smooth', block, inline: 'nearest' })
+/**
+ * 处理大纲条目的点击事件
+ * 核心功能：计算目标位置并平滑滚动到该位置，同时处理 UI 高亮
+ */
+async function handleItemClick(event: MouseEvent, element: Element, index: number) {
+  // 立即更新当前高亮的索引，让 UI 迅速响应用户的点击
+  highlightedIndex.value = index;
 
-  // ★ 修复点 3: 立即更新 `highlightedIndex`，使UI响应点击，添加高亮和左侧边框
-  highlightedIndex.value = index
+  // 获取配置中的自定义滚动容器（如果存在）
+  const scrollContainerSelector = props.config.scrollContainer;
+  let scrollContainer: HTMLElement | null = null;
+  if (typeof scrollContainerSelector === 'string') {
+    scrollContainer = document.querySelector<HTMLElement>(scrollContainerSelector);
+  }
 
-  // 应用一次性的闪烁高亮效果到目标元素
-  document.querySelectorAll('.outline-flash-highlight').forEach(el => el.classList.remove('outline-flash-highlight'))
-  element.classList.add('outline-flash-highlight')
-  if (highlightTimeout) clearTimeout(highlightTimeout)
+  // --- 核心滚动逻辑 ---
+  if (scrollContainer) {
+    // 场景 A：存在特定的滚动容器（如 Kimi 等复杂单页应用）
+    // 策略：使用 JavaScript 手动实现平滑滚动动画。
+    // 原因：部分网站会监听或劫持原生的 scroll 事件，导致 element.scrollIntoView() 失效或表现异常。
+    //       手动接管 scrollTop 的更新过程可以绕过这些干扰，提供最稳定的滚动体验。
+
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    
+    // 1. 精确计算滚动目标位置
+    // 根据用户点击在大纲项上的不同区域（上/中/下），决定元素在视口中的最终停留位置
+    const zone = getHoverZone(event);
+    let blockPositionOffset = 0; 
+    if (zone === 'center') {
+      // 目标：让元素在容器中居中显示
+      blockPositionOffset = containerRect.height / 2 - elementRect.height / 2;
+    } else if (zone === 'end') {
+      // 目标：让元素显示在容器底部
+      blockPositionOffset = containerRect.height - elementRect.height;
+    }
+    // 默认情况（zone === 'start'）偏移量为 0，即显示在容器顶部
+    
+    // 计算最终的 scrollTop 值：当前滚动位置 + 相对距离 - 期望的视口偏移
+    const targetScrollTop = scrollContainer.scrollTop + elementRect.top - containerRect.top - blockPositionOffset;
+
+    // 2. 启动手动动画循环
+    const startScrollTop = scrollContainer.scrollTop;
+    const distance = targetScrollTop - startScrollTop;
+    const duration = 400; // 动画总时长（毫秒），400ms 提供较好的流畅感
+    let startTime: number | null = null;
+
+    // 缓动函数 (Ease-In-Out Quad)：让滚动开始和结束时速度较慢，中间较快，体验更自然
+    const easeInOutQuad = (t: number) => {
+      return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    };
+
+    // 动画帧回调函数
+    const animateScroll = (currentTime: number) => {
+      if (startTime === null) {
+        startTime = currentTime;
+      }
+      // 计算动画已进行的时间和进度（0.0 ~ 1.0）
+      const timeElapsed = currentTime - startTime;
+      const progress = Math.min(timeElapsed / duration, 1);
+      const easedProgress = easeInOutQuad(progress);
+
+      // 更新容器的滚动位置
+      scrollContainer!.scrollTop = startScrollTop + distance * easedProgress;
+
+      // 如果动画未结束，请求下一帧继续执行
+      if (timeElapsed < duration) {
+        requestAnimationFrame(animateScroll);
+      }
+    };
+
+    // 开始执行动画
+    requestAnimationFrame(animateScroll);
+
+  } else {
+    // 场景 B：普通网站（无特定滚动容器）
+    // 策略：直接使用浏览器原生的 scrollIntoView API，简单且兼容性好
+    const zone = getHoverZone(event);
+    // 将 hover 区域映射为 scrollIntoView 的 block 参数 ('start' | 'center' | 'end')
+    const block = (zone === '' ? 'center' : zone) as ScrollLogicalPosition;
+    element.scrollIntoView({ behavior: 'smooth', block, inline: 'nearest' });
+  }
+
+  // --- 点击后的视觉反馈 ---
+  // 移除旧的闪烁效果，确保每次点击都能触发新的动画
+  document.querySelectorAll('.outline-flash-highlight').forEach(el => el.classList.remove('outline-flash-highlight'));
+  
+  // 为目标元素添加一次性的闪烁高亮类，帮助用户快速定位
+  element.classList.add('outline-flash-highlight');
+  
+  // 设置定时器在动画结束后移除高亮类，保持页面整洁
+  if (highlightTimeout) clearTimeout(highlightTimeout);
   highlightTimeout = window.setTimeout(() => {
-    element.classList.remove('outline-flash-highlight')
-  }, 2000)
-  hint.value.visible = false
+    element.classList.remove('outline-flash-highlight');
+  }, 2000);
+
+  // 隐藏操作提示，避免遮挡视线
+  hint.value.visible = false;
 }
 
 

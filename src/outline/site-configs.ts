@@ -35,6 +35,7 @@ export const siteConfigs: { [key: string]: SiteConfig } = {
     messageText: '.user-content',
     observeTarget: '.chat-content-list',
     waitForElement: '.chat-content-item-user',
+    scrollContainer: '.chat-detail-main',
   },
   'ying.baichuan-ai.com': {
     userMessage: '[data-type="prompt-item"]',
@@ -88,8 +89,7 @@ export const siteConfigs: { [key: string]: SiteConfig } = {
   'www.doubao.com': {
     userMessage: 'div[data-testid="send_message"]',
     messageText: 'div[data-testid="message_text_content"]',
-    observeTarget: 'div.inter-jQQQ8P',
-    scrollContainer: 'div.flex-1.min-h-0.w-full.overflow-y-auto',
+    observeTarget: '[data-testid="message-list"]',
     waitForElement: 'div[data-testid="send_message"]',
   },
 } as const;
