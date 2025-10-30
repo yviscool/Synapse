@@ -3,7 +3,9 @@
  * useOutline.ts - 大纲组件的“数据大脑” (Vue Composition API Hook)
  * =================================================================================
  *
- * 它的职责是：
+ * 致未来的开发者（也包括 10 年后的我）:
+ *
+ * 你好！这个文件是 Outline.vue 组件的核心逻辑。它的职责是：
  * 1.  **侦测 (Observe):** 像一个“侦察兵”，使用 MutationObserver 监视 AI 聊天网站的 DOM 变化。
  * 2.  **适配 (Adapt):** 读取 `site-configs.ts` 里的配置，知道要去“看”哪里。
  * 3.  **解析 (Scan):** 读取 DOM，抓取所有用户消息，生成大纲条目。
@@ -84,7 +86,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
      */
     if (config.virtualizedList) {
       const { scrollBarButton, titleAttribute, idLinkAttribute } = config.virtualizedList;
-      
+
       // 注意：我们从全局 `document` 查找，因为滚动条不一定在 `targetRef` 内部
       const scrollbarButtons = document.querySelectorAll(scrollBarButton);
 
@@ -109,7 +111,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
           element: element, // 关键：element 指向 <ms-chat-turn> 这类“空壳”
         });
       });
-    } 
+    }
     /**
      * 模式 B: 传统 DOM 扫描逻辑 (例如 chatgpt.com)
      * ----------------------------------------------------------------
@@ -122,14 +124,14 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     else {
       // 如果连 `targetRef` 都没有，那什么也做不了
       if (!targetRef.value) return [];
-      
+
       const userMessages = targetRef.value.querySelectorAll(config.userMessage);
       userMessages.forEach((msg, index) => {
         // 优先在消息元素(msg)内部查找文本节点(config.messageText)
         // 如果找不到，就退而求其次，使用 msg 自身的文本
         const textEl = msg.querySelector(config.messageText) || msg;
         let title = (textEl.textContent || '').trim();
-        
+
         // 忽略空消息
         if (!title) return;
 
@@ -157,10 +159,10 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     // 在 SPA 路由切换时，`targetRef` 可能已经被 Vue 卸载（但 DOM 侦察兵的回调可能还在队列中）。
     // 在执行扫描前，必须确认 `targetRef` 对应的 DOM 元素还在页面上。
     if (targetRef.value && !document.body.contains(targetRef.value)) {
-        console.warn('Outline softUpdate: Target element is detached from DOM. Aborting.');
-        return; // 如果目标已失效，则不执行更新，等待 `init` 重启。
+      console.warn('Outline softUpdate: Target element is detached from DOM. Aborting.');
+      return; // 如果目标已失效，则不执行更新，等待 `init` 重启。
     }
-      
+
     // 无论哪种模式，都调用 scanDOM
     const newItems = scanDOM();
 
@@ -178,7 +180,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       }, 400); // 400ms 是一个经验值，足够 SPA 渲染
       return;
     }
-    
+
     // 如果找到了新条目，则正常更新列表
     if (newItems.length > 0) {
       items.value = newItems;
@@ -207,10 +209,10 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   const startContentObserver = () => {
     // 防止重复启动
     if (contentObserver || !targetRef.value) return;
-    
+
     // `MutationObserver` 是一个高性能的浏览器 API，用于监视 DOM 树的变化。
     contentObserver = new MutationObserver(softUpdate); // 当变化发生时，调用我们的轻量级更新
-    
+
     // 我们监视 `targetRef`（聊天容器）的：
     // - childList: 子节点增删（比如新增了一条消息）
     // - subtree:   所有后代节点的变化（比如 AI 消息在某个深层 div 里更新了文本）
@@ -218,20 +220,20 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     contentObserver.observe(targetRef.value, {
       childList: true,
       subtree: true,
-      characterData: true, 
+      characterData: true,
     });
   };
-  
+
   /**
    * 停止所有“侦察兵”
    *
    * 在 `init` 重启或组件卸载时调用，防止内存泄漏。
    */
   const stopObservers = () => {
-      bootstrapObserver?.disconnect();
-      contentObserver?.disconnect();
-      contentObserver = null;
-      bootstrapObserver = null;
+    bootstrapObserver?.disconnect();
+    contentObserver?.disconnect();
+    contentObserver = null;
+    bootstrapObserver = null;
   }
 
   /**
@@ -244,62 +246,62 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
    * `init` 负责在每次页面“貌似”刷新后，重新找到监视目标并启动“侦察兵”。
    */
   const init = async () => {
-      // 1. 立即重置状态，显示加载中
-      items.value = [];
-      isLoading.value = true;
-      
-      // 2. 停止所有旧的“侦察兵”，防止它们操作旧的 DOM
-      stopObservers();
+    // 1. 立即重置状态，显示加载中
+    items.value = [];
+    isLoading.value = true;
 
-      // 3. 异步、带重试地查找新页面的“聊天容器” (`config.observeTarget`)
-      await new Promise<void>(resolve => {
-        let attempts = 0;
-        const interval = setInterval(() => {
-            const targetElement = document.querySelector<HTMLElement>(config.observeTarget);
-            // 如果找到了，或者重试了 50 次（5秒）后，就停止
-            if (targetElement || attempts > 50) { 
-                clearInterval(interval);
-                targetRef.value = targetElement; // 将找到的元素存入 Ref
-                resolve();
+    // 2. 停止所有旧的“侦察兵”，防止它们操作旧的 DOM
+    stopObservers();
+
+    // 3. 异步、带重试地查找新页面的“聊天容器” (`config.observeTarget`)
+    await new Promise<void>(resolve => {
+      let attempts = 0;
+      const interval = setInterval(() => {
+        const targetElement = document.querySelector<HTMLElement>(config.observeTarget);
+        // 如果找到了，或者重试了 50 次（5秒）后，就停止
+        if (targetElement || attempts > 50) {
+          clearInterval(interval);
+          targetRef.value = targetElement; // 将找到的元素存入 Ref
+          resolve();
+        }
+        attempts++;
+      }, 100); // 每 100ms 试一次
+    });
+
+    // 4. 检查是否成功找到了容器
+    if (targetRef.value) {
+      // 5. （可选）等待“第一个用户消息” (`config.waitForElement`) 出现
+      //    这用于修复：容器 `div` 先出现，但内容是后加载的
+      if (config.waitForElement) {
+        await new Promise<void>(resolve => {
+          let attempts = 0;
+          const interval = setInterval(() => {
+            // 如果在容器内找到了“等待元素”，或重试了 50 次（2.5秒）
+            if (targetRef.value?.querySelector(config.waitForElement!) || attempts > 50) {
+              clearInterval(interval);
+              resolve();
             }
             attempts++;
-        }, 100); // 每 100ms 试一次
-      });
-
-      // 4. 检查是否成功找到了容器
-      if (targetRef.value) {
-          // 5. （可选）等待“第一个用户消息” (`config.waitForElement`) 出现
-          //    这用于修复：容器 `div` 先出现，但内容是后加载的
-          if (config.waitForElement) {
-              await new Promise<void>(resolve => {
-                let attempts = 0;
-                const interval = setInterval(() => {
-                    // 如果在容器内找到了“等待元素”，或重试了 50 次（2.5秒）
-                    if (targetRef.value?.querySelector(config.waitForElement!) || attempts > 50) {
-                        clearInterval(interval);
-                        resolve();
-                    }
-                    attempts++;
-                }, 50);
-              });
-          }
-          
-          // 6. （可选）为某些“极其棘手”的网站（如 AI Studio）提供一个“最终手段”
-          //    强制等待一段时间，确保所有东西（比如滚动条按钮）都渲染完毕。
-          if (config.initDelay) {
-            await new Promise(resolve => setTimeout(resolve, config.initDelay));
-          }
-          
-          // 7. 执行首次扫描
-          softUpdate();
-          
-          // 8. 启动“侦察兵”，开始监视后续变化
-          startContentObserver();
-      } else {
-          // 彻底失败：5秒后还是没找到容器，停止加载，显示空状态
-          isLoading.value = false;
-          console.warn("Outline Generator: Observe target not found after URL change.");
+          }, 50);
+        });
       }
+
+      // 6. （可选）为某些“极其棘手”的网站（如 AI Studio）提供一个“最终手段”
+      //    强制等待一段时间，确保所有东西（比如滚动条按钮）都渲染完毕。
+      if (config.initDelay) {
+        await new Promise(resolve => setTimeout(resolve, config.initDelay));
+      }
+
+      // 7. 执行首次扫描
+      softUpdate();
+
+      // 8. 启动“侦察兵”，开始监视后续变化
+      startContentObserver();
+    } else {
+      // 彻底失败：5秒后还是没找到容器，停止加载，显示空状态
+      isLoading.value = false;
+      console.warn("Outline Generator: Observe target not found after URL change.");
+    }
   };
 
   // --- Vue 生命周期钩子 ---
@@ -321,7 +323,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
             lastUrl = window.location.href;
             init(); // 触发“重启程序”
           }
-        }, 200); 
+        }, 200);
       });
     } else {
       // 如果浏览器太老（不太可能），此功能将在 SPA 切换时失效
@@ -331,10 +333,10 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
 
   // 组件卸载时，清理所有侦察兵和计时器
   onUnmounted(() => {
-      stopObservers();
-      if (emptyStateTimeout) clearTimeout(emptyStateTimeout);
-      // TODO: 理论上还应移除 navigation 的监听器，但在油猴脚本场景下，
-      // 脚本/组件的生命周期通常与页面绑定，所以问题不大。
+    stopObservers();
+    if (emptyStateTimeout) clearTimeout(emptyStateTimeout);
+    // TODO: 理论上还应移除 navigation 的监听器，但在油猴脚本场景下，
+    // 脚本/组件的生命周期通常与页面绑定，所以问题不大。
   });
 
   // =================================================================================
@@ -352,9 +354,9 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   const getScrollContainer = (): HTMLElement | Window => {
     if (config.scrollContainer === window) return window;
     if (typeof config.scrollContainer === 'string') {
-        const el = document.querySelector<HTMLElement>(config.scrollContainer);
-        // 如果找到了配置的滚动容器，就用它
-        if (el) return el;
+      const el = document.querySelector<HTMLElement>(config.scrollContainer);
+      // 如果找到了配置的滚动容器，就用它
+      if (el) return el;
     }
     // 兜底方案：使用 `targetRef`（聊天容器），或 `document`，或 `window`
     return targetRef.value || document.documentElement || window;
@@ -363,13 +365,13 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   // 创建一个 Ref 来存储滚动容器
   const scrollContainerRef = ref<HTMLElement | Window>(window);
   onMounted(() => {
-      // 挂载后，立即查找并设置滚动容器
-      scrollContainerRef.value = getScrollContainer();
+    // 挂载后，立即查找并设置滚动容器
+    scrollContainerRef.value = getScrollContainer();
   });
 
   // 使用 vueuse 的 `useScroll` 来高性能地监听滚动事件
-  const { y: scrollY } = useScroll(scrollContainerRef as Ref<HTMLElement | Window>, { 
-      throttle: 150 // 节流：每 150ms 最多触发一次
+  const { y: scrollY } = useScroll(scrollContainerRef as Ref<HTMLElement | Window>, {
+    throttle: 150 // 节流：每 150ms 最多触发一次
   });
 
   /**
@@ -383,7 +385,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
 
     const container = scrollContainerRef.value;
     const isWindow = container === window;
-    
+
     // 获取视口（滚动容器）的高度
     const containerHeight = isWindow ? window.innerHeight : (container as HTMLElement).clientHeight;
 
@@ -393,57 +395,64 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     let maxVisibility = 0; // 存储最大的“可见比例”
 
     items.value.forEach((item, index) => {
-        const el = item.element; // 获取条目对应的 DOM 元素
-        if (!el) return;
+      const el = item.element; // 获取条目对应的 DOM 元素
+      if (!el) return;
 
-        // getBoundingClientRect() 是获取元素位置的“神器”
-        const rect = el.getBoundingClientRect();
-        
-        // 1. 快速排除：如果元素完全在视口上方 (rect.bottom < 0) 或
-        //    完全在视口下方 (rect.top > containerHeight)，则它不可见，跳过。
-        if (rect.bottom < 0 || rect.top > containerHeight) return;
+      // getBoundingClientRect() 是获取元素位置的“神器”
+      const rect = el.getBoundingClientRect();
 
-        // 2. 计算可见高度：
-        //    - 可见的顶部 = max(元素顶部, 0)
-        //    - 可见的底部 = min(元素底部, 视口高度)
-        const top = Math.max(rect.top, 0);
-        const bottom = Math.min(rect.bottom, containerHeight);
-        const visibleHeight = bottom - top;
-        
-        // 3. 计算可见比例
-        if (visibleHeight > 0) {
-            // 可见比例 = 可见高度 / 元素总高度
-            const visibility = visibleHeight / rect.height;
-            
-            // 4. 找出“赢家”：
-            //    - 必须比当前的“赢家”可见比例更高
-            //    - 且可见比例必须超过 30%（避免一个元素刚露出 1 像素就高亮）
-            if (visibility > maxVisibility && visibility > 0.3) {
-                maxVisibility = visibility;
-                mostVisibleIndex = index;
-            }
+      // 1. 快速排除：如果元素完全在视口上方 (rect.bottom < 0) 或
+      //    完全在视口下方 (rect.top > containerHeight)，则它不可见，跳过。
+      if (rect.bottom < 0 || rect.top > containerHeight) return;
+
+      // 2. 计算可见高度：
+      //    - 可见的顶部 = max(元素顶部, 0)
+      //    - 可见的底部 = min(元素底部, 视口高度)
+      const top = Math.max(rect.top, 0);
+      const bottom = Math.min(rect.bottom, containerHeight);
+      const visibleHeight = bottom - top;
+
+      // 3. 计算可见比例
+      if (visibleHeight > 0) {
+        // 可见比例 = 可见高度 / 元素总高度
+        const visibility = visibleHeight / rect.height;
+
+        // 4. 找出“赢家”：
+        //    - 必须比当前的“赢家”可见比例更高
+        //    - 且可见比例必须超过 30%（避免一个元素刚露出 1 像素就高亮）
+        if (visibility > maxVisibility && visibility > 0.3) {
+          maxVisibility = visibility;
+          mostVisibleIndex = index;
         }
+      }
     });
 
     // 如果找到了一个“赢家”，就更新高亮索引
     if (mostVisibleIndex !== -1) {
-        highlightedIndex.value = mostVisibleIndex;
+      highlightedIndex.value = mostVisibleIndex;
     }
   }, 50); // 防抖 50ms，提供平滑的响应
-  
+
   // --- 侦听器 (Watchers) ---
 
   // 1. 当 `scrollY`（滚动位置）变化时，触发高亮计算
   watch(scrollY, updateHighlight);
-  
+
   // 2. 当 `items` 列表本身发生变化时（例如 `scanDOM` 重新运行时），
   //    也立即触发一次高亮计算
   watch(items, updateHighlight, { deep: true, immediate: true });
 
   // --- 最终暴露 ---
   return {
+
     items,
+
     highlightedIndex,
+
     updateItems,
+
+    isLoading,
+
   }
+
 }
