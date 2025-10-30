@@ -1097,6 +1097,11 @@ watch(() => route.query.action, (action) => {
     }
 });
 
+// 监听自定义事件以处理重复点击
+function handleCreateNewPrompt() {
+    createNewPrompt();
+}
+
 onMounted(async () => {
     try {
         await loadInitialData();
@@ -1128,6 +1133,9 @@ onMounted(async () => {
         if (route.query.action === "new") {
             createNewPrompt();
         }
+
+        // 添加自定义事件监听器
+        window.addEventListener('create-new-prompt', handleCreateNewPrompt);
     } catch (error) {
         console.error("Failed to open database:", error);
         showToast(t("common.toast.dbConnectionFailed"), "error");
@@ -1136,6 +1144,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
     if (shelfObserver) shelfObserver.disconnect();
+    // 移除自定义事件监听器
+    window.removeEventListener('create-new-prompt', handleCreateNewPrompt);
 });
 </script>
 
