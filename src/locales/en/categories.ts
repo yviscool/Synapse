@@ -83,7 +83,7 @@ export default {
     step3Title: "Step 3: Add Extra Tags (optional)",
     step3Description:
       "Add common tags to all prompts from this import for easy tracking.",
-    tagInputPlaceholder: "Add a tag and press Enter...",
+    tagInputPlaceholder: "Add a tag and press Tab or Enter...",
     cancel: "Cancel",
     mergeButton: "Merge {count} Prompts",
     mergingButton: "Merging...",

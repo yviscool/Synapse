@@ -81,7 +81,7 @@ export default {
     step2Description: "为所有导入的 Prompt 指定至少一个分类。",
     step3Title: "第三步：添加额外标签 (可选)",
     step3Description: "为这次导入的所有 Prompt 添加统一的标签，便于追踪。",
-    tagInputPlaceholder: "添加标签后回车...",
+    tagInputPlaceholder: "添加标签后Tab键或回车...",
     cancel: "取消",
     mergeButton: "合并 {count} 条 Prompts",
     mergingButton: "正在合并...",
