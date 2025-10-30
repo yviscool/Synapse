@@ -152,21 +152,23 @@
 
           <!-- 右侧编辑器区域：占剩余空间 -->
           <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50 min-w-0">
-            <label class="block text-sm font-medium text-gray-700">{{ t('prompts.editor.promptContent') }}</label>
+            <div class="flex items-center justify-between">
+              <label class="block text-sm font-medium text-gray-700">{{ t('prompts.editor.promptContent') }}</label>
 
-            <!-- 版本预览状态提示条 -->
-            <!-- 预览历史版本时的提示 -->
-            <div v-if="isReadonly && previewingVersion" class="p-2 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm flex items-center justify-between">
-              <span class="font-medium">{{ t('prompts.editor.previewing', { version: previewingVersion.versionNumber }) }}</span>
-              <button @click="$emit('edit-from-preview')" class="px-3 py-1 bg-white border border-yellow-400 rounded-md hover:bg-yellow-50 transition-colors">{{ t('prompts.editor.editFromPreview') }}</button>
-            </div>
-            <!-- 基于历史版本编辑时的提示 -->
-            <div v-if="!isReadonly && baseVersionForEdit" class="p-2 rounded-lg bg-blue-100 border border-blue-300 text-blue-800 text-sm flex items-center justify-between">
-              <span class="font-medium">{{ t('prompts.editor.editingBasedOn', { version: baseVersionForEdit.versionNumber }) }}</span>
-            </div>
-            <!-- 新建版本时的提示 -->
-            <div v-if="!isReadonly && !baseVersionForEdit" class="p-2 rounded-lg bg-green-100 border border-green-300 text-green-800 text-sm flex items-center">
-              <span class="font-medium">{{ t('prompts.editor.editingNew') }}</span>
+              <!-- 版本预览状态提示条 -->
+              <!-- 预览历史版本时的提示 -->
+              <div v-if="isReadonly && previewingVersion" class="px-2 py-1 rounded-md bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs flex items-center justify-between">
+                <span class="font-medium">{{ t('prompts.editor.previewing', { version: previewingVersion.versionNumber }) }}</span>
+                <button @click="$emit('edit-from-preview')" class="ml-2 px-2 py-0.5 bg-white border border-yellow-400 rounded-md hover:bg-yellow-50 transition-colors">{{ t('prompts.editor.editFromPreview') }}</button>
+              </div>
+              <!-- 基于历史版本编辑时的提示 -->
+              <div v-else-if="!isReadonly && baseVersionForEdit" class="px-2 py-1 rounded-md bg-blue-100 border border-blue-300 text-blue-800 text-xs flex items-center justify-between">
+                <span class="font-medium">{{ t('prompts.editor.editingBasedOn', { version: baseVersionForEdit.versionNumber }) }}</span>
+              </div>
+              <!-- 新建版本时的提示 -->
+              <div v-else-if="!isReadonly && !baseVersionForEdit" class="px-2 py-1 rounded-md bg-green-100 border border-green-300 text-green-800 text-xs flex items-center">
+                <span class="font-medium">{{ t('prompts.editor.editingNew') }}</span>
+              </div>
             </div>
 
             <!-- Markdown编辑器 -->
