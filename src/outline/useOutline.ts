@@ -445,5 +445,5 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     items,
     highlightedIndex,
     updateItems,
-T  }
+  }
 }
