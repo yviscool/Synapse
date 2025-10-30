@@ -8,6 +8,12 @@ export interface SiteConfig {
   scrollContainer?: string | Window;
   waitForElement?: string;
   initDelay?: number;
+// ★ 新增：为虚拟化列表提供专门的选择器
+  virtualizedList?: {
+    scrollBarButton: string; // 指向滚动条上的按钮
+    titleAttribute: string;  // 按钮上存储标题的属性 (例如 'aria-label')
+    idLinkAttribute: string; // 按钮上存储目标ID的属性 (例如 'aria-controls')
+  };
 }
 
 // 导出一个不可变的配置映射
@@ -23,6 +29,20 @@ export const siteConfigs: { [key: string]: SiteConfig } = {
     messageText: '.query-text',
     observeTarget: 'chat-window',
     waitForElement: 'user-query .query-text',
+  },
+  'aistudio.google.com': {
+    userMessage: '[data-turn-role="User"]',
+    messageText: '.user-chunk',
+    observeTarget: 'ms-autoscroll-container',
+    scrollContainer: 'ms-autoscroll-container',
+    waitForElement: '[data-turn-role="User"] .user-chunk',
+    initDelay: 500, // ★ 建议添加一个延迟，确保滚动条按钮加载完毕
+    // ★ 新增：激活虚拟化列表扫描模式
+    virtualizedList: {
+      scrollBarButton: 'ms-prompt-scrollbar button[aria-controls^="turn-"]',
+      titleAttribute: 'aria-label',
+      idLinkAttribute: 'aria-controls',
+    },
   },
   'chat.deepseek.com': {
     userMessage: '.dad65929 > div:nth-child(odd)',
