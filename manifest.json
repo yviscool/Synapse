@@ -29,7 +29,8 @@
     "https://openrouter.ai/*",
     "https://www.doubao.com/*",
     "https://longcat.chat/*",
-    "https://chat.inceptionlabs.ai/*"
+    "https://chat.inceptionlabs.ai/*",
+    "https://grok.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -54,7 +55,8 @@
         "https://openrouter.ai/*",
         "https://www.doubao.com/*",
         "https://longcat.chat/*",
-        "https://chat.inceptionlabs.ai/*"
+        "https://chat.inceptionlabs.ai/*",
+	"https://grok.com/*"
       ],
       "js": [
         "content.js"

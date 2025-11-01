@@ -125,4 +125,10 @@ export const siteConfigs: { [key: string]: SiteConfig } = {
     observeTarget: '#messages-container',
     waitForElement: '.user-message',
   },
+  'grok.com': {
+    userMessage: 'div.group.items-end',
+    messageText: 'span.whitespace-pre-wrap',
+    observeTarget: 'div.overflow-y-auto.scrollbar-gutter-stable',
+    waitForElement: 'div.group.items-end span.whitespace-pre-wrap',
+  },
 } as const;
