@@ -45,47 +45,69 @@ import "@/styles"
   }
 
   /**
-   * 核心检测函数：通过检查宿主页面的 <html> 和 <body> 元素来判断当前主题。
-   * 这是“终极方案”的关键所在。
-   * @returns {'dark' | 'light' | null} 返回检测到的主题，如果未检测到则返回 null。
-   */
+    * 核心检测函数：通过检查宿主页面的 <html> 和 <body> 元素来判断当前主题。
+    * @returns {'dark' | 'light' | null} 返回检测到的主题，如果未检测到则返回 null。
+    */
   function detectHostPageTheme() {
     const html = document.documentElement;
     const body = document.body;
 
-    // 关键词列表，可以根据需要扩展
+    // 关键词列表
     const darkKeywords = ['dark', 'night', 'dim'];
     const lightKeywords = ['light', 'day', 'white'];
+    const systemKeywords = ['system', 'auto']; // 新增：用于检测“跟随系统”
 
-    // 将 <html> 和 <body> 的 class 和所有 data-* 属性拼接成一个长字符串，便于搜索
-    // 这覆盖了 class="dark", data-theme="dark" 等绝大多数情况
-    let attributesString = `${html.className} ${body.className}`;
-    
-    // 遍历所有属性，寻找主题相关的线索
+    // 1. 我们只收集“有意义”的属性值
+    // 首先包含 class
+    let attributeValues = [html.className, body.className];
+
     const elementsToInspect = [html, body];
     for (const element of elementsToInspect) {
+      if (!element) continue; // 确保元素存在
       for (let i = 0; i < element.attributes.length; i++) {
         const attr = element.attributes[i];
-        // 我们关心属性名和属性值中包含关键词的情况
-        // 例如：<html yb-theme-mode="dark">
-        attributesString += ` ${attr.name}=${attr.value}`;
+        const attrName = attr.name.toLowerCase();
+
+        // 【关键修复】跳过 class（已添加）和 style（Bug 来源）
+        if (attrName === 'class' || attrName === 'style') {
+          continue;
+        }
+
+        // 【关键优化】只检查与主题相关的属性
+        // 我们只关心属性名包含 'theme' 或 'mode' 的属性
+        if (attrName.includes('theme') || attrName.includes('mode')) {
+          attributeValues.push(attr.value);
+        }
       }
     }
 
-    attributesString = attributesString.toLowerCase();
+    // 2. 将所有相关值合并为一个搜索字符串
+    const searchString = attributeValues.join(' ').toLowerCase();
 
-    // 优先判断页面是否明确为浅色模式
-    // 这样做可以避免一些误判，例如 class="not-dark"
-    if (lightKeywords.some(keyword => attributesString.includes(keyword))) {
+    // 如果没有找到任何相关的类或属性，则返回 null
+    if (!searchString.trim()) {
+      return null;
+    }
+
+    // 3. 重新排序检测逻辑
+
+    // 【优先级 1】: 检查是否明确设置了“跟随系统”
+    // 这将正确处理 yb-theme-mode="system"
+    if (systemKeywords.some(keyword => searchString.includes(keyword))) {
+      return null; // 返回 null，syncTheme 将回退到系统媒体查询
+    }
+
+    // 【优先级 2】: 检查是否为浅色模式
+    if (lightKeywords.some(keyword => searchString.includes(keyword))) {
       return 'light';
     }
 
-    // 然后判断页面是否为深色模式
-    if (darkKeywords.some(keyword => attributesString.includes(keyword))) {
+    // 【优先级 3】: 检查是否为深色模式
+    if (darkKeywords.some(keyword => searchString.includes(keyword))) {
       return 'dark';
     }
 
-    // 如果在页面上找不到任何明确的线索，返回 null
+    // 4. 如果在相关属性中未找到任何关键词，返回 null
     return null;
   }
 
@@ -100,7 +122,7 @@ import "@/styles"
       applyTheme(true);
       return; // 找到明确设置，任务结束
     }
-    
+
     if (hostTheme === 'light') {
       applyTheme(false);
       return; // 找到明确设置，任务结束
@@ -128,7 +150,7 @@ import "@/styles"
 
   // 等待 body 加载完毕再开始监听，防止 body 为 null
   const observerConfig = { attributes: true }; // 我们只关心属性（包括class, style, data-* 等）的变化
-  
+
   if (document.body) {
     observer.observe(document.documentElement, observerConfig);
     observer.observe(document.body, observerConfig);
