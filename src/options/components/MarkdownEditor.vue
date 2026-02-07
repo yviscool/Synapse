@@ -1,10 +1,13 @@
 <template>
-  <div class="flex flex-col h-full ">
-    <div class="flex-1 overflow-y-auto">
-      <MilkdownProvider>
-        <MilkdownEditorCore v-model="model" :placeholder="props.placeholder" :readonly="props.readonly"
-          @change="handleChange" @update:stats="stats = $event" @update:cursor="cursorPosition = $event" />
-      </MilkdownProvider>
+  <div class="flex flex-col h-full min-h-0">
+    <div class="flex-1 min-h-0 overflow-hidden">
+      <MilkdownEditorCore
+        v-model="model"
+        :placeholder="props.placeholder"
+        :readonly="props.readonly"
+        @change="handleChange"
+        @update:stats="stats = $event"
+      />
     </div>
 
     <div
@@ -12,16 +15,12 @@
       <span>{{ stats.lines }} 行</span>
       <span>{{ stats.words }} 词</span>
       <span>{{ stats.characters }} 字符</span>
-      <span v-if="cursorPosition">
-        行 {{ cursorPosition.line }}, 列 {{ cursorPosition.column }}
-      </span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { MilkdownProvider } from '@milkdown/vue'
 import MilkdownEditorCore from './Milkdown.vue'
 
 interface Props {
@@ -33,7 +32,6 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 })
 const emit = defineEmits<{ (e: 'change', value: string): void }>()
-const cursorPosition = ref<{ line: number; column: number } | null>(null)
 
 const model = defineModel<string>({ required: true })
 
@@ -52,8 +50,9 @@ const handleChange = (value: string) => {
 
 <style>
 .milkdown .ProseMirror {
-  /* 移除这里的 padding 样式！让 Crepe 主题自己控制 */
-  height: 100%;
+  /* 由 milkdown 容器负责滚动，编辑区内容保持自然高度 */
+  min-height: 100%;
+  height: auto;
   box-sizing: border-box;
   overflow-wrap: break-word;
 }
@@ -68,10 +67,14 @@ const handleChange = (value: string) => {
   /* 优先级更高 */
   font-size: 16px !important;
   line-height: 1.6 !important;
-  font-weight: bold !important;
+  font-weight: 400 !important;
 }
 
 .milkdown {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
   background: #ffffff;
 }

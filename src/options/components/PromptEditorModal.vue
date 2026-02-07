@@ -1,6 +1,6 @@
 <template>
   <!-- 模态框背景遮罩层：固定定位覆盖整个视口，半透明黑色背景配合毛玻璃效果 -->
-  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" @click="handleModalClick">
+  <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" @click="handleModalClick">
     <!-- 模态框容器：白色背景，圆角设计，根据是否显示版本历史动态调整宽度 -->
     <div
       class="bg-white rounded-2xl shadow-2xl max-h-[100vh] overflow-hidden w-full"
@@ -41,13 +41,13 @@
       </div>
 
       <!-- 模态框主体内容区域 -->
-      <div class="flex h-[75vh]">
+      <div class="flex h-[75vh] min-h-0">
         <!-- 左侧版本历史面板 -->
         <div v-if="showVersionHistoryLocal && modelValue?.id" class="w-80 border-l border-gray-200 flex flex-col flex-shrink-0 min-w-0">
           <VersionHistory
             :prompt-id="modelValue.id"
             :current-version-id="modelValue.currentVersionId"
-            :current-content="modelValue.content || ''"
+            :current-content="contentProxy"
             @version-restored="$emit('version-restored', $event)"
             @version-deleted="$emit('version-deleted', $event)"
             @preview-version="$emit('preview-version', $event)"
@@ -55,7 +55,7 @@
         </div>
 
         <!-- 右侧编辑区域 -->
-        <div class="flex-1 flex overflow-hidden">
+        <div class="flex-1 flex overflow-hidden min-h-0">
           <!-- 中间元数据面板：固定宽度，包含提示词的基本信息 -->
           <div class="w-96 border-r border-gray-200 p-4 flex flex-col space-y-4 overflow-y-auto">
             <h3 class="text-lg font-semibold text-gray-800 tracking-wide">{{ t('prompts.editor.metadata') }}</h3>
@@ -84,7 +84,7 @@
                     @click="toggleCategoryForEdit(category.id)"
                     :class="[
                       'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border',
-                      (modelValue?.categoryIds || []).includes(category.id)
+                      (Array.isArray(localModel.categoryIds) ? localModel.categoryIds : []).includes(category.id)
                         ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
                         : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
                     ]"
@@ -151,7 +151,7 @@
           </div>
 
           <!-- 右侧编辑器区域：占剩余空间 -->
-          <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50 min-w-0">
+          <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50 min-w-0 min-h-0">
             <div class="flex items-center justify-between">
               <label class="block text-sm font-medium text-gray-700">{{ t('prompts.editor.promptContent') }}</label>
 
@@ -172,12 +172,12 @@
             </div>
 
             <!-- Markdown编辑器 -->
-            <div class="flex-1 relative border border-gray-200 rounded-lg overflow-hidden shadow-inner bg-white flex flex-col">
+            <div class="flex-1 relative border border-gray-200 rounded-lg overflow-hidden shadow-inner bg-white flex flex-col min-h-0">
               <MarkdownEditor
                 v-model="contentProxy"
                 :readonly="isReadonly"
                 :placeholder="t('prompts.editor.contentPlaceholder')"
-                @change="$emit('content-change')"
+                @change="handleEditorContentChange"
               />
             </div>
           </div>
@@ -188,13 +188,13 @@
       <div class="flex items-center justify-between p-2 border-t border-gray-200 bg-gray-50">
         <!-- 字符统计 -->
         <div class="text-sm text-gray-500">
-          <span v-if="modelValue?.content">
-            {{ t('prompts.editor.charCount', { count: (modelValue.content || '').length }) }}
+          <span v-if="contentProxy">
+            {{ t('prompts.editor.charCount', { count: contentProxy.length }) }}
           </span>
         </div>
         <!-- 保存按钮 -->
         <div class="flex items-center gap-3">
-          <button @click="$emit('save')" class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg">
+          <button @click="handleSave" class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg">
             <div class="i-carbon-save"></div>
             {{ t('prompts.editor.save') }}
           </button>
@@ -253,7 +253,7 @@ const emit = defineEmits<{
   // 关闭模态框
   (e: 'close'): void
   // 保存提示词
-  (e: 'save'): void
+  (e: 'save', model: Partial<Prompt>): void
   // 内容发生变化
   (e: 'content-change'): void
   // 从预览模式切换到编辑模式
@@ -275,13 +275,13 @@ const { t } = useI18n()
 // 检查模态框是否打开（通过modelValue是否存在判断）
 const isOpen = computed(() => !!props.modelValue)
 // 使用自定义Hook处理模态框的打开/关闭逻辑
-useModal(isOpen, () => emit('close'))
+useModal(isOpen, () => emit('close'), { lockScroll: false })
 
 // 监听快捷键（Ctrl+Enter 或 Meta+Enter 保存）
 const keys = useMagicKeys()
 watch([keys['Ctrl+Enter'], keys['Meta+Enter']], ([ctrl, meta]) => {
   if ((ctrl || meta) && isOpen.value) {
-    emit('save')
+    handleSave()
   }
 })
 
@@ -289,22 +289,49 @@ watch([keys['Ctrl+Enter'], keys['Meta+Enter']], ([ctrl, meta]) => {
 // 计算属性 - 双向绑定代理
 // ===============================
 
+const localModel = ref<Partial<Prompt>>({})
+// 避免每次按键都通知父组件，当前编辑会话只上报一次内容变更
+const hasEmittedContentChange = ref(false)
+
+watch(
+  () => props.modelValue,
+  (val) => {
+    const incoming = val || {}
+    hasEmittedContentChange.value = false
+    localModel.value = {
+      ...incoming,
+      categoryIds: Array.isArray(incoming.categoryIds) ? [...incoming.categoryIds] : [],
+      tagIds: Array.isArray(incoming.tagIds) ? [...incoming.tagIds] : [],
+    }
+  },
+  { immediate: true, deep: true },
+)
+
 // 标题的双向绑定代理
 const titleProxy = computed({
-  get: () => props.modelValue?.title || '',
-  set: (val: string) => emit('update:modelValue', { ...props.modelValue, title: val }),
+  get: () => localModel.value?.title || '',
+  set: (val: string) => {
+    if ((localModel.value?.title || '') === val) return
+    localModel.value = { ...localModel.value, title: val }
+  },
 })
 
 // 内容的双向绑定代理
 const contentProxy = computed({
-  get: () => props.modelValue?.content || '',
-  set: (val: string) => emit('update:modelValue', { ...props.modelValue, content: val }),
+  get: () => localModel.value?.content || '',
+  set: (val: string) => {
+    if ((localModel.value?.content || '') === val) return
+    localModel.value = { ...localModel.value, content: val }
+  },
 })
 
 // 收藏状态的双向绑定代理
 const favoriteProxy = computed({
-  get: () => Boolean(props.modelValue?.favorite),
-  set: (val: boolean) => emit('update:modelValue', { ...props.modelValue, favorite: val }),
+  get: () => Boolean(localModel.value?.favorite),
+  set: (val: boolean) => {
+    if (Boolean(localModel.value?.favorite) === val) return
+    localModel.value = { ...localModel.value, favorite: val }
+  },
 })
 
 // ===============================
@@ -314,7 +341,7 @@ const favoriteProxy = computed({
 // 本地标签输入框的值
 const tagInputLocal = ref<string>('')
 // 控制是否显示版本历史面板
-const showVersionHistoryLocal = ref(true)
+const showVersionHistoryLocal = ref(false)
 // 跟踪标签输入框是否获得焦点
 const isTagInputFocused = ref(false)
 
@@ -334,13 +361,12 @@ const changeNoteProxy = computed({
  */
 function toggleCategoryForEdit(categoryId: string) {
   // 获取当前选中的分类ID数组，如果不存在则初始化为空数组
-  const current = Array.isArray(props.modelValue?.categoryIds) ? [...(props.modelValue!.categoryIds as string[])] : []
+  const current = Array.isArray(localModel.value?.categoryIds) ? [...(localModel.value.categoryIds as string[])] : []
   const idx = current.indexOf(categoryId)
   // 如果已选中则移除，否则添加
   if (idx > -1) current.splice(idx, 1)
   else current.push(categoryId)
-  // 通过事件更新父组件数据
-  emit('update:modelValue', { ...props.modelValue, categoryIds: current })
+  localModel.value = { ...localModel.value, categoryIds: current }
 }
 
 /**
@@ -413,6 +439,18 @@ function handleTagBackspace() {
     const next = props.editingTags.slice(0, -1)
     emit('update:editingTags', next)
   }
+}
+
+function handleEditorContentChange() {
+  if (hasEmittedContentChange.value) return
+  hasEmittedContentChange.value = true
+  emit('content-change')
+}
+
+function handleSave() {
+  const snapshot = { ...localModel.value }
+  emit('update:modelValue', snapshot)
+  emit('save', snapshot)
 }
 </script>
 

@@ -1,13 +1,42 @@
 import { ref, watch, unref, onScopeDispose } from 'vue'
-import { onKeyStroke, useScrollLock } from '@vueuse/core'
+import { onKeyStroke } from '@vueuse/core'
 import type { Ref } from 'vue'
 
 // 1. 在 Composable 外部创建一个响应式的“模态框栈”
 //    这个数组将作为所有 useModal 实例共享的全局状态
 const modalStack: Ref<symbol[]> = ref([])
+const scrollLockStack: Ref<symbol[]> = ref([])
+let originalHtmlOverflow = ''
+let originalBodyOverflow = ''
+let hasStoredOverflow = false
+
+function syncGlobalScrollLock() {
+  if (typeof document === 'undefined') return
+
+  const shouldLock = scrollLockStack.value.length > 0
+  const html = document.documentElement
+  const body = document.body
+
+  if (shouldLock) {
+    if (!hasStoredOverflow) {
+      originalHtmlOverflow = html.style.overflow
+      originalBodyOverflow = body.style.overflow
+      hasStoredOverflow = true
+    }
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    return
+  }
+
+  if (!hasStoredOverflow) return
+  html.style.overflow = originalHtmlOverflow
+  body.style.overflow = originalBodyOverflow
+  hasStoredOverflow = false
+}
 
 interface UseModalOptions {
   closeOnEsc?: boolean
+  lockScroll?: boolean
 }
 
 /**
@@ -21,24 +50,28 @@ export function useModal(
   closeFn: () => void = () => {},
   options: UseModalOptions = {}
 ) {
-  const { closeOnEsc = true } = options
+  const { closeOnEsc = true, lockScroll = true } = options
 
   // 2. 为每个 useModal 实例创建一个唯一的 ID
   const modalId = Symbol('modalId')
 
-  const isLocked = useScrollLock(document.body)
-
   watch(
     isOpen,
     (v) => {
-      isLocked.value = v
-      
       // 3. 根据 isOpen 状态，在栈中添加或移除当前 modal 的 ID
       if (v) {
-        modalStack.value.push(modalId)
+        if (!modalStack.value.includes(modalId)) {
+          modalStack.value.push(modalId)
+        }
+        if (lockScroll && !scrollLockStack.value.includes(modalId)) {
+          scrollLockStack.value.push(modalId)
+        }
       } else {
         modalStack.value = modalStack.value.filter((id) => id !== modalId)
+        scrollLockStack.value = scrollLockStack.value.filter((id) => id !== modalId)
       }
+
+      syncGlobalScrollLock()
     },
     { immediate: true }
   )
@@ -63,5 +96,7 @@ export function useModal(
   // 5. 确保在组件卸载时，也将 modal 从栈中移除，防止内存泄漏
   onScopeDispose(() => {
     modalStack.value = modalStack.value.filter((id) => id !== modalId)
+    scrollLockStack.value = scrollLockStack.value.filter((id) => id !== modalId)
+    syncGlobalScrollLock()
   })
 }

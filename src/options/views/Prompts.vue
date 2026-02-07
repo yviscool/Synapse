@@ -329,9 +329,9 @@
                     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
                     <div
-                        v-for="prompt in prompts"
+                        v-for="prompt in promptCards"
                         :key="prompt.id"
-                        class="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 p-6 hover:shadow-lg transition-transform duration-200 hover:-translate-y-1"
+                        class="bg-white rounded-xl border border-gray-200/50 p-6 hover:shadow-lg transition-transform duration-200 hover:-translate-y-1"
                         @dblclick="editPrompt(prompt)"
                         :title="t('prompts.doubleClickToEdit')"
                     >
@@ -339,13 +339,7 @@
                             <div class="flex-1 min-w-0">
                                 <h3
                                     class="font-semibold text-gray-900 mb-2 line-clamp-2"
-                                    v-html="
-                                        generateHighlightedHtml(
-                                            prompt.title,
-                                            prompt.matches,
-                                            'title',
-                                        )
-                                    "
+                                    v-html="prompt.highlightedTitle"
                                 ></h3>
                                 <div
                                     class="flex items-center gap-3 text-sm text-gray-500"
@@ -428,31 +422,25 @@
                             <p
                                 class="text-gray-600 leading-relaxed line-clamp-3"
                                 @dblclick.stop
-                                v-html="
-                                    generateHighlightedHtml(
-                                        prompt.content,
-                                        prompt.matches,
-                                        'content',
-                                    )
-                                "
+                                v-html="prompt.highlightedContent"
                             ></p>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span
-                                    v-for="categoryId in prompt.categoryIds"
-                                    :key="categoryId"
+                                    v-for="(categoryName, categoryIndex) in prompt.categoryNames"
+                                    :key="`${prompt.id}-category-${categoryIndex}`"
                                     class="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800"
                                 >
-                                    {{ getCategoryName(categoryId) }}
+                                    {{ categoryName }}
                                 </span>
                                 <span
-                                    v-for="tagId in prompt.tagIds"
-                                    :key="tagId"
+                                    v-for="(tagName, tagIndex) in prompt.tagNames"
+                                    :key="`${prompt.id}-tag-${tagIndex}`"
                                     class="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-green-100 text-green-800"
                                 >
-                                    {{ getTagNames([tagId])[0] }}
+                                    {{ tagName }}
                                 </span>
                             </div>
                             <button
@@ -548,13 +536,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUI } from "@/stores/ui";
-import { db, queryPrompts, type PromptWithMatches } from "@/stores/db";
+import { db, type PromptWithMatches } from "@/stores/db";
 import { repository } from "@/stores/repository";
 import type { Prompt, Category, Tag, PromptVersion } from "@/types/prompt";
-import { generateHighlightedHtml } from "@/utils/highlighter";
+import {
+    generateHighlightedHtml,
+    generateHighlightedPreviewHtml,
+} from "@/utils/highlighter";
 import {
     createSafePrompt,
     clonePrompt,
@@ -563,43 +554,56 @@ import { useModal } from "@/composables/useModal";
 import {
     useMagicKeys,
     whenever,
-    refDebounced,
     onClickOutside,
 } from "@vueuse/core";
-import { parseQuery } from "@/utils/queryParser";
 import { getCategoryNameById, isDefaultCategory } from "@/utils/categoryUtils";
-import PromptEditorModal from "@/options/components/PromptEditorModal.vue";
-import CategoryManager from "@/options/components/CategoryManager.vue";
-import MergeImportModal from "@/options/components/MergeImportModal.vue";
-import DeleteCategoryModal from "@/options/components/DeleteCategoryModal.vue";
+import { usePromptQuery } from "@/options/composables/usePromptQuery";
 import { useRoute } from "vue-router";
+
+const PromptEditorModal = defineAsyncComponent(
+    () => import("@/options/components/PromptEditorModal.vue"),
+);
+const CategoryManager = defineAsyncComponent(
+    () => import("@/options/components/CategoryManager.vue"),
+);
+const MergeImportModal = defineAsyncComponent(
+    () => import("@/options/components/MergeImportModal.vue"),
+);
+const DeleteCategoryModal = defineAsyncComponent(
+    () => import("@/options/components/DeleteCategoryModal.vue"),
+);
 
 const { t } = useI18n();
 const { showToast, askConfirm } = useUI();
 const route = useRoute();
 
 // --- 数据与筛选状态 ---
-const prompts = ref<PromptWithMatches[]>([]); // Prompt 列表，包含匹配高亮信息
 const categories = ref<Category[]>([]); // 所有分类的列表
 const tags = ref<Tag[]>([]); // 所有标签的列表
-const availableTags = ref<Tag[]>([]); // 当前可选的标签列表（根据所选分类动态更新）
-const searchQuery = ref(""); // 原始搜索查询字符串（可包含命令，如 "cat:工作 tag:重要"）
 const searchInputRef = ref<HTMLInputElement | null>(null); // 搜索输入框的模板引用
-const searchQueryDebounced = refDebounced(searchQuery, 300); // 使用 VueUse 的 refDebounced 实现搜索防抖，减少请求频率
-const plainSearchQuery = ref(""); // 解析后移除了命令部分的纯文本搜索查询
-const parsedCategoryNames = ref<string[]>([]); // 从搜索查询中解析出的分类名称
-const parsedTagNames = ref<string[]>([]); // 从搜索查询中解析出的标签名称
-const selectedCategories = ref<string[]>([]); // 通过点击按钮选择的分类ID列表
-const selectedTags = ref<string[]>([]); // 通过点击按钮选择的标签ID列表
-const showFavoriteOnly = ref(false); // 是否只显示收藏的 Prompt
-const sortBy = ref<"updatedAt" | "createdAt" | "title">("updatedAt"); // 当前排序方式
-
-// --- 分页与加载状态 ---
-const totalPrompts = ref(0); // 符合当前筛选条件的总 Prompt 数量
-const currentPage = ref(1); // 当前加载的页码
-const isLoading = ref(false); // 是否正在加载数据
 const loaderRef = ref<HTMLElement | null>(null); // 用于无限滚动的加载触发器元素
-const hasMore = computed(() => prompts.value.length < totalPrompts.value); // 是否还有更多数据可供加载
+const {
+    prompts,
+    availableTags,
+    searchQuery,
+    searchQueryDebounced,
+    selectedCategories,
+    selectedTags,
+    showFavoriteOnly,
+    sortBy,
+    currentPage,
+    isLoading,
+    hasMore,
+    fetchPrompts,
+    refetchFromFirstPage,
+    toggleCategory,
+    toggleTag,
+    changeSortBy: setSortBy,
+} = usePromptQuery({
+    categories,
+    tags,
+    onLoadError: () => showToast(t("common.toast.loadPromptsFailed"), "error"),
+});
 
 // --- UI模态框与菜单状态 ---
 const editingPrompt = ref<Partial<Prompt> | null>(null); // 正在编辑的 Prompt 对象，为 null 时表示编辑框关闭
@@ -625,10 +629,6 @@ useModal(showMergeImport, () => {
 useModal(showDeleteCategoryModal, () => {
     showDeleteCategoryModal.value = false;
 });
-useModal(
-    computed(() => !!editingPrompt.value),
-    closeEditor,
-); // 监听编辑框状态，在关闭时执行清理操作
 
 // 使用 @vueuse/core 的 onClickOutside 实现点击元素外部时关闭对应的菜单
 onClickOutside(
@@ -664,83 +664,7 @@ const baseVersionForEdit = ref<{
     version: PromptVersion;
     versionNumber: number;
 } | null>(null); // 当从一个历史版本开始编辑时，记录其基准版本信息
-
-// --- 数据获取逻辑 ---
-
-async function fetchPrompts() {
-    if (isLoading.value) return;
-    isLoading.value = true;
-
-    const categoryNames = parsedCategoryNames.value.length
-        ? parsedCategoryNames.value
-        : (selectedCategories.value
-              .map((id) => categories.value.find((c) => c.id === id)?.name)
-              .filter(Boolean) as string[]);
-
-    const tagNames = parsedTagNames.value.length
-        ? parsedTagNames.value
-        : (selectedTags.value
-              .map((id) => tags.value.find((t) => t.id === id)?.name)
-              .filter(Boolean) as string[]);
-
-    try {
-        const { prompts: newPrompts, total } = await queryPrompts({
-            page: currentPage.value,
-            limit: 20,
-            sortBy: sortBy.value,
-            favoriteOnly: showFavoriteOnly.value,
-            searchQuery: plainSearchQuery.value,
-            categoryNames,
-            tagNames,
-        });
-
-        if (currentPage.value === 1) {
-            prompts.value = newPrompts;
-        } else {
-            prompts.value.push(...newPrompts);
-        }
-        totalPrompts.value = total;
-    } catch (error) {
-        console.error("Failed to fetch prompts:", error);
-        showToast(t("common.toast.loadPromptsFailed"), "error");
-    } finally {
-        isLoading.value = false;
-    }
-}
-
-// --- 监听器：用于命令面板和数据获取 ---
-
-watch(searchQueryDebounced, (newQuery) => {
-    const { text, categoryNames, tagNames } = parseQuery(newQuery);
-    plainSearchQuery.value = text;
-    parsedCategoryNames.value = categoryNames;
-    parsedTagNames.value = tagNames;
-
-    if (categoryNames.length > 0 && selectedCategories.value.length > 0) {
-        selectedCategories.value = [];
-    }
-    if (tagNames.length > 0 && selectedTags.value.length > 0) {
-        selectedTags.value = [];
-    }
-});
-
-watch(
-    [
-        plainSearchQuery,
-        selectedCategories,
-        selectedTags,
-        parsedCategoryNames,
-        parsedTagNames,
-        showFavoriteOnly,
-        sortBy,
-    ],
-    () => {
-        currentPage.value = 1;
-        totalPrompts.value = 0;
-        fetchPrompts();
-    },
-    { deep: true },
-);
+let listObserver: IntersectionObserver | null = null;
 
 // --- Computed Properties ---
 const sortOptions = computed(() => [
@@ -756,11 +680,64 @@ const currentSortText = computed(() => {
     );
 });
 
+type PromptCardView = PromptWithMatches & {
+    highlightedTitle: string;
+    highlightedContent: string;
+    categoryNames: string[];
+    tagNames: string[];
+};
+
+const tagNameMap = computed(() => {
+    const map = new Map<string, string>();
+    for (const tag of tags.value) {
+        map.set(tag.id, tag.name);
+    }
+    return map;
+});
+
+const categoryNameMap = computed(() => {
+    const map = new Map<string, string>();
+    for (const category of categories.value) {
+        map.set(
+            category.id,
+            isDefaultCategory(category.id)
+                ? getCategoryNameById(category.id)
+                : category.name,
+        );
+    }
+    return map;
+});
+
 const getTagNames = (tagIds: string[]): string[] => {
     return tagIds
-        .map((id) => tags.value.find((t) => t.id === id)?.name || "")
+        .map((id) => tagNameMap.value.get(id) || "")
         .filter(Boolean);
 };
+
+const promptCards = computed<PromptCardView[]>(() => {
+    const categoryMap = categoryNameMap.value;
+    const tagMap = tagNameMap.value;
+    return prompts.value.map((prompt) => ({
+        ...prompt,
+        highlightedTitle: generateHighlightedHtml(
+            prompt.title,
+            prompt.matches,
+            "title",
+        ),
+        highlightedContent: generateHighlightedPreviewHtml(
+            prompt.content,
+            prompt.matches,
+            "content",
+            280,
+        ),
+        categoryNames: (prompt.categoryIds || []).map(
+            (categoryId) => categoryMap.get(categoryId) || categoryId,
+        ),
+        tagNames: (prompt.tagIds || [])
+            .map((tagId) => tagMap.get(tagId))
+            .filter((name): name is string => Boolean(name)),
+    }));
+});
 
 const availableCategories = computed(() => {
     return categories.value
@@ -771,27 +748,6 @@ const availableCategories = computed(() => {
             name: isDefaultCategory(c.id) ? getCategoryNameById(c.id) : c.name
         }));
 });
-
-// --- Category & Tag Management ---
-watch(
-    selectedCategories,
-    async (newCategories) => {
-        if (newCategories.length === 0) {
-            availableTags.value = [];
-            return;
-        }
-        const relevantPrompts = await db.prompts
-            .where("categoryIds")
-            .anyOf(newCategories)
-            .toArray();
-        const tagIds = new Set<string>();
-        relevantPrompts.forEach((p) => {
-            p.tagIds.forEach((tagId) => tagIds.add(tagId));
-        });
-        availableTags.value = tags.value.filter((t) => tagIds.has(t.id));
-    },
-    { deep: true },
-);
 
 // --- Category Shelf Pagination ---
 const shelfViewportRef = ref<HTMLElement | null>(null);
@@ -841,7 +797,7 @@ function handleShelfScroll(event: WheelEvent) {
 }
 
 function changeSortBy(value: "updatedAt" | "createdAt" | "title") {
-    sortBy.value = value;
+    setSortBy(value);
     showSortMenu.value = false;
 }
 
@@ -850,33 +806,6 @@ watch(availableCategories, async () => {
     updateShelfDimensions();
 });
 // --- End Pagination ---
-
-function toggleCategory(categoryId: string) {
-    if (categoryId === "") {
-        selectedCategories.value = [];
-    } else {
-        const index = selectedCategories.value.indexOf(categoryId);
-        if (index > -1) {
-            selectedCategories.value.splice(index, 1);
-        } else {
-            selectedCategories.value.push(categoryId);
-        }
-    }
-    selectedTags.value = [];
-}
-
-function toggleTag(tagId: string) {
-    if (tagId === "") {
-        selectedTags.value = [];
-        return;
-    }
-    const index = selectedTags.value.indexOf(tagId);
-    if (index > -1) {
-        selectedTags.value.splice(index, 1);
-    } else {
-        selectedTags.value.push(tagId);
-    }
-}
 
 async function loadInitialData() {
     await db.open();
@@ -902,14 +831,6 @@ async function loadTags() {
     }
 }
 
-function getCategoryName(categoryId: string): string {
-    if (isDefaultCategory(categoryId)) {
-        return getCategoryNameById(categoryId);
-    }
-    const category = categories.value.find((c) => c.id === categoryId);
-    return category?.name || categoryId;
-}
-
 function createNewPrompt() {
     editingPrompt.value = createSafePrompt({
         title: "",
@@ -933,8 +854,7 @@ function editPrompt(prompt: Prompt) {
 }
 
 async function triggerRefetch() {
-    currentPage.value = 1;
-    await fetchPrompts();
+    await refetchFromFirstPage();
 }
 
 async function toggleFavorite(prompt: Prompt) {
@@ -951,7 +871,11 @@ async function toggleFavorite(prompt: Prompt) {
     }
 }
 
-async function savePrompt() {
+async function savePrompt(modelFromEditor?: Partial<Prompt>) {
+    if (modelFromEditor) {
+        editingPrompt.value = { ...modelFromEditor };
+    }
+
     if (!editingPrompt.value || !editingPrompt.value.title?.trim()) {
         showToast(t("common.toast.pleaseEnterTitle"), "error");
         return;
@@ -1106,7 +1030,7 @@ onMounted(async () => {
     try {
         await loadInitialData();
 
-        const observer = new IntersectionObserver(
+        listObserver = new IntersectionObserver(
             (entries) => {
                 if (
                     entries[0].isIntersecting &&
@@ -1120,7 +1044,7 @@ onMounted(async () => {
             { rootMargin: "200px" },
         );
         if (loaderRef.value) {
-            observer.observe(loaderRef.value);
+            listObserver.observe(loaderRef.value);
         }
 
         await nextTick();
@@ -1143,6 +1067,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    if (listObserver) listObserver.disconnect();
     if (shelfObserver) shelfObserver.disconnect();
     // 移除自定义事件监听器
     window.removeEventListener('create-new-prompt', handleCreateNewPrompt);
