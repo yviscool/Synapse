@@ -24,7 +24,7 @@ export async function listBackupFiles(): Promise<FileMetadata[]> {
   const token = await getAuthToken();
   const appFolderId = await findOrCreateAppFolder();
   const query = `'${appFolderId}' in parents and name contains '${BACKUP_FILE_PREFIX}' and trashed=false`;
-  const response = await fetch(`${API_BASE_URL}/files?q=${encodeURIComponent(query)}&orderBy=createdTime desc&fields=files(id,name,modifiedTime,createdTime,size)`, {
+  const response = await fetch(`${API_BASE_URL}/files?q=${encodeURIComponent(query)}&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime,createdTime,size)`, {
     headers: { 'Authorization': `Bearer ${token}` },
   });
   if (!response.ok) {
@@ -197,4 +197,3 @@ export async function uploadNewBackup(data: object): Promise<void> {
     throw new Error('Failed to upload content to new file.');
   }
 }
-''

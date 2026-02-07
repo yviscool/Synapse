@@ -1,6 +1,6 @@
 <template>
   <div
-    class="fixed inset-0 z-2147483646 flex items-start justify-center pointer-events-none backdrop-blur-sm transition-opacity duration-300"
+    class="fixed inset-0 z-2147483646 flex items-start justify-center pointer-events-none transition-opacity duration-300"
     :class="isMounted ? 'opacity-100' : 'opacity-0'"
   >
     <div
@@ -42,7 +42,7 @@
       <div ref="scrollContainer" class="overflow-y-auto p-3 grid gap-3 custom-scrollbar">
         <template v-if="prompts.length > 0">
           <div
-            v-for="(p, i) in prompts"
+            v-for="(p, i) in promptCards"
             :key="p.id"
             @click="$emit('select', p)"
             :class="[
@@ -57,7 +57,7 @@
               <div class="flex-1 min-w-0">
                 <div
                   class="font-semibold text-base text-gray-800/100 dark:text-white/100 truncate"
-                  v-html="generateHighlightedHtml(p.title, p.matches, 'title')"
+                  v-html="p.highlightedTitle"
                 />
               </div>
               <button
@@ -70,7 +70,7 @@
             </div>
             <div
               class="mt-1 text-gray-600/100 dark:text-white/80 text-sm line-clamp-2"
-              v-html="generateHighlightedHtml(p.content, p.matches, 'content')"
+              v-html="p.highlightedContent"
             />
             <div class="mt-3 flex items-center flex-wrap gap-x-4 gap-y-2 text-xs text-gray-500/100 dark:text-white/70">
               <div v-if="p.categoryName" class="flex items-center gap-1.5">
@@ -130,11 +130,10 @@
 </template>
 
 <script setup lang="ts">
-// --- SCRIPT部分保持不变 ---
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useFocus, useVModel } from '@vueuse/core'
 import type { PromptDTO } from '@/utils/messaging'
-import { generateHighlightedHtml } from '@/utils/highlighter'
+import { generateHighlightedHtml, generateHighlightedPreviewHtml } from '@/utils/highlighter'
 import type { FuseResultMatch } from 'fuse.js'
 import { useI18n } from 'vue-i18n'
 
@@ -165,6 +164,20 @@ useFocus(searchInput, { initialValue: true })
 
 const query = useVModel(props, 'searchQuery', emit)
 const selectedCategoryModel = useVModel(props, 'selectedCategory', emit)
+
+type PromptCardView = PromptDTO & {
+  matches?: readonly FuseResultMatch[]
+  highlightedTitle: string
+  highlightedContent: string
+}
+
+const promptCards = computed<PromptCardView[]>(() => {
+  return props.prompts.map((prompt) => ({
+    ...prompt,
+    highlightedTitle: generateHighlightedHtml(prompt.title, prompt.matches, 'title'),
+    highlightedContent: generateHighlightedPreviewHtml(prompt.content, prompt.matches, 'content', 260),
+  }))
+})
 
 const isMounted = ref(false)
 const loaderRef = ref<HTMLElement | null>(null)
@@ -198,7 +211,7 @@ function scrollToItem(index: number) {
   if (!scrollContainer.value) return
   const itemEl = scrollContainer.value.children[index] as HTMLElement
   if (itemEl) {
-    itemEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    itemEl.scrollIntoView({ block: 'nearest', behavior: 'auto' })
   }
 }
 

@@ -1,45 +1,44 @@
 import { nanoid } from 'nanoid'
 import { db, getSettings, queryPrompts } from '@/stores/db'
 import { repository } from '@/stores/repository'
-import { searchService } from '@/services/SearchService'
-import type { Prompt } from '@/types'
 import {
   MSG,
   type RequestMessage,
-  type ResponseMessage,
   type GetPromptsPayload,
   type PromptDTO,
   type DataUpdatedPayload,
-  type PerformSearchPayload,
-  type PerformSearchResult,
 } from '@/utils/messaging'
 
-// --- Initialize Search Index & Repository Listeners ---
+// --- Initialize Background ---
 console.log('[Background] Script loaded. Setting up repository listeners.')
-searchService.buildIndex().catch(console.error)
 
-/**
- * Handles all data update notifications.
- * This is the single source of truth for reacting to data changes.
- */
-// Listener for data changes originating *within* the background script's context
-repository.events.on('allChanged', () => {
-  // This case happens for minor changes initiated from the background script itself (e.g. future features).
-  // It's less critical but good to have. It will fetch from its own DB connection.
-  console.log('[Background] Internal data change detected. Rebuilding index from DB.')
-  searchService.buildIndex()
-})
+type PromptLookupCache = {
+  categoryMap: Map<string, string>
+  tagMap: Map<string, string>
+}
+
+let promptLookupCache: PromptLookupCache | null = null
+
+async function getPromptLookupCache(forceRefresh = false): Promise<PromptLookupCache> {
+  if (promptLookupCache && !forceRefresh) {
+    return promptLookupCache
+  }
+
+  const [categories, tags] = await Promise.all([
+    db.categories.toArray(),
+    db.tags.toArray(),
+  ])
+
+  promptLookupCache = {
+    categoryMap: new Map(categories.map(c => [c.id, c.name])),
+    tagMap: new Map(tags.map(t => [t.id, t.name])),
+  }
+
+  return promptLookupCache
+}
 
 chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
   const { type, data } = msg
-
-  if (type === MSG.REBUILD_INDEX_WITH_DATA) {
-    console.log('[Background] Received data payload to rebuild index.')
-    searchService.buildIndex(data)
-      .then(() => sendResponse({ ok: true }))
-      .catch(e => sendResponse({ ok: false, error: e.message }))
-    return true // async
-  }
 
   if (type === MSG.GET_PROMPTS) {
     handleGetPrompts(data)
@@ -63,8 +62,11 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
   }
 
   if (type === MSG.DATA_UPDATED) {
-    // This is a generic update message, we can just broadcast it
-    // The specific index rebuild is handled by REBUILD_INDEX_WITH_DATA
+    const payload = msg.data as DataUpdatedPayload | undefined
+    if (!payload || payload.scope === 'all' || payload.scope === 'categories' || payload.scope === 'tags') {
+      promptLookupCache = null
+    }
+    // This is a generic update message; broadcast to open tabs.
     broadcastToTabs(msg)
     return false // No response needed
   }
@@ -74,84 +76,23 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
       .catch(e => console.error('Failed to update lastUsedAt:', e))
     return false // No need to wait
   }
-
-  if (type === MSG.PERFORM_SEARCH) {
-    const { query } = data as PerformSearchPayload
-    ;(async () => {
-      try {
-        const results = await searchService.search(query)
-        // We need to cast because the result from searchService is technically Fuse.FuseResult[]
-        // but our PerformSearchResult is designed to be structurally compatible and serializable.
-        sendResponse({ ok: true, data: results as PerformSearchResult[] })
-      }
-      catch (error) {
-        sendResponse({ ok: false, error: (error as Error).message })
-      }
-    })()
-    return true // Return true to indicate async response
-  }
-
-  // --- Indexing Messages (OBSOLETE) ---
-  // These are no longer needed. The repository now notifies the background script
-  // directly and safely after a transaction is completed.
 })
-
-/**
- * A dedicated search function for the background script to avoid re-entrant messaging.
- * It performs a search and then fetches the corresponding data directly from the database.
- */
-async function searchPromptsInBackground(query: string) {
-  if (!query) {
-    return { prompts: [], total: 0 }
-  }
-
-  const searchResults = await searchService.search(query)
-  if (searchResults.length === 0) {
-    return { prompts: [], total: 0 }
-  }
-
-  const resultIds = searchResults.map(res => res.item.id)
-  const matchesMap = new Map(searchResults.map(res => [res.item.id, res.matches]))
-
-  const promptsFromDb = await db.prompts.where('id').anyOf(resultIds).toArray()
-
-  const promptsMap = new Map(promptsFromDb.map(p => [p.id, p]))
-
-  const filteredPrompts = resultIds
-    .map((id) => {
-      const prompt = promptsMap.get(id)
-      if (!prompt) return null
-      return { ...prompt, matches: matchesMap.get(id) }
-    })
-    .filter(Boolean)
-
-  return { prompts: filteredPrompts, total: filteredPrompts.length }
-}
-
 
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
 ): Promise<{ data: PromptDTO[]; total: number; version: string }> {
-  // 1. Map `q` to `searchQuery` and then call the correct logic
+  // Map `q` to `searchQuery` and keep category-only filtering behavior when no query is provided.
   const { q, ...restPayload } = payload || {}
+  const queryResult = await queryPrompts({
+    ...restPayload,
+    searchQuery: q,
+    category: q ? undefined : restPayload.category,
+  })
+  const prompts = queryResult.prompts
+  const total = queryResult.total
 
-  let prompts, total
-  if (q) {
-    // If there is a search query, use the direct background search function
-    const searchResult = await searchPromptsInBackground(q)
-    prompts = searchResult.prompts
-    total = searchResult.total
-  } else {
-    // Otherwise, use the standard query function (for category filtering, etc.)
-    const queryResult = await queryPrompts({ ...restPayload })
-    prompts = queryResult.prompts
-    total = queryResult.total
-  }
-
-  // 2. Map to DTOs, preserving matches data
-  const [categories, allTags] = await Promise.all([db.categories.toArray(), db.tags.toArray()])
-  const categoryMap = new Map(categories.map(c => [c.id, c.name]))
-  const tagMap = new Map(allTags.map(t => [t.id, t.name]))
+  // Map to DTOs, preserving matches data
+  const { categoryMap, tagMap } = await getPromptLookupCache()
 
   const data: PromptDTO[] = prompts.map((p) => {
     return {

@@ -138,7 +138,7 @@
               <ul v-if="backupHistory.length > 0" class="mt-4 space-y-2">
                 <li v-for="file in backupHistory" :key="file.id" class="flex items-center justify-between p-3 rounded-md bg-white border">
                   <div>
-                    <p class="text-sm font-semibold text-gray-800" :title="formatBackupName(file.name)">{{ formatRelativeTime(file.name) }}</p>
+                    <p class="text-sm font-semibold text-gray-800" :title="formatBackupName(file)">{{ formatRelativeTime(file) }}</p>
                     <p class="text-xs text-gray-500">{{ formatFileSize(file.size) }}</p>
                   </div>
                   <div class="flex gap-2">
@@ -209,7 +209,7 @@ import { useI18n } from 'vue-i18n'
 import { useUI } from '@/stores/ui'
 import { db, getSettings } from '@/stores/db'
 import { repository } from '@/stores/repository'
-import { syncManager } from '@/stores/sync'
+import { syncManager, type SyncRunResult } from '@/stores/sync'
 import type { Settings } from '@/types/prompt'
 
 type LocaleOption = 'zh-CN' | 'en' | 'system';
@@ -218,6 +218,7 @@ interface DriveFile {
   id: string;
   name: string;
   size?: string;
+  modifiedTime?: string;
   [key: string]: any;
 }
 
@@ -309,9 +310,21 @@ const BACKUP_FILE_PREFIX = 'synapse-backup-';
 
 function parseDateFromBackupName(fileName: string): Date | null {
   const cleanName = fileName.replace(BACKUP_FILE_PREFIX, '').replace('.json', '');
-  const dateString = cleanName.replace('_', 'T') + 'Z';
-  const date = new Date(dateString);
-  return isNaN(date.getTime()) ? null : date;
+  const strictMatch = cleanName.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})$/);
+  if (strictMatch) {
+    const [, year, month, day, hour, minute, second] = strictMatch;
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    );
+  }
+
+  const fallback = new Date(cleanName.replace('_', 'T'));
+  return isNaN(fallback.getTime()) ? null : fallback;
 }
 
 function formatCNDate(date: Date, withTime = true): string {
@@ -321,14 +334,24 @@ function formatCNDate(date: Date, withTime = true): string {
   return new Intl.DateTimeFormat('zh-CN', opts).format(date);
 }
 
-function formatBackupName(fileName: string): string {
-  const date = parseDateFromBackupName(fileName);
-  return date ? formatCNDate(date, true) : fileName;
+function resolveBackupDate(file: DriveFile): Date | null {
+  if (file.modifiedTime) {
+    const modifiedDate = new Date(file.modifiedTime);
+    if (!isNaN(modifiedDate.getTime())) {
+      return modifiedDate;
+    }
+  }
+  return parseDateFromBackupName(file.name);
 }
 
-function formatRelativeTime(fileName: string): string {
-  const date = parseDateFromBackupName(fileName);
-  if (!date) return fileName;
+function formatBackupName(file: DriveFile): string {
+  const date = resolveBackupDate(file);
+  return date ? formatCNDate(date, true) : file.name;
+}
+
+function formatRelativeTime(file: DriveFile): string {
+  const date = resolveBackupDate(file);
+  if (!date) return file.name;
 
   const now = new Date();
   const diffSeconds = Math.round((now.getTime() - date.getTime()) / 1000);
@@ -345,6 +368,13 @@ function formatRelativeTime(fileName: string): string {
   if (diffDays <= 7) return t('settings.sync.status.daysAgo', { days: diffDays })
   
   return formatCNDate(date, false);
+}
+
+function getSyncResultMessage(result: SyncRunResult): string {
+  if (result.action === 'uploaded') return t('settings.sync.toast.uploaded')
+  if (result.action === 'downloaded') return t('settings.sync.toast.downloaded')
+  if (result.action === 'skipped-empty') return t('settings.sync.toast.skippedEmpty')
+  return t('settings.sync.toast.upToDate')
 }
 
 function formatFileSize(bytes?: string | number): string {
@@ -425,12 +455,12 @@ async function handleEnableSync(provider: 'google-drive') {
   isLoading.value = true
   isEnablingSync.value = true
   try {
-    await syncManager.enableSync(provider)
+    const result = await syncManager.enableSync(provider)
     await refreshSettings()
     if (settings.value?.syncEnabled) {
       await loadBackupHistory()
     }
-    showToast(t('common.toast.operationSuccess'), 'success')
+    showToast(getSyncResultMessage(result), 'success')
   } catch (error) {
     console.error(error)
     showToast(`${t('common.error')}: ${(error as Error).message}`, 'error')
@@ -460,12 +490,12 @@ async function handleDisconnect() {
 async function handleSyncNow() {
   isSyncing.value = true
   try {
-    await syncManager.triggerSync()
+    const result = await syncManager.triggerSync()
     await refreshSettings()
     if (settings.value?.syncEnabled) {
       await loadBackupHistory()
     }
-    showToast(t('common.toast.operationSuccess'), 'success')
+    showToast(getSyncResultMessage(result), 'success')
   } catch (error) {
     showToast(`${t('common.error')}: ${(error as Error).message}`, 'error')
   } finally {

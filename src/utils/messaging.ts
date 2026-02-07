@@ -1,5 +1,4 @@
 import type { Category, Settings } from '@/types'
-import type { SearchablePrompt } from '@/services/SearchService'
 import type { FuseResultMatch } from 'fuse.js'
 
 export const MSG = {
@@ -12,10 +11,6 @@ export const MSG = {
   GET_SETTINGS: 'APM/GET_SETTINGS',
   DATA_UPDATED: 'APM/DATA_UPDATED',
   UPDATE_PROMPT_LAST_USED: 'APM/UPDATE_PROMPT_LAST_USED',
-  PERFORM_SEARCH: 'APM/PERFORM_SEARCH',
-
-  // Indexing
-  REBUILD_INDEX_WITH_DATA: 'APM/REBUILD_INDEX_WITH_DATA',
 } as const
 
 export type MessageType = typeof MSG[keyof typeof MSG]
@@ -58,18 +53,6 @@ export interface DataUpdatedPayload {
 
 export interface UpdatePromptLastUsedPayload {
   promptId: string
-}
-
-export interface PerformSearchPayload {
-  query: string
-}
-
-// Define a serializable version of the search result for messaging
-export interface PerformSearchResult {
-  item: SearchablePrompt
-  refIndex: number
-  score?: number
-  matches?: readonly FuseResultMatch[]
 }
 
 // A generic message type for use in listeners

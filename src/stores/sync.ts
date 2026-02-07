@@ -3,14 +3,27 @@
  *
  * This service manages the entire lifecycle of syncing data with a cloud provider.
  */
-import { db, getSettings } from '@/stores/db'
+import { db, getDefaultCategoriesForInit, getSettings, rebuildPromptSearchIndex } from '@/stores/db'
 import { repository } from '@/stores/repository'
 import * as gdrive from '@/utils/googleDriveApi'
-import { searchService } from '@/services/SearchService'
-import { MSG } from '@/utils/messaging'
+import type { Category, Prompt, PromptVersion, Settings, Tag } from '@/types/prompt'
 
 
 const MAX_BACKUPS_TO_KEEP = 10;
+
+type SyncAction = 'uploaded' | 'downloaded' | 'noop' | 'skipped-empty'
+
+export interface SyncRunResult {
+  action: SyncAction
+}
+
+interface SyncPayload {
+  prompts: Prompt[]
+  prompt_versions: PromptVersion[]
+  categories: Category[]
+  tags: Tag[]
+  settings: Settings
+}
 
 class SyncManager {
   private isSyncing = false
@@ -18,7 +31,7 @@ class SyncManager {
   /**
    * Enables cloud sync with the chosen provider.
    */
-  async enableSync(provider: 'google-drive'): Promise<void> {
+  async enableSync(provider: 'google-drive'): Promise<SyncRunResult> {
     if (provider !== 'google-drive') {
       throw new Error('Only Google Drive is supported at the moment.')
     }
@@ -36,7 +49,7 @@ class SyncManager {
       }
       const currentSettings = await getSettings()
       await repository.setSettings({ ...currentSettings, ...newSettings })
-      await this.triggerSync(true) // Force upload on first sync
+      return await this.triggerSync()
     } catch (error) {      
       console.error('Failed to enable sync:', error)
       // Rollback settings if enabling sync fails
@@ -62,10 +75,10 @@ class SyncManager {
   /**
    * Triggers the main sync process.
    */
-  async triggerSync(forceUpload = false): Promise<void> {
+  async triggerSync(forceUpload = false): Promise<SyncRunResult> {
     if (this.isSyncing) {
       console.log('Sync already in progress.')
-      return
+      return { action: 'noop' }
     }
 
     this.isSyncing = true
@@ -75,32 +88,65 @@ class SyncManager {
         throw new Error('Sync is not enabled or provider is not Google Drive.')
       }
 
-      const remoteFiles = await gdrive.listBackupFiles();
+      const [remoteFiles, localPayload] = await Promise.all([
+        gdrive.listBackupFiles(),
+        this.buildLocalSyncPayload(),
+      ])
       const latestRemoteFile = remoteFiles.length > 0 ? remoteFiles[0] : null;
+      const hasMeaningfulLocalData = this.hasMeaningfulLocalData(localPayload)
 
       const localTimestamp = settings.lastSyncTimestamp || 0
       const remoteTimestamp = latestRemoteFile ? new Date(latestRemoteFile.modifiedTime).getTime() : 0
 
-      if (forceUpload || !latestRemoteFile) {
-        console.log('Forcing upload or no remote backup found. Creating new backup...')
-        await this.uploadLocalData()
-      } else if (localTimestamp > remoteTimestamp) {
-        console.log('Local data is newer. Uploading to cloud...')
-        await this.uploadLocalData()
-      } else if (remoteTimestamp > localTimestamp) {
-        console.log('Remote data is newer. Downloading from cloud...')
-        await this.downloadRemoteData(latestRemoteFile.id)
-        await searchService.buildIndex()
-      } else {
-        console.log('Local and remote data are in sync.')
+      if (forceUpload) {
+        if (!hasMeaningfulLocalData) {
+          console.log('Local data is empty. Skipping forced empty backup.')
+          return { action: 'skipped-empty' }
+        }
+        console.log('Forcing upload to cloud...')
+        await this.uploadLocalData(localPayload)
+        await this.pruneOldBackups();
+        await this.updateLastSyncTimestamp()
+        return { action: 'uploaded' }
       }
 
-      await this.pruneOldBackups();
-      const currentSettings = await getSettings()
-      await repository.setSettings({ ...currentSettings, lastSyncTimestamp: new Date().getTime() })
+      if (!latestRemoteFile) {
+        if (!hasMeaningfulLocalData) {
+          console.log('No remote backup and no meaningful local data. Skipping initial empty backup.')
+          return { action: 'skipped-empty' }
+        }
+        console.log('No remote backup found. Uploading local data...')
+        await this.uploadLocalData(localPayload)
+        await this.pruneOldBackups();
+        await this.updateLastSyncTimestamp()
+        return { action: 'uploaded' }
+      }
 
+      if (localTimestamp > remoteTimestamp) {
+        if (!hasMeaningfulLocalData) {
+          console.log('Local data is empty. Skipping upload of empty snapshot.')
+          return { action: 'skipped-empty' }
+        }
+        console.log('Local data is newer. Uploading to cloud...')
+        await this.uploadLocalData(localPayload)
+        await this.pruneOldBackups();
+        await this.updateLastSyncTimestamp()
+        return { action: 'uploaded' }
+      }
+
+      if (remoteTimestamp > localTimestamp) {
+        console.log('Remote data is newer. Downloading from cloud...')
+        await this.downloadRemoteData(latestRemoteFile.id)
+        await this.updateLastSyncTimestamp()
+        return { action: 'downloaded' }
+      }
+
+      console.log('Local and remote data are in sync.')
+      await this.updateLastSyncTimestamp()
+      return { action: 'noop' }
     } catch (error) {
       console.error('Sync failed:', error)
+      throw error
     } finally {
       this.isSyncing = false
     }
@@ -109,15 +155,64 @@ class SyncManager {
   /**
    * Gathers all local data and uploads it to the cloud as a new version.
    */
-  private async uploadLocalData(): Promise<void> {
-    const exportObject = {
-      prompts: await db.prompts.toArray(),
-      prompt_versions: await db.prompt_versions.toArray(),
-      categories: await db.categories.toArray(),
-      tags: await db.tags.toArray(),
-      settings: await getSettings(),
+  private async uploadLocalData(exportObject?: SyncPayload): Promise<void> {
+    const payload = exportObject || await this.buildLocalSyncPayload()
+    if (!this.hasMeaningfulLocalData(payload)) {
+      console.log('Skip uploading empty backup payload.')
+      return
     }
-    await gdrive.uploadNewBackup(exportObject)
+    await gdrive.uploadNewBackup(payload)
+  }
+
+  private async buildLocalSyncPayload(): Promise<SyncPayload> {
+    const [prompts, prompt_versions, categories, tags, settings] = await Promise.all([
+      db.prompts.toArray(),
+      db.prompt_versions.toArray(),
+      db.categories.toArray(),
+      db.tags.toArray(),
+      getSettings(),
+    ])
+    return { prompts, prompt_versions, categories, tags, settings }
+  }
+
+  private isDefaultOnlyCategoryState(categories: Category[]): boolean {
+    const defaults = getDefaultCategoriesForInit()
+    if (categories.length !== defaults.length) {
+      return false
+    }
+
+    const defaultMap = new Map(defaults.map(category => [category.id, category]))
+    for (const category of categories) {
+      const defaultCategory = defaultMap.get(category.id)
+      if (!defaultCategory) {
+        return false
+      }
+      if (
+        category.sort !== defaultCategory.sort
+        || category.icon !== defaultCategory.icon
+      ) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  private hasMeaningfulLocalData(payload: SyncPayload): boolean {
+    if (
+      payload.prompts.length > 0
+      || payload.prompt_versions.length > 0
+      || payload.tags.length > 0
+    ) {
+      return true
+    }
+
+    return !this.isDefaultOnlyCategoryState(payload.categories)
+  }
+
+  private async updateLastSyncTimestamp(): Promise<void> {
+    const currentSettings = await getSettings()
+    await repository.setSettings({ ...currentSettings, lastSyncTimestamp: Date.now() })
   }
 
   /**
@@ -125,34 +220,50 @@ class SyncManager {
    */
   private async downloadRemoteData(fileId: string): Promise<void> {
     const importedData = await gdrive.downloadBackupFile(fileId)
-    // @ts-ignore
-    await db.transaction('rw', [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings], async () => {
-      if (importedData.prompts) {
-        await db.prompts.clear()
-        await db.prompts.bulkPut(importedData.prompts)
+    if (!importedData || typeof importedData !== 'object') {
+      throw new Error('Invalid backup payload from cloud.')
+    }
+
+    const prompts = Array.isArray(importedData.prompts) ? importedData.prompts : []
+    const promptVersions = Array.isArray(importedData.prompt_versions) ? importedData.prompt_versions : []
+    const categories = Array.isArray(importedData.categories) ? importedData.categories : []
+    const tags = Array.isArray(importedData.tags) ? importedData.tags : []
+    const importedSettings = importedData.settings && typeof importedData.settings === 'object'
+      ? importedData.settings
+      : null
+
+    await db.transaction('rw', [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings, db.prompt_search_index], async () => {
+      await db.prompts.clear()
+      if (prompts.length > 0) {
+        await db.prompts.bulkPut(prompts)
       }
-      if (importedData.prompt_versions) {
-        await db.prompt_versions.clear()
-        await db.prompt_versions.bulkPut(importedData.prompt_versions)
+
+      await db.prompt_versions.clear()
+      if (promptVersions.length > 0) {
+        await db.prompt_versions.bulkPut(promptVersions)
       }
-      if (importedData.categories) {
-        await db.categories.clear()
-        await db.categories.bulkPut(importedData.categories)
+
+      await db.categories.clear()
+      if (categories.length > 0) {
+        await db.categories.bulkPut(categories)
       }
-      if (importedData.tags) {
-        await db.tags.clear()
-        await db.tags.bulkPut(importedData.tags)
+
+      await db.tags.clear()
+      if (tags.length > 0) {
+        await db.tags.bulkPut(tags)
       }
-      if (importedData.settings) {
-        // Preserve local sync settings while applying the rest
-        const currentSettings = await getSettings();
-        const newSettings = { ...importedData.settings, ...{
-          syncEnabled: currentSettings.syncEnabled,
-          syncProvider: currentSettings.syncProvider,
-          userProfile: currentSettings.userProfile,
-        }};
-        await db.settings.put(newSettings)
-      }
+
+      const currentSettings = await getSettings();
+      const newSettings = {
+        ...currentSettings,
+        ...(importedSettings || {}),
+        syncEnabled: currentSettings.syncEnabled,
+        syncProvider: currentSettings.syncProvider,
+        userProfile: currentSettings.userProfile,
+      };
+      await db.settings.put(newSettings)
+
+      await rebuildPromptSearchIndex()
     })
   }
 

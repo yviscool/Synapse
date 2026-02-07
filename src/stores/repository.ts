@@ -1,4 +1,12 @@
-import { db, DEFAULT_SETTINGS, ensureDefaultCategories } from "./db";
+import {
+  db,
+  DEFAULT_SETTINGS,
+  ensureDefaultCategories,
+  upsertPromptSearchIndex,
+  bulkUpsertPromptSearchIndex,
+  removePromptSearchIndex,
+  rebuildPromptSearchIndex,
+} from "./db";
 import type {
   Prompt,
   PromptVersion,
@@ -47,6 +55,21 @@ const events = {
   },
 };
 
+function toDataScope(eventType: EventType): "prompts" | "categories" | "tags" | "settings" {
+  if (eventType === "categoriesChanged") return "categories";
+  if (eventType === "tagsChanged") return "tags";
+  if (eventType === "settingsChanged") return "settings";
+  return "prompts";
+}
+
+function isSearchRelevantPatch(patch: Partial<Prompt>): boolean {
+  return (
+    Object.prototype.hasOwnProperty.call(patch, "title") ||
+    Object.prototype.hasOwnProperty.call(patch, "content") ||
+    Object.prototype.hasOwnProperty.call(patch, "tagIds")
+  );
+}
+
 /**
  * A wrapper for database write operations that ensures notifications are sent
  * only after the transaction is successfully committed.
@@ -69,28 +92,13 @@ async function withCommitNotification(
             `[Repository] Transaction completed. Emitting '${eventType}'.`,
           );
           events.emit(eventType, eventData);
-
-          // For large-scale changes, we now explicitly send all data to the background
-          // to rebuild its index, avoiding stale data issues.
-          if (eventType === "allChanged") {
-            const [prompts, tags] = await Promise.all([
-              db.prompts.toArray(),
-              db.tags.toArray(),
-            ]);
-            chrome.runtime.sendMessage({
-              type: MSG.REBUILD_INDEX_WITH_DATA,
-              data: { prompts, tags },
-            });
-          } else {
-            // For smaller changes, a generic update notification is sufficient.
-            chrome.runtime.sendMessage({
-              type: MSG.DATA_UPDATED,
-              data: {
-                scope: eventType.replace("Changed", ""),
-                version: Date.now().toString(),
-              },
-            });
-          }
+          chrome.runtime.sendMessage({
+            type: MSG.DATA_UPDATED,
+            data: {
+              scope: toDataScope(eventType),
+              version: Date.now().toString(),
+            },
+          });
         });
 
         trans.on("error", (err) => {
@@ -142,8 +150,16 @@ export const repository = {
       patch.updatedAt = Date.now();
     }
     return withCommitNotification(
-      ["prompts"],
-      () => db.prompts.update(id, patch),
+      ["prompts", "tags", "prompt_search_index"],
+      async () => {
+        await db.prompts.update(id, patch);
+        if (isSearchRelevantPatch(patch)) {
+          const updatedPrompt = await db.prompts.get(id);
+          if (updatedPrompt) {
+            await upsertPromptSearchIndex(updatedPrompt);
+          }
+        }
+      },
       "promptsChanged",
     );
   },
@@ -154,7 +170,7 @@ export const repository = {
     changeNote?: string,
   ): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
-      ["prompts", "tags", "prompt_versions"],
+      ["prompts", "tags", "prompt_versions", "prompt_search_index"],
       async () => {
         const existingPrompt = promptData.id
           ? await db.prompts.get(promptData.id)
@@ -207,6 +223,7 @@ export const repository = {
         }
 
         await db.prompts.put(safePrompt);
+        await upsertPromptSearchIndex(safePrompt);
       },
       "allChanged", // Use allChanged to ensure tags and prompts are updated everywhere
     );
@@ -214,10 +231,11 @@ export const repository = {
 
   async deletePrompt(id: string): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
-      ["prompts", "prompt_versions"],
+      ["prompts", "prompt_versions", "prompt_search_index"],
       async () => {
         await db.prompts.delete(id);
         await db.prompt_versions.where("promptId").equals(id).delete();
+        await removePromptSearchIndex(id);
       },
       "promptsChanged",
     );
@@ -233,7 +251,7 @@ export const repository = {
     error?: any;
   }> {
     return withCommitNotification(
-      ["prompts", "tags"],
+      ["prompts", "tags", "prompt_search_index"],
       async () => {
         const existingTitles = new Set(
           (await db.prompts.toArray()).map((p) => p.title),
@@ -292,6 +310,7 @@ export const repository = {
         }
         if (newPrompts.length > 0) {
           await db.prompts.bulkAdd(newPrompts);
+          await bulkUpsertPromptSearchIndex(newPrompts);
         }
         return {
           importedCount: newPrompts.length,
@@ -357,7 +376,7 @@ export const repository = {
     categoryId: string,
   ): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
-      ["prompts", "prompt_versions"],
+      ["prompts", "prompt_versions", "prompt_search_index"],
       async () => {
         const promptsToDelete = await db.prompts
           .where("categoryIds")
@@ -368,6 +387,7 @@ export const repository = {
         const promptIds = promptsToDelete.map((p) => p.id);
         await db.prompts.bulkDelete(promptIds);
         await db.prompt_versions.where("promptId").anyOf(promptIds).delete();
+        await removePromptSearchIndex(promptIds);
       },
       "allChanged",
     );
@@ -377,7 +397,7 @@ export const repository = {
     categoryId: string,
   ): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
-      ["categories", "prompts", "prompt_versions"],
+      ["categories", "prompts", "prompt_versions", "prompt_search_index"],
       async () => {
         // First, delete the prompts and their versions
         const promptsToDelete = await db.prompts
@@ -388,6 +408,7 @@ export const repository = {
           const promptIds = promptsToDelete.map((p) => p.id);
           await db.prompts.bulkDelete(promptIds);
           await db.prompt_versions.where("promptId").anyOf(promptIds).delete();
+          await removePromptSearchIndex(promptIds);
         }
         // Then, delete the category itself
         await db.categories.delete(categoryId);
@@ -401,7 +422,7 @@ export const repository = {
     tagIds: string[],
   ): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
-      ["prompts", "prompt_versions"],
+      ["prompts", "prompt_versions", "prompt_search_index"],
       async () => {
         if (tagIds.length === 0) return;
 
@@ -418,6 +439,7 @@ export const repository = {
         const promptIds = promptsToDelete.map((p) => p.id);
         await db.prompts.bulkDelete(promptIds);
         await db.prompt_versions.where("promptId").anyOf(promptIds).delete();
+        await removePromptSearchIndex(promptIds);
       },
       "allChanged",
     );
@@ -443,7 +465,7 @@ export const repository = {
     currentUnsavedContent: string,
   ): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
-      ["prompts", "prompt_versions"],
+      ["prompts", "prompt_versions", "tags", "prompt_search_index"],
       async () => {
         const versionToRestore = await db.prompt_versions.get(versionId);
         if (!versionToRestore || versionToRestore.promptId !== promptId)
@@ -469,6 +491,10 @@ export const repository = {
           currentVersionId: versionId,
           updatedAt: Date.now(),
         });
+        const updatedPrompt = await db.prompts.get(promptId);
+        if (updatedPrompt) {
+          await upsertPromptSearchIndex(updatedPrompt);
+        }
       },
       "promptsChanged",
     );
@@ -509,13 +535,21 @@ export const repository = {
     importedData: any,
   ): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
-      [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings],
+      [
+        db.prompts,
+        db.prompt_versions,
+        db.categories,
+        db.tags,
+        db.settings,
+        db.prompt_search_index,
+      ],
       async () => {
         const currentSettings = await db.settings.get("global");
         await db.prompts.clear();
         await db.prompt_versions.clear();
         await db.categories.clear();
         await db.tags.clear();
+        await db.prompt_search_index.clear();
         if (importedData.prompts)
           await db.prompts.bulkPut(importedData.prompts);
         if (importedData.prompt_versions)
@@ -533,6 +567,7 @@ export const repository = {
           settingsToApply.lastSyncTimestamp = currentSettings.lastSyncTimestamp;
         }
         await db.settings.put(settingsToApply);
+        await rebuildPromptSearchIndex();
       },
       "allChanged",
     );
@@ -540,7 +575,14 @@ export const repository = {
 
   async resetAllData(): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
-      [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings],
+      [
+        db.prompts,
+        db.prompt_versions,
+        db.categories,
+        db.tags,
+        db.settings,
+        db.prompt_search_index,
+      ],
       async () => {
         const currentSettings = await db.settings.get("global");
         await db.prompts.clear();
@@ -548,6 +590,7 @@ export const repository = {
         await db.categories.clear();
         await db.tags.clear();
         await db.settings.clear();
+        await db.prompt_search_index.clear();
 
         const newSettings: Settings = {
           ...DEFAULT_SETTINGS,

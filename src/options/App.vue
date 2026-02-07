@@ -199,14 +199,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from 'vue-router';
 import { ui, useUI } from "@/stores/ui";
 import { getSettings } from "@/stores/db";
 import { MSG, type DataUpdatedPayload } from "@/utils/messaging";
 import { useModal } from "@/composables/useModal";
-import Settings from "./components/Settings.vue";
+
+const Settings = defineAsyncComponent(() => import("./components/Settings.vue"));
 
 const { t, locale } = useI18n();
 const { handleConfirm, hideToast } = useUI();

@@ -132,24 +132,54 @@ import "@/styles"
     applyTheme(darkModeMediaQuery.matches);
   }
 
+  // 使用 requestAnimationFrame 合并同一帧内的多次主题同步请求，避免高频属性变化导致卡顿
+  let pendingThemeSyncRaf = 0;
+  function scheduleThemeSync() {
+    if (pendingThemeSyncRaf) return;
+    pendingThemeSyncRaf = requestAnimationFrame(() => {
+      pendingThemeSyncRaf = 0;
+      syncTheme();
+    });
+  }
+
+  // 仅处理与主题高度相关的属性变化，跳过滚动期间频繁变更的无关属性（尤其是 style）
+  const THEME_ATTR_WHITELIST = new Set([
+    'class',
+    'data-theme',
+    'theme',
+    'data-mode',
+    'mode',
+    'color-scheme',
+    'data-color-scheme',
+    'data-color-mode',
+    'yb-theme-mode',
+  ]);
+  function isThemeRelatedAttribute(attributeName: string | null): boolean {
+    if (!attributeName) return false;
+    const name = attributeName.toLowerCase();
+    if (THEME_ATTR_WHITELIST.has(name)) return true;
+    return name.includes('theme') || name.includes('mode');
+  }
+
   // --- 初始化和监听 ---
 
   // 1. 首次加载时立即同步一次主题
   // 使用 requestAnimationFrame 确保在 body 元素可用后执行
-  requestAnimationFrame(syncTheme);
+  scheduleThemeSync();
 
   // 2. 监听系统颜色方案的变化 (作为回退方案)
-  darkModeMediaQuery.addEventListener('change', syncTheme);
+  darkModeMediaQuery.addEventListener('change', scheduleThemeSync);
 
   // 3. 使用 MutationObserver 监听宿主页面 <html> 和 <body> 的属性变化
   // 这是实现对网站自身主题切换进行响应的关键
   const observer = new MutationObserver((mutations) => {
-    // 任何属性变化都可能意味着主题切换，所以我们重新同步
-    syncTheme();
+    const hasThemeSignal = mutations.some((mutation) => isThemeRelatedAttribute(mutation.attributeName));
+    if (!hasThemeSignal) return;
+    scheduleThemeSync();
   });
 
   // 等待 body 加载完毕再开始监听，防止 body 为 null
-  const observerConfig = { attributes: true }; // 我们只关心属性（包括class, style, data-* 等）的变化
+  const observerConfig = { attributes: true }; // 监听属性变化，回调内部会过滤无关属性
 
   if (document.body) {
     observer.observe(document.documentElement, observerConfig);
@@ -160,7 +190,7 @@ import "@/styles"
       observer.observe(document.documentElement, observerConfig);
       observer.observe(document.body, observerConfig);
       // DOM ready 后也需要再同步一次
-      syncTheme();
+      scheduleThemeSync();
     });
   }
 

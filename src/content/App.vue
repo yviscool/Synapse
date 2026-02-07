@@ -131,6 +131,7 @@ const selectedCategory = ref<string>(t("content.allCategories"));
 const searchQuery = ref("");
 /** 防抖处理的搜索查询，避免频繁请求 */
 const searchQueryDebounced = refDebounced(searchQuery, 200);
+const isResettingFilters = ref(false);
 
 // === 分页状态 ===
 /** 当前页码 */
@@ -254,6 +255,7 @@ function resetAndFetch() {
 
 // 监听搜索关键词和分类变化，自动重新获取数据
 watch([searchQueryDebounced, selectedCategory], () => {
+    if (isResettingFilters.value) return;
     resetAndFetch();
 });
 
@@ -262,7 +264,7 @@ watch([searchQueryDebounced, selectedCategory], () => {
 /**
  * 打开提示词选择面板
  */
-function openPanel() {
+async function openPanel() {
     visible.value = true;
 
     // 记录当前焦点元素，用于关闭面板后恢复
@@ -272,14 +274,16 @@ function openPanel() {
     opener = findActiveInput();
 
     // 重置搜索和分类状态
+    isResettingFilters.value = true;
     selectedCategory.value = t("content.allCategories");
     searchQuery.value = "";
 
-    // 获取数据
-    fetchCategories().then(() => {
+    try {
+        await fetchCategories();
         resetAndFetch();
-    });
-    fetchCategories();
+    } finally {
+        isResettingFilters.value = false;
+    }
 }
 
 /**

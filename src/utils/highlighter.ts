@@ -23,23 +23,72 @@ export function generateHighlightedHtml(
     return escapeHtml(text)
   }
 
-  const indices = keyMatches.indices
+  return renderHighlightedByIndices(text, keyMatches.indices)
+}
+
+/**
+ * Similar to `generateHighlightedHtml` but only renders a short snippet.
+ * This reduces expensive full-text HTML generation for very long content.
+ */
+export function generateHighlightedPreviewHtml(
+  text: string,
+  matches: readonly Fuse.FuseResultMatch[] | undefined,
+  key: string,
+  maxLength = 240,
+): string {
+  if (maxLength <= 0)
+    return ''
+
+  const keyMatches = matches?.find(m => m.key === key)
+  const hasMatch = Boolean(keyMatches && keyMatches.indices && keyMatches.indices.length > 0)
+
+  if (!hasMatch) {
+    return escapeHtml(truncateText(text, maxLength))
+  }
+
+  const indices = keyMatches!.indices
+  const firstMatch = indices[0]
+  const leadContext = Math.floor(maxLength * 0.35)
+  let start = Math.max(0, firstMatch[0] - leadContext)
+  let end = Math.min(text.length, start + maxLength)
+
+  if (end - start < maxLength) {
+    start = Math.max(0, end - maxLength)
+  }
+
+  const snippet = text.slice(start, end)
+  const snippetLength = snippet.length
+  const shiftedIndices = indices
+    .map(([s, e]) => [s - start, e - start] as [number, number])
+    .filter(([s, e]) => e >= 0 && s < snippetLength)
+    .map(([s, e]) => [Math.max(0, s), Math.min(snippetLength - 1, e)] as [number, number])
+
+  const prefix = start > 0 ? '...' : ''
+  const suffix = end < text.length ? '...' : ''
+  return `${prefix}${renderHighlightedByIndices(snippet, shiftedIndices)}${suffix}`
+}
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength)
+    return text
+  return `${text.slice(0, maxLength)}...`
+}
+
+function renderHighlightedByIndices(
+  text: string,
+  indices: ReadonlyArray<readonly [number, number]>,
+): string {
   const parts: string[] = []
   let lastIndex = 0
 
-  // Fuse.js provides [start, end] indices of matched segments.
-  // We iterate through them, slicing the string and wrapping matches in <mark>.
   indices.forEach(([start, end]) => {
-    // Add the text part before the match
     if (start > lastIndex) {
       parts.push(escapeHtml(text.substring(lastIndex, start)))
     }
-    // Add the highlighted part
     parts.push(`<mark class="bg-yellow-200/80 rounded-sm px-0.5">${escapeHtml(text.substring(start, end + 1))}</mark>`)
     lastIndex = end + 1
   })
 
-  // Add the remaining part of the string
   if (lastIndex < text.length) {
     parts.push(escapeHtml(text.substring(lastIndex)))
   }

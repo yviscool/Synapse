@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { FuseResult, FuseResultMatch } from "fuse.js";
+import type { FuseResultMatch } from "fuse.js";
 import type {
   Prompt,
   PromptVersion,
@@ -7,9 +7,15 @@ import type {
   Tag,
   Settings,
 } from "@/types/prompt";
-import { MSG, type PerformSearchResult } from "@/utils/messaging";
-import { createSafePrompt } from "@/utils/promptUtils";
 import { getDefaultCategories } from "@/utils/categoryUtils";
+
+export interface PromptSearchIndex {
+  promptId: string;
+  tokens: string[];
+  titleTokens: string[];
+  tagTokens: string[];
+  updatedAt: number;
+}
 
 export class APMDB extends Dexie {
   prompts!: Table<Prompt, string>;
@@ -17,6 +23,7 @@ export class APMDB extends Dexie {
   categories!: Table<Category, string>;
   tags!: Table<Tag, string>;
   settings!: Table<Settings, string>;
+  prompt_search_index!: Table<PromptSearchIndex, string>;
 
   constructor() {
     super("apm");
@@ -27,41 +34,455 @@ export class APMDB extends Dexie {
       tags: "id, name",
       settings: "id",
     });
-    // Version 2: Add multi-entry indexes for efficient filtering
     this.version(2).stores({
       prompts:
         "id, title, *categoryIds, *tagIds, updatedAt, favorite, createdAt",
+    });
+    this.version(3).stores({
+      prompts:
+        "id, title, *categoryIds, *tagIds, updatedAt, favorite, createdAt",
+      prompt_versions: "id, promptId, createdAt",
+      categories: "id, name, sort, icon",
+      tags: "id, name",
+      settings: "id",
+      prompt_search_index: "&promptId, *tokens, *titleTokens, *tagTokens, updatedAt",
     });
   }
 }
 
 export const db = new APMDB();
 
-// All database write operations and their corresponding notifications are now handled
-// by the Repository pattern in `repository.ts`.
-// This ensures that notifications are only sent *after* a transaction is complete,
-// preventing race conditions and "Transaction committed too early" errors.
+const ALL_CATEGORY_NAMES = new Set(["全部", "all"]);
+const SEARCH_MAX_SOURCE_LENGTH = 12000;
+const SEARCH_MAX_TOKENS_PER_PROMPT = 1200;
+const SEARCH_MAX_QUERY_TOKENS = 12;
+const SEARCH_MAX_CANDIDATES = 500;
+const LATIN_WORD_RE = /[a-z0-9]+/g;
+const CJK_SEGMENT_RE = /[\u3400-\u9fff]+/g;
+const CJK_TOKEN_RE = /^[\u3400-\u9fff]+$/;
+const SEARCH_SCORE_BY_MATCH_LEVEL = [0, 3, 6, 8] as const;
 
-/**
- * Gets default categories with internationalized names.
- * This function should be called at runtime to ensure proper i18n context.
- *
- * Categories cover common AI use cases:
- * - Writing & Content Creation
- * - Programming & Development
- * - Business & Office Work
- * - Learning & Education
- * - Creative & Design
- * - Analysis & Research
- * - Marketing & SEO
- * - Productivity Tools
- * - Translation
- * - Role Playing
- * - Lifestyle
- * - Other
- *
- * @returns Array of internationalized default categories
- */
+let ensureSearchIndexPromise: Promise<void> | null = null;
+let hasVerifiedSearchIndex = false;
+
+function normalizeSearchText(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function isCjkToken(token: string): boolean {
+  return CJK_TOKEN_RE.test(token);
+}
+
+function collectSearchTokens(text: string, maxTokens: number): string[] {
+  const source = normalizeSearchText(text).slice(0, SEARCH_MAX_SOURCE_LENGTH);
+  if (!source) return [];
+
+  const tokens = new Set<string>();
+  const pushToken = (token: string) => {
+    if (!token) return;
+    if (token.length > 32) return;
+    if (tokens.size >= maxTokens) return;
+    tokens.add(token);
+  };
+
+  const latinWords = source.match(LATIN_WORD_RE) || [];
+  for (const word of latinWords) {
+    if (word.length >= 2 || /^\d$/.test(word)) {
+      pushToken(word);
+    }
+    if (tokens.size >= maxTokens) break;
+  }
+
+  if (tokens.size >= maxTokens) {
+    return [...tokens];
+  }
+
+  const cjkSegments = source.match(CJK_SEGMENT_RE) || [];
+  outer: for (const segment of cjkSegments) {
+    for (let i = 0; i < segment.length; i++) {
+      pushToken(segment[i]);
+      if (tokens.size >= maxTokens) break outer;
+    }
+
+    for (let n = 2; n <= 3; n++) {
+      if (segment.length < n) continue;
+      for (let i = 0; i <= segment.length - n; i++) {
+        pushToken(segment.slice(i, i + n));
+        if (tokens.size >= maxTokens) break outer;
+      }
+    }
+
+    if (segment.length <= 8) {
+      pushToken(segment);
+      if (tokens.size >= maxTokens) break;
+    }
+  }
+
+  return [...tokens];
+}
+
+function extractQueryTokens(query: string): string[] {
+  const normalizedQuery = normalizeSearchText(query);
+  const rawTokens = collectSearchTokens(query, SEARCH_MAX_QUERY_TOKENS);
+  if (normalizedQuery.length === 1) {
+    return [...new Set(rawTokens)].filter(Boolean);
+  }
+  return rawTokens.filter((token) => isCjkToken(token) || token.length >= 2);
+}
+
+function buildPromptSearchIndexRecord(
+  prompt: Prompt,
+  tagNameMap: Map<string, string>,
+): PromptSearchIndex {
+  const tagText = prompt.tagIds
+    .map((tagId) => tagNameMap.get(tagId))
+    .filter(Boolean)
+    .join(" ");
+
+  const titleTokens = collectSearchTokens(prompt.title, 256);
+  const contentTokens = collectSearchTokens(prompt.content, 1024);
+  const tagTokens = collectSearchTokens(tagText, 128);
+
+  const mergedTokenSet = new Set<string>([
+    ...titleTokens,
+    ...contentTokens,
+    ...tagTokens,
+  ]);
+  const tokens = [...mergedTokenSet].slice(0, SEARCH_MAX_TOKENS_PER_PROMPT);
+  const tokenSet = new Set(tokens);
+
+  return {
+    promptId: prompt.id,
+    tokens,
+    titleTokens: titleTokens.filter((token) => tokenSet.has(token)),
+    tagTokens: tagTokens.filter((token) => tokenSet.has(token)),
+    updatedAt: prompt.updatedAt || Date.now(),
+  };
+}
+
+async function fetchTagNameMap(tagIds?: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const uniqueTagIds = [...new Set(tagIds || [])].filter(Boolean);
+
+  const tags = uniqueTagIds.length
+    ? await db.tags.where("id").anyOf(uniqueTagIds).toArray()
+    : await db.tags.toArray();
+
+  tags.forEach((tag) => map.set(tag.id, tag.name));
+  return map;
+}
+
+async function ensurePromptSearchIndexReady(): Promise<void> {
+  if (hasVerifiedSearchIndex) {
+    return;
+  }
+
+  if (ensureSearchIndexPromise) {
+    await ensureSearchIndexPromise;
+    return;
+  }
+
+  ensureSearchIndexPromise = (async () => {
+    const [promptCount, indexCount] = await Promise.all([
+      db.prompts.count(),
+      db.prompt_search_index.count(),
+    ]);
+
+    if (promptCount === 0) {
+      if (indexCount > 0) {
+        await db.prompt_search_index.clear();
+      }
+      hasVerifiedSearchIndex = true;
+      return;
+    }
+
+    if (indexCount !== promptCount) {
+      await rebuildPromptSearchIndex();
+    }
+
+    hasVerifiedSearchIndex = true;
+  })();
+
+  try {
+    await ensureSearchIndexPromise;
+  } finally {
+    ensureSearchIndexPromise = null;
+  }
+}
+
+export async function upsertPromptSearchIndex(
+  prompt: Prompt,
+  tagNameMap?: Map<string, string>,
+): Promise<void> {
+  if (!prompt.id) return;
+  const resolvedTagMap = tagNameMap || (await fetchTagNameMap(prompt.tagIds));
+  const record = buildPromptSearchIndexRecord(prompt, resolvedTagMap);
+  await db.prompt_search_index.put(record);
+}
+
+export async function bulkUpsertPromptSearchIndex(
+  prompts: Prompt[],
+): Promise<void> {
+  if (prompts.length === 0) return;
+  const tagIds = prompts.flatMap((prompt) => prompt.tagIds || []);
+  const tagNameMap = await fetchTagNameMap(tagIds);
+  const records = prompts.map((prompt) =>
+    buildPromptSearchIndexRecord(prompt, tagNameMap),
+  );
+  await db.prompt_search_index.bulkPut(records);
+}
+
+export async function removePromptSearchIndex(
+  promptIds: string | string[],
+): Promise<void> {
+  const ids = Array.isArray(promptIds) ? promptIds : [promptIds];
+  if (ids.length === 0) return;
+  await db.prompt_search_index.bulkDelete(ids);
+}
+
+export async function rebuildPromptSearchIndex(): Promise<void> {
+  const [prompts, tags] = await Promise.all([
+    db.prompts.toArray(),
+    db.tags.toArray(),
+  ]);
+  const tagNameMap = new Map(tags.map((tag) => [tag.id, tag.name]));
+  const records = prompts.map((prompt) =>
+    buildPromptSearchIndexRecord(prompt, tagNameMap),
+  );
+  await db.prompt_search_index.clear();
+  if (records.length > 0) {
+    await db.prompt_search_index.bulkPut(records);
+  }
+}
+
+function findMatchIndices(
+  text: string,
+  terms: string[],
+  maxMatches: number,
+): [number, number][] {
+  if (!text || terms.length === 0) return [];
+
+  const lowerText = text.toLowerCase();
+  const hits: [number, number][] = [];
+
+  for (const rawTerm of terms) {
+    const term = rawTerm.toLowerCase();
+    if (!term) continue;
+
+    let from = 0;
+    while (from < lowerText.length) {
+      const idx = lowerText.indexOf(term, from);
+      if (idx === -1) break;
+      hits.push([idx, idx + term.length - 1]);
+      from = idx + term.length;
+      if (hits.length >= maxMatches * 2) break;
+    }
+
+    if (hits.length >= maxMatches * 2) break;
+  }
+
+  if (hits.length === 0) return [];
+
+  hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+
+  const merged: [number, number][] = [];
+  for (const [start, end] of hits) {
+    const last = merged[merged.length - 1];
+    if (!last || start > last[1] + 1) {
+      merged.push([start, end]);
+      if (merged.length >= maxMatches) break;
+      continue;
+    }
+    last[1] = Math.max(last[1], end);
+  }
+
+  return merged;
+}
+
+function buildPromptMatches(
+  prompt: Prompt,
+  normalizedQuery: string,
+  queryTokens: string[],
+): readonly FuseResultMatch[] | undefined {
+  const terms = [...new Set([normalizedQuery, ...queryTokens])].filter(Boolean);
+  if (terms.length === 0) return undefined;
+
+  const titleIndices = findMatchIndices(prompt.title, terms, 12);
+  const contentIndices = findMatchIndices(prompt.content, terms, 24);
+  if (titleIndices.length === 0 && contentIndices.length === 0) {
+    return undefined;
+  }
+
+  const matches: FuseResultMatch[] = [];
+  if (titleIndices.length > 0) {
+    matches.push({
+      key: "title",
+      value: prompt.title,
+      indices: titleIndices,
+    } as FuseResultMatch);
+  }
+  if (contentIndices.length > 0) {
+    matches.push({
+      key: "content",
+      value: prompt.content,
+      indices: contentIndices,
+    } as FuseResultMatch);
+  }
+
+  return matches;
+}
+
+function normalizeCategoryNames(
+  legacyCategory?: string,
+  categoryNames: string[] = [],
+): string[] {
+  const normalized = new Set<string>();
+
+  for (const name of categoryNames) {
+    const trimmed = name.trim();
+    if (trimmed) normalized.add(trimmed);
+  }
+
+  if (legacyCategory) {
+    const trimmed = legacyCategory.trim();
+    if (trimmed && !ALL_CATEGORY_NAMES.has(trimmed.toLowerCase())) {
+      normalized.add(trimmed);
+    }
+  }
+
+  return [...normalized];
+}
+
+function sortPromptsInMemory(
+  prompts: PromptWithMatches[],
+  sortBy: "updatedAt" | "createdAt" | "title",
+): PromptWithMatches[] {
+  const sorted = prompts.slice();
+
+  sorted.sort((a, b) => {
+    if (sortBy === "title") {
+      return a.title.localeCompare(b.title, "zh-CN");
+    }
+    return (b[sortBy] || 0) - (a[sortBy] || 0);
+  });
+
+  return sorted;
+}
+
+async function searchPromptsByIndex(
+  normalizedQuery: string,
+  queryTokens: string[],
+): Promise<Prompt[]> {
+  if (!normalizedQuery || queryTokens.length === 0) {
+    return [];
+  }
+
+  await ensurePromptSearchIndexReady();
+  const indexRows = await db.prompt_search_index
+    .where("tokens")
+    .anyOf(queryTokens)
+    .distinct()
+    .toArray();
+  if (indexRows.length === 0) {
+    return [];
+  }
+
+  const queryTokenIndexMap = new Map<string, number>();
+  queryTokens.forEach((token, index) => {
+    queryTokenIndexMap.set(token, index);
+  });
+
+  const baseScoreMap = new Map<string, number>();
+  for (const row of indexRows) {
+    const matchLevels = new Uint8Array(queryTokens.length);
+
+    for (const token of row.tokens) {
+      const tokenIndex = queryTokenIndexMap.get(token);
+      if (tokenIndex !== undefined && matchLevels[tokenIndex] < 1) {
+        matchLevels[tokenIndex] = 1;
+      }
+    }
+    for (const token of row.tagTokens) {
+      const tokenIndex = queryTokenIndexMap.get(token);
+      if (tokenIndex !== undefined && matchLevels[tokenIndex] < 2) {
+        matchLevels[tokenIndex] = 2;
+      }
+    }
+    for (const token of row.titleTokens) {
+      const tokenIndex = queryTokenIndexMap.get(token);
+      if (tokenIndex !== undefined && matchLevels[tokenIndex] < 3) {
+        matchLevels[tokenIndex] = 3;
+      }
+    }
+
+    let score = 0;
+    for (const matchLevel of matchLevels) {
+      score += SEARCH_SCORE_BY_MATCH_LEVEL[matchLevel];
+    }
+
+    if (score > 0) {
+      baseScoreMap.set(row.promptId, (baseScoreMap.get(row.promptId) || 0) + score);
+    }
+  }
+
+  if (baseScoreMap.size === 0) {
+    return [];
+  }
+
+  const candidateIds = [...baseScoreMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, SEARCH_MAX_CANDIDATES)
+    .map(([promptId]) => promptId);
+
+  const prompts = await db.prompts.where("id").anyOf(candidateIds).toArray();
+  const promptMap = new Map(prompts.map((prompt) => [prompt.id, prompt]));
+
+  const ranked = candidateIds
+    .map((promptId) => {
+      const prompt = promptMap.get(promptId);
+      if (!prompt) return null;
+
+      let score = baseScoreMap.get(promptId) || 0;
+      const titleText = normalizeSearchText(prompt.title);
+      const contentText = normalizeSearchText(prompt.content);
+
+      if (titleText.includes(normalizedQuery)) score += 15;
+      if (contentText.includes(normalizedQuery)) score += 6;
+
+      return { score, prompt };
+    })
+    .filter(Boolean) as Array<{ score: number; prompt: Prompt }>;
+
+  ranked.sort(
+    (a, b) =>
+      b.score - a.score || (b.prompt.updatedAt || 0) - (a.prompt.updatedAt || 0),
+  );
+
+  return ranked.map((item) => item.prompt);
+}
+
+async function fetchPromptsWithoutSearch(
+  sortBy: "updatedAt" | "createdAt" | "title",
+  categoryIds?: string[],
+  tagIds?: string[],
+): Promise<PromptWithMatches[]> {
+  if (categoryIds && categoryIds.length > 0) {
+    const prompts = await db.prompts.where("categoryIds").anyOf(categoryIds).toArray();
+    return sortPromptsInMemory(prompts, sortBy);
+  }
+
+  if (tagIds && tagIds.length > 0) {
+    const prompts = await db.prompts.where("tagIds").anyOf(tagIds).toArray();
+    return sortPromptsInMemory(prompts, sortBy);
+  }
+
+  let collection = db.prompts.orderBy(sortBy);
+  if (sortBy === "updatedAt" || sortBy === "createdAt") {
+    collection = collection.reverse();
+  }
+  return collection.toArray();
+}
+
 export function getDefaultCategoriesForInit(): Category[] {
   return getDefaultCategories();
 }
@@ -75,18 +496,15 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "auto",
   outlineEnabled: true,
   locale: "system",
-  // Sync settings
   syncEnabled: false,
 };
 
 export async function getSettings(): Promise<Settings> {
   let s = await db.settings.get("global");
   if (!s) {
-    // If no settings exist, create them from default
     s = { ...DEFAULT_SETTINGS };
     await db.settings.put(s);
   } else if (!s.locale) {
-    // If settings exist but locale is missing (e.g., older version), add it
     const lang = navigator.language.toLowerCase();
     s.locale = lang.startsWith("zh") ? "zh-CN" : "en";
     await db.settings.put(s);
@@ -94,23 +512,6 @@ export async function getSettings(): Promise<Settings> {
   return s;
 }
 
-// The setSettings function has been removed.
-// All settings modifications must go through the repository.
-
-/**
- * Ensures default categories exist in the database.
- * This should be called on app initialization.
- * @returns true if categories were initialized, false if they already existed
- */
-/**
- * Ensures default categories exist in the database.
- * This should be called on app initialization.
- *
- * The categories are internationalized based on the current locale,
- * providing a user-friendly experience in multiple languages.
- *
- * @returns true if categories were initialized, false if they already existed
- */
 export async function ensureDefaultCategories(): Promise<boolean> {
   const existingCategories = await db.categories.toArray();
   if (existingCategories.length === 0) {
@@ -121,12 +522,9 @@ export async function ensureDefaultCategories(): Promise<boolean> {
   return false;
 }
 
-/**
- * Defines the parameters for querying prompts.
- */
 export interface QueryPromptsParams {
   searchQuery?: string;
-  category?: string; // Legacy from content script, will be merged into categoryNames
+  category?: string;
   categoryNames?: string[];
   tagNames?: string[];
   favoriteOnly?: boolean;
@@ -135,28 +533,15 @@ export interface QueryPromptsParams {
   limit?: number;
 }
 
-/**
- * Extends the Prompt type to include Fuse.js match details for highlighting.
- */
 export type PromptWithMatches = Prompt & {
   matches?: readonly FuseResultMatch[];
 };
 
-/**
- * Defines the structure of the returned data from queryPrompts.
- */
 export interface QueryPromptsResult {
   prompts: PromptWithMatches[];
   total: number;
 }
 
-/**
- * Performs an advanced, paginated query for prompts, leveraging Fuse.js for efficient
- * fuzzy searching and Dexie for filtering and retrieval.
- *
- * @param params - The query parameters.
- * @returns A promise that resolves to an object containing the prompts for the page and the total count of matching prompts.
- */
 export async function queryPrompts(
   params: QueryPromptsParams = {},
 ): Promise<QueryPromptsResult> {
@@ -172,83 +557,57 @@ export async function queryPrompts(
   } = params;
 
   const offset = (page - 1) * limit;
-  let filteredPrompts: PromptWithMatches[] = [];
+  const normalizedSearchQuery = searchQuery ? normalizeSearchText(searchQuery) : "";
+  const queryTokens = searchQuery ? extractQueryTokens(searchQuery) : [];
+  const resolvedCategoryNames = normalizeCategoryNames(category, initialCategoryNames);
+  const resolvedTagNames =
+    tagNames?.map((name) => name.trim()).filter(Boolean) || [];
 
-  if (searchQuery) {
-    // 1. Delegate search to the background script
-    const response = await chrome.runtime.sendMessage({
-      type: MSG.PERFORM_SEARCH,
-      data: { query: searchQuery },
-    });
-
-    if (!response.ok || !response.data) {
-      console.error(
-        "Failed to perform search via background script:",
-        response.error,
-      );
-      return { prompts: [], total: 0 };
-    }
-
-    const searchResults = response.data as PerformSearchResult[];
-    if (searchResults.length === 0) {
-      return { prompts: [], total: 0 };
-    }
-
-    const resultIds = searchResults.map((res) => res.item.id);
-    const matchesMap = new Map(
-      searchResults.map((res) => [res.item.id, res.matches]),
-    );
-
-    // 2. Fetch only the matching prompts from Dexie
-    const promptsFromDb = await db.prompts
-      .where("id")
-      .anyOf(resultIds)
+  let categoryIds: string[] | undefined;
+  if (resolvedCategoryNames.length > 0) {
+    const categories = await db.categories
+      .where("name")
+      .anyOf(resolvedCategoryNames)
       .toArray();
+    categoryIds = categories.map((item) => item.id);
+    if (categoryIds.length === 0) {
+      return { prompts: [], total: 0 };
+    }
+  }
 
-    // Create a map for quick reordering based on search score
-    const promptsMap = new Map(promptsFromDb.map((p) => [p.id, p]));
+  let tagIds: string[] | undefined;
+  if (resolvedTagNames.length > 0) {
+    const tags = await db.tags.where("name").anyOf(resolvedTagNames).toArray();
+    tagIds = tags.map((item) => item.id);
+    if (tagIds.length === 0) {
+      return { prompts: [], total: 0 };
+    }
+  }
 
-    // 3. Reorder the prompts according to Fuse.js relevance score and attach matches
-    filteredPrompts = resultIds
-      .map((id) => {
-        const prompt = promptsMap.get(id);
-        if (!prompt) return null;
-        return { ...prompt, matches: matchesMap.get(id) };
-      })
-      .filter(Boolean) as PromptWithMatches[];
-  } else {
-    // No search query, start with a Dexie collection sorted as requested
+  // 常见热路径：无搜索、无其他过滤时直接走数据库分页，避免全表加载后再切片
+  if (
+    !searchQuery &&
+    !favoriteOnly &&
+    (!categoryIds || categoryIds.length === 0) &&
+    (!tagIds || tagIds.length === 0)
+  ) {
     let collection = db.prompts.orderBy(sortBy);
     if (sortBy === "updatedAt" || sortBy === "createdAt") {
       collection = collection.reverse();
     }
-    filteredPrompts = await collection.toArray();
+
+    const [total, prompts] = await Promise.all([
+      db.prompts.count(),
+      collection.offset(offset).limit(limit).toArray(),
+    ]);
+
+    return { prompts, total };
   }
 
-  // 4. Resolve name-based filters to IDs before applying them
-  const categoryNames = [...(initialCategoryNames || [])];
-  if (category && category !== "全部") {
-    categoryNames.push(category);
-  }
+  let filteredPrompts = searchQuery
+    ? (await searchPromptsByIndex(normalizedSearchQuery, queryTokens) as PromptWithMatches[])
+    : await fetchPromptsWithoutSearch(sortBy, categoryIds, tagIds);
 
-  let categoryIds: string[] | undefined;
-  if (categoryNames.length > 0) {
-    // Use a Set to handle potential duplicates
-    const uniqueNames = [...new Set(categoryNames)];
-    const categories = await db.categories
-      .where("name")
-      .anyOf(uniqueNames)
-      .toArray();
-    categoryIds = categories.map((c) => c.id);
-  }
-
-  let tagIds: string[] | undefined;
-  if (tagNames && tagNames.length > 0) {
-    const tags = await db.tags.where("name").anyOf(tagNames).toArray();
-    tagIds = tags.map((t) => t.id);
-  }
-
-  // 5. Apply additional filters (favorite, categories, tags) on the (potentially search-filtered) list
   const filterConditions: ((p: Prompt) => boolean)[] = [];
   if (favoriteOnly) {
     filterConditions.push((p) => !!p.favorite);
@@ -270,9 +629,15 @@ export async function queryPrompts(
     );
   }
 
-  // 5. Apply pagination
   const total = filteredPrompts.length;
-  const paginatedPrompts = filteredPrompts.slice(offset, offset + limit);
+  let paginatedPrompts = filteredPrompts.slice(offset, offset + limit);
+
+  if (searchQuery && normalizedSearchQuery && queryTokens.length > 0) {
+    paginatedPrompts = paginatedPrompts.map((prompt) => ({
+      ...prompt,
+      matches: buildPromptMatches(prompt, normalizedSearchQuery, queryTokens),
+    }));
+  }
 
   return { prompts: paginatedPrompts, total };
 }

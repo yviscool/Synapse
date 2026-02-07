@@ -33,6 +33,12 @@ export default {
       daysAgo: "{days} days ago",
       never: "Never",
     },
+    toast: {
+      uploaded: "Local data has been uploaded to the cloud.",
+      downloaded: "Latest data has been pulled from the cloud.",
+      upToDate: "Local and cloud data are already up to date.",
+      skippedEmpty: "No local data to sync. Skipped creating an empty initial backup.",
+    },
     enable: {
       title: "A forever home for your inspiration",
       description:

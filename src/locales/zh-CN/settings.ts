@@ -33,6 +33,12 @@ export default {
       daysAgo: "{days} 天前同步",
       never: "从未同步",
     },
+    toast: {
+      uploaded: "本地数据已上传到云端。",
+      downloaded: "已从云端拉取最新数据。",
+      upToDate: "本地与云端已是最新状态。",
+      skippedEmpty: "本地暂无可同步数据，已跳过首次空备份。",
+    },
     enable: {
       title: "给你的灵感一个永恒的家",
       description: "启用云同步，在所有设备间无缝创作，永不丢失。",
