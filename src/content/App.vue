@@ -13,10 +13,18 @@
             :isLoading="isLoading"
             :hasMore="hasMore"
             :totalPrompts="totalPrompts"
+            :isComposerVisible="editorVisible"
             @select="handleSelect"
             @copy="handleCopy"
             @close="closePanel"
             @load-more="handleLoadMore"
+        />
+        <PromptComposerPanel
+            v-model="editorContent"
+            :visible="visible && editorVisible"
+            :promptTitle="editorPromptTitle"
+            @close="collapseComposer"
+            @insert="handleInsert"
         />
         <!-- 大纲侧边栏 -->
         <!-- 仅在配置存在时渲染大纲组件 -->
@@ -41,7 +49,6 @@ import { ui, useUI } from "@/stores/ui";
 import { ref, computed, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
-    useEventListener,
     refDebounced,
     useMagicKeys,
     whenever,
@@ -51,15 +58,54 @@ import {
 import Outline from "@/outline/Outline.vue"; // <-- Import new component
 import { siteConfigs } from "@/outline/site-configs"; // <-- Import configs
 import PromptSelector from "./components/PromptSelector.vue";
-import { findActiveInput, insertAtCursor } from "@/utils/inputAdapter";
+import PromptComposerPanel from "./components/PromptComposerPanel.vue";
+import { appendAtEnd, findActiveInput } from "@/utils/inputAdapter";
 import {
     MSG,
     type RequestMessage,
     type ResponseMessage,
     type PromptDTO,
 } from "@/utils/messaging";
-import type { FuseResultMatch, FuseResult } from "fuse.js";
+import type { FuseResultMatch } from "fuse.js";
 import { getCategoryNameById, isDefaultCategory } from "@/utils/categoryUtils";
+
+const INPUT_SELECTOR_HINTS = [
+    "#prompt-textarea.ProseMirror[contenteditable='true']",
+    "#prompt-textarea",
+    '[data-testid="prompt-textarea"]',
+    '.ProseMirror[contenteditable="true"]',
+    'textarea[placeholder*="Message"]',
+    'textarea[placeholder*="发送"]',
+];
+
+const TRACE_PREFIX = "[SynapseTrace]";
+
+type InsertTraceFn = (step: string, payload?: Record<string, unknown>) => void;
+
+function createInsertTrace(meta: Record<string, unknown>): InsertTraceFn {
+    const traceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const start = performance.now();
+    console.log(`${TRACE_PREFIX}[${traceId}] +0.00ms insert.begin`, meta);
+
+    return (step, payload = {}) => {
+        const elapsedMs = Number((performance.now() - start).toFixed(2));
+        console.log(`${TRACE_PREFIX}[${traceId}] +${elapsedMs}ms ${step}`, payload);
+    };
+}
+
+function describeTarget(target: ReturnType<typeof findActiveInput> | null) {
+    if (!target) return { exists: false };
+    const el = target.el;
+    return {
+        exists: true,
+        kind: target.kind,
+        id: el.id || "",
+        className: el.className || "",
+        isConnected: el.isConnected,
+        isEditable: target.kind === "textarea" ? !(el as HTMLTextAreaElement).readOnly : el.isContentEditable,
+        rectCount: el.getClientRects().length,
+    };
+}
 
 // Logic to select the correct config for the current site
 const outlineConfig = computed(() => {
@@ -112,6 +158,10 @@ async function setLocale() {
 const selectorRef = ref<InstanceType<typeof PromptSelector> | null>(null);
 /** 面板是否可见 */
 const visible = ref(false);
+const editorVisible = ref(false);
+const editorContent = ref("");
+const editorPromptTitle = ref("");
+const selectedPromptId = ref<string | null>(null);
 
 // 当面板显示时锁定页面滚动，提升用户体验
 const isLocked = useScrollLock(document.body);
@@ -266,12 +316,13 @@ watch([searchQueryDebounced, selectedCategory], () => {
  */
 async function openPanel() {
     visible.value = true;
+    resetComposerState();
 
     // 记录当前焦点元素，用于关闭面板后恢复
     lastActiveEl = document.activeElement as HTMLElement | null;
 
     // 查找并记录触发面板的输入元素
-    opener = findActiveInput();
+    opener = findActiveInput(INPUT_SELECTOR_HINTS);
 
     // 重置搜索和分类状态
     isResettingFilters.value = true;
@@ -291,11 +342,23 @@ async function openPanel() {
  */
 function closePanel() {
     visible.value = false;
+    resetComposerState();
 
     // 恢复之前的焦点元素
     if (lastActiveEl) {
         setTimeout(() => lastActiveEl?.focus(), 0);
     }
+}
+
+function collapseComposer() {
+    editorVisible.value = false;
+}
+
+function resetComposerState() {
+    editorVisible.value = false;
+    editorContent.value = "";
+    editorPromptTitle.value = "";
+    selectedPromptId.value = null;
 }
 
 /**
@@ -330,6 +393,7 @@ const keys = useMagicKeys({
         // 当面板显示时，阻止某些按键的默认行为
         if (
             visible.value &&
+            !editorVisible.value &&
             (e.key === "ArrowUp" ||
                 e.key === "ArrowDown" ||
                 e.key === "Tab" ||
@@ -345,21 +409,21 @@ const keys = useMagicKeys({
 
 // 向下箭头：移动到下一个提示词
 whenever(keys.ArrowDown, () => {
-    if (!visible.value) return;
+    if (!visible.value || editorVisible.value) return;
     highlightIndex.value++;
     clampHighlight();
 });
 
 // 向上箭头：移动到上一个提示词
 whenever(keys.ArrowUp, () => {
-    if (!visible.value) return;
+    if (!visible.value || editorVisible.value) return;
     highlightIndex.value--;
     clampHighlight();
 });
 
 // 回车键：选择当前高亮的提示词
 whenever(keys.Enter, () => {
-    if (!visible.value) return;
+    if (!visible.value || editorVisible.value) return;
     const cur = allPrompts.value[highlightIndex.value];
     if (cur) handleSelect(cur);
 });
@@ -367,12 +431,16 @@ whenever(keys.Enter, () => {
 // ESC键：关闭面板
 whenever(keys.Escape, () => {
     if (!visible.value) return;
+    if (editorVisible.value) {
+        collapseComposer();
+        return;
+    }
     closePanel();
 });
 
 // Tab键：切换到下一个分类
 whenever(keys.Tab, () => {
-    if (!visible.value) return;
+    if (!visible.value || editorVisible.value) return;
     const idx = categoryOptions.value.indexOf(selectedCategory.value);
     const next =
         (idx + 1 + categoryOptions.value.length) % categoryOptions.value.length;
@@ -381,7 +449,7 @@ whenever(keys.Tab, () => {
 
 // Shift+Tab：切换到上一个分类
 whenever(keys["Shift+Tab"], () => {
-    if (!visible.value) return;
+    if (!visible.value || editorVisible.value) return;
     const idx = categoryOptions.value.indexOf(selectedCategory.value);
     const next =
         (idx - 1 + categoryOptions.value.length) % categoryOptions.value.length;
@@ -390,7 +458,7 @@ whenever(keys["Shift+Tab"], () => {
 
 // Ctrl+C：复制当前高亮的提示词
 whenever(keys.Ctrl_C, () => {
-    if (!visible.value) return;
+    if (!visible.value || editorVisible.value) return;
     const cur = allPrompts.value[highlightIndex.value];
     if (cur) handleCopy(cur);
 });
@@ -401,41 +469,133 @@ whenever(keys.Ctrl_C, () => {
  * 处理提示词选择事件
  * @param p 选中的提示词对象
  */
-async function handleSelect(p: PromptDTO) {
+function handleSelect(p: PromptDTO) {
+    editorPromptTitle.value = p.title;
+    editorContent.value = p.content;
+    selectedPromptId.value = p.id;
+    editorVisible.value = true;
+}
+
+async function handleInsert() {
+    const trace = createInsertTrace({
+        hostname: window.location.hostname,
+        promptId: selectedPromptId.value || "",
+        contentLength: editorContent.value.length,
+    });
     try {
-        // 更新提示词的最后使用时间（用于排序和统计）
-        chrome.runtime.sendMessage({
-            type: MSG.UPDATE_PROMPT_LAST_USED,
-            data: { promptId: p.id },
-        });
+        if (selectedPromptId.value) {
+            chrome.runtime.sendMessage({
+                type: MSG.UPDATE_PROMPT_LAST_USED,
+                data: { promptId: selectedPromptId.value },
+            });
+        }
+        trace("prompt.lastUsed.sent", { hasPromptId: !!selectedPromptId.value });
 
         // 获取目标输入元素（优先使用打开面板时记录的元素）
-        const target = opener || findActiveInput();
+        const contentToInsert = editorContent.value;
+        if (!contentToInsert.trim()) {
+            trace("insert.abort.empty");
+            showToast(t("common.toast.operationFailed"), "error");
+            return;
+        }
+
+        const inserted = insertWithRetry(contentToInsert, trace);
+        trace("insert.result", { inserted });
 
         // 如果没有找到输入元素，则复制到剪贴板
-        if (!target) {
+        if (!inserted) {
             try {
-                await navigator.clipboard.writeText(p.content);
+                trace("clipboard.fallback.start");
+                await navigator.clipboard.writeText(contentToInsert);
+                trace("clipboard.fallback.ok");
                 showToast(t("common.toast.copySuccess"), "success");
             } catch {
+                trace("clipboard.fallback.fail");
                 showToast(t("common.toast.operationFailed"), "error");
             }
             return;
         }
 
-        // 检查是否由触发器 ('/p') 调用
-        const isTriggered = searchQuery.value === "";
-
-        // 在光标位置插入提示词内容，并告知函数是否需要替换触发符
-        insertAtCursor(target, p.content, isTriggered);
-
         showToast(t("common.toast.operationSuccess"), "success");
     } catch (error) {
+        trace("insert.exception", {
+            error: error instanceof Error ? error.message : String(error),
+        });
         console.error("处理提示词选择时出错:", error);
         showToast(t("common.toast.operationFailed"), "error");
     } finally {
+        trace("insert.finally.closePanel");
         closePanel();
     }
+}
+
+function isUsableTarget(target: ReturnType<typeof findActiveInput> | null): target is NonNullable<ReturnType<typeof findActiveInput>> {
+    if (!target) return false;
+    const el = target.el;
+    if (!el || !el.isConnected) return false;
+    if (target.kind === "textarea") {
+        if (el.disabled || el.readOnly) return false;
+    } else if (!el.isContentEditable) {
+        return false;
+    }
+    if (el.getClientRects().length === 0) return false;
+    return true;
+}
+
+function resolveInsertTarget(trace?: InsertTraceFn) {
+    trace?.("target.resolve.start", {
+        opener: describeTarget(opener),
+        activeElementTag: document.activeElement?.tagName || "",
+    });
+    if (isUsableTarget(opener)) {
+        trace?.("target.resolve.useOpener", describeTarget(opener));
+        return opener;
+    }
+    const active = findActiveInput(INPUT_SELECTOR_HINTS);
+    trace?.("target.resolve.activeFound", describeTarget(active));
+    if (isUsableTarget(active)) {
+        trace?.("target.resolve.useActive", describeTarget(active));
+        return active;
+    }
+    trace?.("target.resolve.none");
+    return null;
+}
+
+function appendToTarget(
+    target: ReturnType<typeof findActiveInput>,
+    content: string,
+    trace?: InsertTraceFn,
+) {
+    if (!target) {
+        trace?.("append.skip.noTarget");
+        return false;
+    }
+    trace?.("append.try", describeTarget(target));
+    const ok = appendAtEnd(target, content, { trace });
+    trace?.("append.done", { ok, target: describeTarget(target) });
+    return ok;
+}
+
+function insertWithRetry(content: string, trace?: InsertTraceFn) {
+    const primary = resolveInsertTarget(trace);
+    if (appendToTarget(primary, content, trace)) {
+        trace?.("insert.primary.ok");
+        return true;
+    }
+
+    const retryTarget = findActiveInput(INPUT_SELECTOR_HINTS);
+    trace?.("insert.retry.target", describeTarget(retryTarget));
+    if (!retryTarget) {
+        trace?.("insert.retry.miss");
+        return false;
+    }
+    if (primary && retryTarget.el === primary.el) {
+        trace?.("insert.retry.sameTarget");
+        return false;
+    }
+    const ok = appendToTarget(retryTarget, content, trace);
+    trace?.("insert.retry.done", { ok });
+    return ok;
 }
 
 /**
@@ -476,46 +636,6 @@ function handleLoadMore() {
 whenever(keys.alt_k, () => {
     if (!visible.value) openPanel();
 });
-
-/**
- * 全局键盘事件监听器
- * 用于检测 '/p' 触发序列
- * @param e 键盘事件对象
- */
-function onKeydown(e: KeyboardEvent) {
-    // 如果面板已经显示，不处理触发序列
-    if (visible.value) return;
-
-    const t = e.target as HTMLElement;
-    const isTextarea = t instanceof HTMLTextAreaElement;
-    const isContentEditable = t.isContentEditable;
-
-    // 只在文本输入元素中处理
-    if (!isTextarea && !isContentEditable) return;
-
-    // 检测触发序列：'/' 后跟 'p' 键
-    if (e.key.toLowerCase() === "p") {
-        let precedingText = "";
-
-        if (isTextarea) {
-            // 获取 textarea 的文本内容
-            precedingText = (t as HTMLTextAreaElement).value || "";
-        } else if (isContentEditable) {
-            // 获取 contenteditable 元素的文本内容
-            precedingText = t.textContent || "";
-        }
-
-        // 如果文本以 '/' 结尾，则触发面板
-        if (precedingText.toLowerCase().endsWith("/")) {
-            e.preventDefault(); // 阻止 'p' 字符输入
-            e.stopPropagation(); // 阻止事件冒泡
-            openPanel(); // 打开提示词面板
-        }
-    }
-}
-
-// 注册全局键盘事件监听器（捕获阶段）
-useEventListener(document, "keydown", onKeydown, true);
 
 // === 组件生命周期 ===
 

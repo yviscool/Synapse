@@ -1,6 +1,6 @@
 export default {
   searchPlaceholder: "搜索提示...",
-  useWithEnter: "回车使用",
+  useWithEnter: "回车编辑",
   copy: "复制 (Ctrl+C)",
   noMatch: "没有找到匹配的提示",
   loading: "加载中...",
@@ -9,6 +9,16 @@ export default {
   categoryTip: "切换分类",
   closeTip: "关闭 (Esc)",
   allCategories: "全部",
+  composer: {
+    badge: "Prompt 工坊",
+    defaultTitle: "提示词草稿",
+    subtitle: "精修后可一键追加到当前输入框末尾",
+    collapse: "收缩",
+    insert: "插入",
+    placeholder: "在这里编辑你的提示词...",
+    appendHint: "插入会追加到末尾，不会替换现有内容。",
+    stats: "{lines} 行 · {words} 词 · {characters} 字符",
+  },
   outline: {
     title: "对话大纲",
     searchPlaceholder: "搜索对话内容...",

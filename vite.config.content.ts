@@ -21,6 +21,9 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  esbuild: {
+    charset: 'ascii',
+  },
   build: {
     emptyOutDir: false,
     outDir: 'dist',
@@ -29,6 +32,9 @@ export default defineConfig({
         content: resolve(__dirname, 'src/content/index.ts'),
       },
       output: {
+        format: 'iife',
+        inlineDynamicImports: true,
+        name: 'SynapseContentScript',
         entryFileNames: 'content.js',
         assetFileNames: 'content.css',
       },

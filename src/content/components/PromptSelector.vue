@@ -1,11 +1,19 @@
 <template>
   <div
-    class="fixed inset-0 z-2147483646 flex items-start justify-center pointer-events-none transition-opacity duration-300"
+    class="fixed inset-0 z-2147483646 flex items-start justify-center pointer-events-none transition-opacity duration-300 prompt-selector-overlay"
     :class="isMounted ? 'opacity-100' : 'opacity-0'"
   >
     <div
-      class="relative mt-16 w-[min(800px,90vw)] max-h-[80vh] rounded-xl shadow-2xl border border-black/10 dark:border-white/30 bg-white/80 dark:bg-[#202127]/90 pointer-events-auto flex flex-col transform transition-all duration-300"
-      :class="isMounted ? 'scale-100 opacity-100' : 'scale-95 opacity-0'"
+      class="relative mt-16 w-[min(800px,90vw)] max-h-[80vh] rounded-xl shadow-2xl border border-black/10 dark:border-white/30 bg-white/80 dark:bg-[#202127]/90 pointer-events-auto flex flex-col transform transition-all duration-300 prompt-selector-panel"
+      :class="[
+        isMounted ? 'scale-100 opacity-100' : 'scale-95 opacity-0',
+        props.isComposerVisible ? 'md:-translate-x-[18vw] lg:-translate-x-[14vw]' : 'translate-x-0',
+        {
+          'is-mounted': isMounted,
+          'is-composer-visible': !!props.isComposerVisible,
+        },
+      ]"
+      :style="panelStyle"
     >
       <!-- Header / Search -->
       <div class="p-3 border-b border-black/10 dark:border-white/30 flex items-center gap-3 flex-shrink-0">
@@ -148,6 +156,7 @@ const props = defineProps<{
   isLoading: boolean
   hasMore: boolean
   totalPrompts: number
+  isComposerVisible?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -177,6 +186,27 @@ const promptCards = computed<PromptCardView[]>(() => {
     highlightedTitle: generateHighlightedHtml(prompt.title, prompt.matches, 'title'),
     highlightedContent: generateHighlightedPreviewHtml(prompt.content, prompt.matches, 'content', 260),
   }))
+})
+
+const panelStyle = computed(() => {
+  const base = {
+    transition: 'transform 360ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease',
+    opacity: isMounted.value ? '1' : '0',
+  } as Record<string, string>
+
+  if (!isMounted.value) {
+    base.transform = 'scale(0.95)'
+    return base
+  }
+
+  const isDesktop = window.matchMedia('(min-width: 64rem)').matches
+  const isTablet = !isDesktop && window.matchMedia('(min-width: 48rem)').matches
+  const shift = props.isComposerVisible
+    ? (isDesktop ? '-14vw' : isTablet ? '-18vw' : '-8vw')
+    : '0'
+
+  base.transform = `translateX(${shift}) scale(1)`
+  return base
 })
 
 const isMounted = ref(false)
@@ -223,6 +253,42 @@ defineExpose({
 <style scoped>
 .z-2147483646 {
   z-index: 2147483646;
+}
+
+.prompt-selector-overlay {
+  z-index: 2147483646;
+}
+
+.prompt-selector-panel {
+  transition:
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 300ms ease;
+}
+
+.prompt-selector-panel:not(.is-mounted) {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.prompt-selector-panel.is-mounted {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+.prompt-selector-panel.is-mounted.is-composer-visible {
+  transform: translateX(-8vw) scale(1);
+}
+
+@media (min-width: 48rem) {
+  .prompt-selector-panel.is-mounted.is-composer-visible {
+    transform: translateX(-18vw) scale(1);
+  }
+}
+
+@media (min-width: 64rem) {
+  .prompt-selector-panel.is-mounted.is-composer-visible {
+    transform: translateX(-14vw) scale(1);
+  }
 }
 
 /* FIX: Added custom scrollbar styles with dark mode support */

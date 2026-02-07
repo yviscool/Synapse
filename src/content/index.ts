@@ -18,11 +18,105 @@ import "@/styles"
   // 3. Create the element to mount the Vue app on, inside the shadow root.
   const appContainer = document.createElement('div')
 
-  // 4. Inject CSS into the shadow root.
-  const styleEl = document.createElement('link')
-  styleEl.setAttribute('rel', 'stylesheet')
-  styleEl.setAttribute('href', chrome.runtime.getURL('content.css'))
-  shadowRoot.appendChild(styleEl)
+  // 4. Inject styles into shadow root.
+  //    Newer content builds may inline styles into JS (style tags in document.head),
+  //    while older builds emit dist/content.css.
+  const STYLE_MARKERS = [
+    '.z-2147483646',
+    '.z-2147483647',
+    '.milkdown .ProseMirror',
+    '--crepe-color-background',
+    '$vite$:',
+    '.prompt-selector-panel',
+    '.composer-panel',
+  ]
+  let hasInjectedStyle = false
+  let hasFallbackCssLink = false
+  let styleObserver: MutationObserver | null = null
+  let pendingStyleScan = 0
+
+  const isOwnedStyle = (styleNode: HTMLStyleElement) => {
+    if ((styleNode as HTMLElement).dataset.synapseStyle === '1') return true
+    const cssText = styleNode.textContent || ''
+    return STYLE_MARKERS.some((marker) => cssText.includes(marker))
+  }
+
+  const stopStyleObserver = () => {
+    if (styleObserver) {
+      styleObserver.disconnect()
+      styleObserver = null
+    }
+  }
+
+  const moveStyleToShadow = (styleNode: HTMLStyleElement) => {
+    if (!isOwnedStyle(styleNode)) return
+    if (styleNode.parentNode === shadowRoot) return
+    ;(styleNode as HTMLElement).dataset.synapseStyle = '1'
+    shadowRoot.appendChild(styleNode)
+    hasInjectedStyle = true
+  }
+
+  const moveExistingStyles = () => {
+    const headStyles = Array.from(document.head.querySelectorAll('style'))
+    headStyles.forEach((styleNode) => moveStyleToShadow(styleNode))
+  }
+
+  const attachFallbackCssIfNeeded = () => {
+    if (hasInjectedStyle || hasFallbackCssLink) return
+    const fallbackCssUrl = chrome.runtime.getURL('content.css')
+    fetch(fallbackCssUrl)
+      .then((res) => {
+        if (!res.ok || hasInjectedStyle || hasFallbackCssLink) return
+        const styleEl = document.createElement('link')
+        styleEl.setAttribute('rel', 'stylesheet')
+        styleEl.setAttribute('href', fallbackCssUrl)
+        shadowRoot.appendChild(styleEl)
+        hasFallbackCssLink = true
+      })
+      .catch(() => {
+        // ignore
+      })
+  }
+
+  moveExistingStyles()
+
+  const scheduleStyleScan = () => {
+    if (pendingStyleScan) return
+    pendingStyleScan = window.setTimeout(() => {
+      pendingStyleScan = 0
+      moveExistingStyles()
+    }, 0)
+  }
+
+  styleObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node instanceof HTMLStyleElement) {
+          moveStyleToShadow(node)
+        }
+      })
+    })
+    // 某些运行时会先插入空 style，再异步填充 textContent。
+    scheduleStyleScan()
+  })
+  styleObserver.observe(document.head, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  })
+
+  // 给运行时样式注入留一点时间窗口，再回退到静态 CSS 文件。
+  setTimeout(() => {
+    moveExistingStyles()
+    attachFallbackCssIfNeeded()
+  }, 200)
+
+  setTimeout(() => {
+    moveExistingStyles()
+    attachFallbackCssIfNeeded()
+  }, 2500)
+
+  window.addEventListener('beforeunload', stopStyleObserver, { once: true })
 
   shadowRoot.appendChild(appContainer)
 

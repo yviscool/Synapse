@@ -1,6 +1,6 @@
 export default {
   searchPlaceholder: "Search prompts...",
-  useWithEnter: "Use with Enter",
+  useWithEnter: "Edit with Enter",
   copy: "Copy (Ctrl+C)",
   noMatch: "No matching prompts found.",
   loading: "Loading...",
@@ -9,6 +9,16 @@ export default {
   categoryTip: "to switch category",
   closeTip: "Close (Esc)",
   allCategories: "All",
+  composer: {
+    badge: "Prompt Studio",
+    defaultTitle: "Prompt Draft",
+    subtitle: "Polish content before appending it to the current input",
+    collapse: "Collapse",
+    insert: "Insert",
+    placeholder: "Edit your prompt here...",
+    appendHint: "Insert appends to the end and never replaces existing text.",
+    stats: "{lines} lines · {words} words · {characters} chars",
+  },
   outline: {
     title: "Conversation Outline",
     searchPlaceholder: "Search conversation...",
