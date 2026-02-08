@@ -1,143 +1,129 @@
 <template>
   <div
-    class="fixed inset-0 z-2147483646 flex items-start justify-center pointer-events-none transition-opacity duration-400 prompt-selector-overlay"
-    :class="isMounted ? 'opacity-100' : 'opacity-0'"
+    class="fixed inset-0 z-[2147483646] flex items-center justify-center pointer-events-none transition-opacity duration-300 prompt-selector-overlay font-sans synapse-theme-scope"
+    :class="[isMounted ? 'opacity-100' : 'opacity-0', { dark: isDark }]"
   >
+    <!-- Main Panel -->
     <section
-      class="relative pointer-events-auto mt-[clamp(2.8rem,6vh,4.2rem)] flex h-[min(80vh,780px)] max-h-[80vh] flex-col overflow-hidden rounded-[26px] border prompt-selector-panel"
+      class="synapse-selector-root relative pointer-events-auto flex flex-col overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] prompt-selector-panel"
       :class="[
-        { 'is-mounted': isMounted, 'is-composer-visible': !!props.isComposerVisible },
+        isMounted ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4',
+        props.isComposerVisible ? 'w-[320px] h-[min(800px,85vh)] mr-2' : 'w-[720px] h-[min(640px,80vh)]',
+        { dark: isDark }
       ]"
     >
-      <div class="prompt-spine" :class="{ 'is-visible': props.isComposerVisible }">
-        <div class="prompt-spine-glow" />
-        <button
-          class="prompt-spine-close"
-          @click="$emit('close')"
-          :title="t('content.closeTip')"
-        >
-          <div class="i-carbon-close text-lg" />
-        </button>
-        <div class="prompt-spine-title">
-          {{ props.activePromptTitle || t("content.composer.defaultTitle") }}
+      <!-- Header: Search -->
+      <div class="px-6 py-5 flex-shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10 border-b border-black/5 dark:border-white/5">
+        <div class="relative flex items-center group">
+          <div class="absolute left-3 text-slate-400 group-focus-within:text-slate-600 dark:text-slate-300 transition-colors">
+            <div class="i-carbon-search text-xl synapse-icon-muted" />
+          </div>
+          <input
+            ref="searchInput"
+            v-model="query"
+            :placeholder="t('content.searchPlaceholder')"
+            class="synapse-input w-full bg-slate-100/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 focus:bg-white dark:focus:bg-black border border-transparent focus:border-cyan-500/30 rounded-xl py-3 pl-11 pr-4 text-[15px] outline-none transition-all duration-300 font-medium shadow-inner"
+          />
+          <button
+            v-if="!props.isComposerVisible"
+            @click="$emit('close')"
+            class="absolute right-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+            :title="t('content.closeTip')"
+          >
+            <div class="i-carbon-close text-lg synapse-icon-muted" />
+          </button>
         </div>
       </div>
 
-      <div class="prompt-selector-body" :class="{ 'is-hidden': props.isComposerVisible }">
-        <div class="px-4 py-3 border-b prompt-selector-divider flex items-center gap-3 flex-shrink-0">
-          <div class="flex-1 flex items-center gap-3 px-3 rounded-xl border prompt-search-box">
-            <div class="i-carbon-search text-[18px] text-slate-500/70 dark:text-white/70 flex-shrink-0" />
-            <input
-              ref="searchInput"
-              v-model="query"
-              :placeholder="t('content.searchPlaceholder')"
-              class="w-full py-2.5 outline-none bg-transparent text-sm text-slate-800 dark:text-white placeholder:text-slate-400/80 dark:placeholder:text-white/50"
-            />
-          </div>
-        </div>
-
-        <div class="px-4 py-2.5 border-b prompt-selector-divider flex flex-wrap gap-2.5 flex-shrink-0">
+      <!-- Categories -->
+      <div class="px-6 pb-2 pt-3 flex-shrink-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm overflow-x-auto no-scrollbar mask-gradient-right">
+        <div class="flex gap-2">
           <button
             v-for="c in categories"
             :key="c"
             @click="selectedCategoryModel = c"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 border whitespace-nowrap synapse-category-btn"
             :class="[
-              'px-3.5 py-1.5 rounded-full text-xs border transition-all duration-200 prompt-category-chip',
-              c === selectedCategoryModel
-                ? 'is-active bg-cyan-600 text-white border-cyan-600 shadow-[0_8px_24px_rgba(8,145,178,0.35)]'
-                : 'bg-white/72 dark:bg-white/4 border-slate-300/60 dark:border-white/15 text-slate-700 dark:text-white/78 hover:bg-slate-100/95 dark:hover:bg-white/8 hover:-translate-y-[1px]',
+              c === selectedCategoryModel ? 'is-active' : '',
             ]"
           >
             {{ c }}
           </button>
         </div>
-
-        <div ref="scrollContainer" class="flex-1 overflow-y-auto px-4 py-3 grid auto-rows-max gap-3 custom-scrollbar">
-          <template v-if="prompts.length > 0">
-            <article
-              v-for="(p, i) in promptCards"
-              :key="p.id"
-              @click="$emit('select', p)"
-              :class="[
-                'p-4 rounded-2xl border cursor-pointer group transition-all duration-220 min-w-0 prompt-item',
-                i === highlightIndex
-                  ? 'is-active'
-                  : '',
-              ]"
-              :title="t('content.useWithEnter')"
-            >
-              <div class="flex items-start justify-between gap-4">
-                <div class="flex-1 min-w-0">
-                  <div
-                    class="font-semibold text-[15px] text-slate-800 dark:text-white truncate prompt-item-title"
-                    v-html="p.highlightedTitle"
-                  />
-                </div>
-                <button
-                  class="p-2 rounded-full text-slate-500 dark:text-white/74 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-900/5 dark:hover:bg-white/10 flex-shrink-0"
-                  @click.stop="$emit('copy', p)"
-                  :title="t('content.copy')"
-                >
-                  <div class="i-carbon-copy text-lg" />
-                </button>
-              </div>
-              <div
-                class="mt-1.5 text-slate-600 dark:text-white/70 text-sm line-clamp-2 leading-relaxed prompt-item-content"
-                v-html="p.highlightedContent"
-              />
-              <div class="mt-3.5 flex items-center flex-wrap gap-x-4 gap-y-2 text-xs text-slate-500 dark:text-white/60 prompt-item-meta">
-                <div v-if="p.categoryName" class="flex items-center gap-1.5">
-                  <div class="i-carbon-folder" />
-                  <span>{{ p.categoryName }}</span>
-                </div>
-                <div v-if="p.tags?.length" class="flex items-center gap-1.5">
-                  <div class="i-carbon-tag" />
-                  <div class="flex flex-wrap gap-1">
-                    <span
-                      v-for="tag in p.tags"
-                      :key="tag"
-                      class="px-1.5 py-0.5 rounded-md bg-slate-200/72 dark:bg-white/9 text-slate-600 dark:text-white/76 prompt-item-tag"
-                    >
-                      {{ tag }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </article>
-          </template>
-
-          <div v-if="prompts.length === 0 && !isLoading" class="text-center py-12 text-slate-500 dark:text-white/70">
-            {{ t('content.noMatch') }}
-          </div>
-          <div ref="loaderRef" class="h-1"></div>
-        </div>
-
-        <footer class="px-4 py-2.5 text-xs prompt-selector-divider border-t flex items-center justify-between flex-shrink-0 text-slate-500 dark:text-white/65">
-          <div>
-            <span class="font-semibold">↑</span>/<span class="font-semibold">↓</span> {{ t('content.navTip') }}
-            <span class="mx-2">·</span>
-            <span class="font-semibold">Tab</span> {{ t('content.categoryTip') }}
-          </div>
-          <div class="text-slate-500 dark:text-white/55">
-            <span v-if="isLoading && prompts.length > 0" class="flex items-center gap-1">
-              <div class="i-carbon-circle-dash w-4 h-4 animate-spin" />
-              {{ t('common.loading') }}
-            </span>
-            <span v-else>
-              {{ t('content.total', { total: totalPrompts }) }}
-            </span>
-          </div>
-        </footer>
       </div>
 
-      <button
-        v-if="!props.isComposerVisible"
-        class="absolute top-3 right-3 p-2 rounded-full text-slate-600 dark:text-white/72 hover:bg-slate-900/8 dark:hover:bg-white/10 transition-colors flex-shrink-0"
-        @click="$emit('close')"
-        :title="t('content.closeTip')"
-      >
-        <div class="i-carbon-close text-xl" />
-      </button>
+      <!-- Prompts List -->
+      <div ref="scrollContainer" class="flex-1 overflow-y-auto px-4 py-2 scroll-smooth custom-scrollbar bg-slate-50/50 dark:bg-[#0B0F19]/50">
+        <div v-if="prompts.length > 0" class="grid gap-2 pb-4">
+          <article
+            v-for="(p, i) in promptCards"
+            :key="p.id"
+            @click="$emit('select', p)"
+            class="group relative p-4 rounded-xl cursor-pointer border transition-all duration-200 synapse-prompt-item"
+            :class="[
+              i === highlightIndex ? 'is-active' : '',
+            ]"
+          >
+            <!-- Content -->
+            <div class="flex justify-between items-start gap-3">
+              <div class="min-w-0 flex-1">
+                <h3
+                  class="font-semibold text-[15px] leading-tight truncate mb-1 synapse-title"
+                  v-html="p.highlightedTitle"
+                />
+                <div
+                  class="text-sm leading-relaxed line-clamp-2 synapse-content"
+                  v-html="p.highlightedContent"
+                />
+              </div>
+            </div>
+
+            <!-- Footer / Meta -->
+            <div class="mt-3 flex items-center justify-between text-xs synapse-meta">
+              <div class="flex items-center gap-3">
+                 <div v-if="p.categoryName" class="flex items-center gap-1.5 opacity-80">
+                  <div class="i-carbon-folder synapse-icon-muted" />
+                  <span class="truncate max-w-[80px] synapse-meta-text">{{ p.categoryName }}</span>
+                </div>
+              </div>
+              
+               <!-- Quick Actions (Visible on hover/active) -->
+               <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <button
+                    class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                    @click.stop="$emit('copy', p)"
+                    :title="t('content.copy')"
+                  >
+                    <div class="i-carbon-copy text-sm synapse-icon-muted" />
+                  </button>
+                   <div class="i-carbon-arrow-right text-slate-300 dark:text-slate-600 synapse-icon-muted" />
+               </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Empty State -->
+        <div v-if="prompts.length === 0 && !isLoading" class="h-full flex flex-col items-center justify-center synapse-meta-text pb-20">
+          <div class="i-ph-magnifying-glass text-4xl mb-3 opacity-20" />
+          <p class="text-sm font-medium">{{ t('content.noMatch') }}</p>
+        </div>
+        
+        <!-- Loader -->
+        <div ref="loaderRef" class="py-4 flex justify-center opacity-0 transition-opacity duration-300" :class="{ 'opacity-100': isLoading }">
+           <div class="i-carbon-circle-dash w-5 h-5 animate-spin text-slate-400" />
+        </div>
+      </div>
+
+      <!-- Status Bar -->
+      <footer class="synapse-footer px-6 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200/50 dark:border-slate-800 text-[11px] font-medium flex justify-between items-center select-none overflow-hidden">
+        <div class="flex gap-3 whitespace-nowrap synapse-footer-text">
+           <span><b class="font-bold">↑↓</b> {{ t('content.navTip') }}</span>
+           <span v-if="!props.isComposerVisible"><b class="font-bold">Tab</b> {{ t('content.categoryTip') }}</span>
+        </div>
+        <div class="flex-shrink-0 synapse-footer-text">
+           {{ t('content.total', { total: totalPrompts }) }}
+        </div>
+      </footer>
     </section>
   </div>
 </template>
@@ -163,6 +149,7 @@ const props = defineProps<{
   totalPrompts: number
   isComposerVisible?: boolean
   activePromptTitle?: string
+  isDark?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -199,7 +186,8 @@ const loaderRef = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
 
 onMounted(() => {
-  setTimeout(() => { isMounted.value = true }, 10)
+  // Staggered animation trigger
+  setTimeout(() => { isMounted.value = true }, 50)
 
   observer = new IntersectionObserver(
     (entries) => {
@@ -207,7 +195,7 @@ onMounted(() => {
         emit('load-more')
       }
     },
-    { threshold: 0.5 },
+    { threshold: 0.1 },
   )
 
   watch(loaderRef, (newEl, oldEl) => {
@@ -224,9 +212,12 @@ const scrollContainer = ref<HTMLElement | null>(null)
 
 function scrollToItem(index: number) {
   if (!scrollContainer.value) return
-  const itemEl = scrollContainer.value.children[index] as HTMLElement
+  const gridContainer = scrollContainer.value.firstElementChild
+  if (!gridContainer) return
+  
+  const itemEl = gridContainer.children[index] as HTMLElement
   if (itemEl) {
-    itemEl.scrollIntoView({ block: 'nearest', behavior: 'auto' })
+    itemEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }
 }
 
@@ -236,274 +227,89 @@ defineExpose({
 </script>
 
 <style>
-.z-2147483646 {
-  z-index: 2147483646;
+/* 亮色默认 */
+.synapse-selector-root .synapse-title,
+.synapse-selector-root .synapse-input {
+  color: #1e293b !important;
+}
+.synapse-selector-root .synapse-input::placeholder {
+  color: #94a3b8 !important;
+}
+.synapse-selector-root .synapse-content,
+.synapse-selector-root .synapse-meta-text,
+.synapse-selector-root .synapse-footer-text {
+  color: #64748b !important;
 }
 
-.prompt-selector-overlay {
-  z-index: 2147483646;
+/* 暗色强制转白 - 增强搜索可见度 */
+.synapse-selector-root.dark .synapse-title,
+.synapse-selector-root.dark .synapse-input,
+.dark .synapse-selector-root .synapse-title,
+.dark .synapse-selector-root .synapse-input {
+  color: #ffffff !important; /* 纯白 */
+}
+.synapse-selector-root.dark .synapse-input::placeholder,
+.dark .synapse-selector-root .synapse-input::placeholder {
+  color: #cbd5e1 !important; /* 更亮的提示文字 Slate-300 */
 }
 
+.synapse-selector-root.dark .synapse-content,
+.synapse-selector-root.dark .synapse-meta-text,
+.synapse-selector-root.dark .synapse-footer-text,
+.dark .synapse-selector-root .synapse-content {
+  color: #cbd5e1 !important;
+}
+
+/* 图标转白 */
+.synapse-selector-root.dark .synapse-icon-muted,
+.dark .synapse-selector-root .synapse-icon-muted {
+  color: #cbd5e1 !important;
+}
+
+/* 分类按钮 */
+.synapse-category-btn {
+  color: #64748b !important;
+}
+.synapse-category-btn.is-active {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+.synapse-selector-root.dark .synapse-category-btn.is-active,
+.dark .synapse-selector-root .synapse-category-btn.is-active {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+</style>
+
+<style scoped>
 .prompt-selector-panel {
-  --book-height: min(80vh, 780px);
-  --book-spine-width: clamp(60px, 6.4vw, 74px);
-  --book-content-width: min(920px, 82vw);
-  --book-gap: 8px;
-  width: min(840px, 90vw);
-  background:
-    radial-gradient(110% 120% at 0% 0%, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0) 48%),
-    linear-gradient(146deg, rgba(255, 255, 255, 0.97), rgba(246, 249, 252, 0.92));
-  border-color: rgba(148, 163, 184, 0.38);
-  box-shadow:
-    0 28px 74px rgba(15, 23, 42, 0.22),
-    0 8px 22px rgba(15, 23, 42, 0.08);
-  transform: translateY(16px) scale(0.972);
-  opacity: 0;
-  contain: layout paint style;
-  will-change: width, transform, opacity;
-  transition:
-    width 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 300ms ease,
-    box-shadow 280ms ease,
-    border-radius 360ms ease,
-    opacity 260ms ease;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
-
-.prompt-selector-panel.is-mounted {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-
-.prompt-selector-panel.is-mounted.is-composer-visible {
-  width: var(--book-spine-width);
-  transform: translateX(calc((var(--book-content-width) + var(--book-gap)) * -0.5)) scale(1);
-  border-radius: 18px;
-  box-shadow:
-    0 22px 62px rgba(15, 23, 42, 0.26),
-    inset -1px 0 0 rgba(255, 255, 255, 0.72);
-}
-
-.prompt-selector-divider {
-  border-color: rgba(148, 163, 184, 0.3);
-}
-
-.prompt-search-box {
-  border-color: rgba(148, 163, 184, 0.38);
-  background: rgba(255, 255, 255, 0.75);
-}
-
-.prompt-search-box:focus-within {
-  border-color: rgba(8, 145, 178, 0.52);
-  box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.16);
-}
-
-.prompt-selector-body {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  transition:
-    opacity 260ms ease,
-    transform 340ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.prompt-selector-body.is-hidden {
-  opacity: 0;
-  transform: translateX(-16px) scale(0.992);
-  pointer-events: none;
-}
-
-.prompt-spine {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 8px;
-  opacity: 0;
-  transform: translateX(12px);
-  pointer-events: none;
-  transition: opacity 320ms ease, transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.prompt-spine.is-visible {
-  opacity: 1;
-  transform: translateX(0);
-  pointer-events: auto;
-}
-
-.prompt-spine-glow {
-  position: absolute;
-  inset: 10% 16% 10% 12%;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(6, 182, 212, 0.3), rgba(14, 116, 144, 0.06));
-  filter: blur(12px);
-}
-
-.prompt-spine-close {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 9999px;
-  color: rgba(30, 41, 59, 0.9);
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  transition: transform 180ms ease, background 180ms ease;
-}
-
-.prompt-spine-close:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.prompt-spine-title {
-  position: relative;
-  z-index: 1;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-  max-height: calc(100% - 64px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: rgba(15, 23, 42, 0.82);
-}
-
-.prompt-item {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.72));
-}
-
-.prompt-item:hover {
-  transform: translateY(-2px);
-  border-color: rgba(8, 145, 178, 0.38);
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
-}
-
-.prompt-item.is-active {
-  border-color: rgba(14, 116, 144, 0.72);
-  background: linear-gradient(145deg, rgba(207, 250, 254, 0.95), rgba(236, 254, 255, 0.86));
-  box-shadow:
-    0 16px 36px rgba(8, 145, 178, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.82);
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply rounded-full bg-slate-400/55 dark:bg-slate-500/45;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-500/70 dark:bg-slate-400/65;
-}
-
-.prompt-selector-panel mark {
-  background-color: rgb(253 230 138 / 0.7);
-  color: inherit;
-  border-radius: 3px;
-  padding: 0 2px;
-}
-
-.prompt-selector-panel strong,
-.prompt-selector-panel em {
-  color: inherit;
-}
-
 :where(.dark, [data-theme='dark']) .prompt-selector-panel {
-  background:
-    radial-gradient(120% 130% at 0% 0%, rgba(8, 145, 178, 0.2) 0%, rgba(8, 145, 178, 0) 55%),
-    linear-gradient(158deg, rgba(17, 24, 39, 0.95), rgba(17, 24, 39, 0.88));
-  border-color: rgba(148, 163, 184, 0.2);
-  box-shadow:
-    0 34px 82px rgba(2, 6, 23, 0.66),
-    0 12px 30px rgba(2, 6, 23, 0.5);
+  background: rgba(15, 23, 42, 0.98);
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
+.synapse-prompt-item { background: rgba(255, 255, 255, 0.4); border-color: transparent; }
+.synapse-prompt-item.is-active { background: #ffffff; border-color: rgba(6, 182, 212, 0.3); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+:where(.dark, [data-theme='dark']) .synapse-prompt-item { background: rgba(30, 41, 59, 0.4); }
+:where(.dark, [data-theme='dark']) .synapse-prompt-item.is-active { background: rgba(30, 41, 59, 1); border-color: rgba(6, 182, 212, 0.5); }
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { border-radius: 10px; background-color: rgba(156, 163, 175, 0.3); }
+.mask-gradient-right { mask-image: linear-gradient(to right, black 95%, transparent 100%); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
-:where(.dark, [data-theme='dark']) .prompt-selector-divider {
-  border-color: rgba(148, 163, 184, 0.2);
+/* Enhanced Highlight Mark for Dark Mode */
+:deep(mark) {
+  background-color: rgba(6, 182, 212, 0.2);
+  color: inherit !important;
+  border-radius: 2px;
+  padding: 0 1px;
 }
-
-:where(.dark, [data-theme='dark']) .prompt-search-box {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: rgba(15, 23, 42, 0.5);
-}
-
-:where(.dark, [data-theme='dark']) .prompt-item {
-  border-color: rgba(148, 163, 184, 0.18);
-  background: linear-gradient(146deg, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.54));
-}
-
-:where(.dark, [data-theme='dark']) .prompt-item:hover {
-  border-color: rgba(6, 182, 212, 0.46);
-  box-shadow: 0 18px 38px rgba(2, 6, 23, 0.48);
-}
-
-:where(.dark, [data-theme='dark']) .prompt-item.is-active {
-  border-color: rgba(8, 145, 178, 0.74);
-  background: linear-gradient(146deg, rgba(15, 118, 110, 0.28), rgba(30, 41, 59, 0.78));
-  box-shadow:
-    0 20px 40px rgba(6, 182, 212, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-:where(.dark, [data-theme='dark']) .prompt-item-title {
-  color: rgba(248, 250, 252, 0.97) !important;
-}
-
-:where(.dark, [data-theme='dark']) .prompt-item-content {
-  color: rgba(226, 232, 240, 0.82) !important;
-}
-
-:where(.dark, [data-theme='dark']) .prompt-item-meta {
-  color: rgba(203, 213, 225, 0.72) !important;
-}
-
-:where(.dark, [data-theme='dark']) .prompt-item-tag {
-  color: rgba(226, 232, 240, 0.85) !important;
-}
-
-:where(.dark, [data-theme='dark']) .prompt-category-chip {
-  color: rgba(226, 232, 240, 0.9) !important;
-}
-
-:where(.dark, [data-theme='dark']) .prompt-category-chip.is-active {
-  color: rgba(255, 255, 255, 0.98) !important;
-  border-color: rgba(8, 145, 178, 0.9) !important;
-}
-
-:where(.dark, [data-theme='dark']) .prompt-spine-close {
-  color: rgba(241, 245, 249, 0.9);
-  background: rgba(15, 23, 42, 0.64);
-  border-color: rgba(148, 163, 184, 0.26);
-}
-
-:where(.dark, [data-theme='dark']) .prompt-spine-title {
-  color: rgba(226, 232, 240, 0.9);
-}
-
-:where(.dark, [data-theme='dark']) .prompt-selector-panel mark {
-  background-color: rgb(56 189 248 / 0.34);
-}
-
-@media (max-width: 960px) {
-  .prompt-selector-panel {
-    --book-content-width: min(90vw, 760px);
-  }
+.dark :deep(mark), [data-theme='dark'] :deep(mark) {
+   background-color: #fde047 !important; /* Vibrant Amber/Yellow */
+   color: #000000 !important; /* High contrast black text */
+   font-weight: 600;
+   box-shadow: 0 0 8px rgba(253, 224, 71, 0.3);
 }
 </style>

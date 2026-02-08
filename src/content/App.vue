@@ -1,6 +1,6 @@
 <template>
     <!-- 主容器：包含提示词选择器和消息提示组件 -->
-    <div>
+    <div :class="{ dark: isDark }">
         <!-- 提示词选择器面板 -->
         <PromptSelector
             v-if="visible"
@@ -15,6 +15,7 @@
             :totalPrompts="totalPrompts"
             :isComposerVisible="editorVisible"
             :activePromptTitle="editorPromptTitle"
+            :isDark="isDark"
             @select="handleSelect"
             @copy="handleCopy"
             @close="closePanel"
@@ -24,6 +25,7 @@
             v-model="editorContent"
             :visible="visible && editorVisible"
             :promptTitle="editorPromptTitle"
+            :isDark="isDark"
             @close="collapseComposer"
             @insert="handleInsert"
         />
@@ -131,24 +133,38 @@ onMounted(() => {
     }
 });
 
-// === i18n & Real-time Sync ---
+// === i18n & Theme & Real-time Sync ---
+const theme = ref("light");
 const systemLanguage = computed(() => {
     const lang = navigator.language.toLowerCase();
     return lang.startsWith("zh") ? "中文" : "English";
 });
 
-async function setLocale() {
+const isDark = computed(() => {
+    if (theme.value === "dark") return true;
+    if (theme.value === "system") {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    return false;
+});
+
+async function initSettings() {
     try {
         const res: ResponseMessage<any> = await chrome.runtime.sendMessage({
             type: MSG.GET_SETTINGS,
         });
         const settings = res?.data;
         if (!res?.ok || !settings) return;
+        
+        // Handle Locale
         if (settings.locale === "system") {
             locale.value = systemLanguage.value === "中文" ? "zh-CN" : "en";
         } else {
             locale.value = settings.locale;
         }
+
+        // Handle Theme
+        theme.value = settings.theme || "system";
     } catch (e) {
         console.error("获取设置失败:", e);
     }
@@ -203,6 +219,15 @@ let dataVersion = "0";
 let opener: ReturnType<typeof findActiveInput> | null = null;
 /** 上一个活跃的元素，用于关闭面板后恢复焦点 */
 let lastActiveEl: HTMLElement | null = null;
+
+// 指纹接口定义
+interface OpenerFingerprint {
+    id: string;
+    className: string;
+    tagName: string;
+    selector?: string;
+}
+let openerFingerprint: OpenerFingerprint | null = null;
 
 // === 数据获取函数 ===
 
@@ -324,6 +349,15 @@ async function openPanel() {
 
     // 查找并记录触发面板的输入元素
     opener = findActiveInput(INPUT_SELECTOR_HINTS);
+    if (opener && opener.el) {
+        openerFingerprint = {
+            id: opener.el.id,
+            className: opener.el.className,
+            tagName: opener.el.tagName,
+        };
+    } else {
+        openerFingerprint = null;
+    }
 
     // 重置搜索和分类状态
     isResettingFilters.value = true;
@@ -493,13 +527,8 @@ async function handleInsert() {
         trace("prompt.lastUsed.sent", { hasPromptId: !!selectedPromptId.value });
 
         // 获取目标输入元素（优先使用打开面板时记录的元素）
-        const contentToInsert = editorContent.value;
-        if (!contentToInsert.trim()) {
-            trace("insert.abort.empty");
-            showToast(t("common.toast.operationFailed"), "error");
-            return;
-        }
-
+        const contentToInsert = editorContent.value || "";
+        
         const inserted = insertWithRetry(contentToInsert, trace);
         trace("insert.result", { inserted });
 
@@ -509,7 +538,8 @@ async function handleInsert() {
                 trace("clipboard.fallback.start");
                 await navigator.clipboard.writeText(contentToInsert);
                 trace("clipboard.fallback.ok");
-                showToast(t("common.toast.copySuccess"), "success");
+                // 更加明确的提示，消除“神奇”感
+                showToast(t("content.composer.fallbackCopy"), "success");
             } catch {
                 trace("clipboard.fallback.fail");
                 showToast(t("common.toast.operationFailed"), "error");
@@ -546,18 +576,58 @@ function isUsableTarget(target: ReturnType<typeof findActiveInput> | null): targ
 function resolveInsertTarget(trace?: InsertTraceFn) {
     trace?.("target.resolve.start", {
         opener: describeTarget(opener),
-        activeElementTag: document.activeElement?.tagName || "",
+        fingerprint: openerFingerprint,
     });
+
+    // 1. 尝试直接使用缓存的 opener (如果它还连接着)
     if (isUsableTarget(opener)) {
-        trace?.("target.resolve.useOpener", describeTarget(opener));
+        trace?.("target.resolve.useOpener");
+        opener!.el.focus();
         return opener;
     }
+
+    // 2. 尝试“断线重连” (通过指纹找回 DOM)
+    if (openerFingerprint) {
+        const { id, className, tagName } = openerFingerprint;
+        let candidate: HTMLElement | null = null;
+
+        // 优先 ID 匹配
+        if (id) {
+            candidate = document.getElementById(id);
+        }
+        
+        // 其次 Class 匹配 (如果 ID 没找到或者没 ID)
+        if (!candidate && className) {
+             const selector = `${tagName}.${className.split(' ').filter(c => c.trim()).join('.')}`;
+             try {
+                candidate = document.querySelector(selector);
+             } catch (e) {
+                // Ignore invalid selector errors
+             }
+        }
+
+        // 验证候选人
+        if (candidate) {
+             const kind = candidate.tagName === 'TEXTAREA' ? 'textarea' : 'contenteditable';
+             const newTarget = { kind, el: candidate } as any; // Cast as InputTarget
+             if (isUsableTarget(newTarget)) {
+                 trace?.("target.resolve.reconnected", { id: candidate.id });
+                 newTarget.el.focus();
+                 return newTarget;
+             }
+        }
+    }
+
+    // 3. 启发式搜索 (Heuristic Search) - 兜底方案
+    // findActiveInput 会扫描所有可见的 textarea/contenteditable
+    // 我们传入 INPUT_SELECTOR_HINTS 以覆盖常见应用
     const active = findActiveInput(INPUT_SELECTOR_HINTS);
-    trace?.("target.resolve.activeFound", describeTarget(active));
     if (isUsableTarget(active)) {
-        trace?.("target.resolve.useActive", describeTarget(active));
+        trace?.("target.resolve.heuristicFound");
+        active!.el.focus();
         return active;
     }
+
     trace?.("target.resolve.none");
     return null;
 }
@@ -644,7 +714,7 @@ whenever(keys.alt_k, () => {
  * 组件挂载后的初始化操作
  */
 onMounted(() => {
-    setLocale();
+    initSettings();
     // 监听来自后台脚本的消息
     chrome.runtime.onMessage.addListener(
         (msg: RequestMessage & { data: any }) => {
@@ -657,7 +727,7 @@ onMounted(() => {
             if (msg?.type === MSG.DATA_UPDATED) {
                 const { scope, version } = msg.data;
                 if (scope === "settings") {
-                    setLocale();
+                    initSettings();
                 }
                 // 如果面板正在显示且数据版本不同，则刷新数据
                 if (visible.value && version !== dataVersion) {

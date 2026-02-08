@@ -17,6 +17,7 @@ export default {
     insert: "插入",
     placeholder: "在这里编辑你的提示词...",
     appendHint: "插入会追加到末尾，不会替换现有内容。",
+    fallbackCopy: "未发现输入框，已复制到剪贴板",
     stats: "{lines} 行 · {words} 词 · {characters} 字符",
   },
   outline: {

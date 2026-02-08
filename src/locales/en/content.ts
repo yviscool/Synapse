@@ -17,6 +17,7 @@ export default {
     insert: "Insert",
     placeholder: "Edit your prompt here...",
     appendHint: "Insert appends to the end and never replaces existing text.",
+    fallbackCopy: "No input found, copied to clipboard instead",
     stats: "{lines} lines · {words} words · {characters} chars",
   },
   outline: {
