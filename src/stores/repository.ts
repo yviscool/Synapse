@@ -201,19 +201,46 @@ export const repository = {
         // 2. Prepare Prompt
         const safePrompt = createSafePrompt({ ...promptData, tagIds });
 
-        // 3. Handle Versioning
-        if (!isNewPrompt && changeNote) {
+        // 3. Handle Versioning with new Git-like model
+        if (isNewPrompt) {
+          // 首次创建：创建 v1 初始版本
+          const initialVersion: PromptVersion = {
+            id: crypto.randomUUID(),
+            promptId: safePrompt.id!,
+            versionNumber: 1,
+            content: safePrompt.content,
+            title: safePrompt.title,
+            type: "initial",
+            note: changeNote || undefined,
+            createdAt: Date.now(),
+          };
+          await db.prompt_versions.add(initialVersion);
+        } else {
+          // 编辑已有 Prompt：如果内容变化则创建新版本
           const originalPrompt = existingPrompt;
           if (originalPrompt && originalPrompt.content !== safePrompt.content) {
-                            const version: PromptVersion = {
-                              id: crypto.randomUUID(),
-                              promptId: safePrompt.id!,
-                              content: originalPrompt.content, // Save the *old* content as a version
-                              note: changeNote,
-                              parentVersionId: originalPrompt.currentVersionId || null,
-                              createdAt: Date.now(),
-                            };            await db.prompt_versions.add(version);
-            safePrompt.currentVersionId = version.id;
+            // 获取当前最大版本号（兼容旧数据：旧版本可能没有 versionNumber 字段）
+            const allVersions = await db.prompt_versions
+              .where("promptId")
+              .equals(safePrompt.id!)
+              .toArray();
+
+            // 安全获取下一个版本号：如果旧数据没有 versionNumber，则使用数组长度+1
+            const nextVersionNumber = allVersions.length > 0
+              ? Math.max(...allVersions.map(v => typeof v.versionNumber === 'number' && !isNaN(v.versionNumber) ? v.versionNumber : 0)) + 1
+              : 1;
+
+            const newVersion: PromptVersion = {
+              id: crypto.randomUUID(),
+              promptId: safePrompt.id!,
+              versionNumber: nextVersionNumber,
+              content: safePrompt.content, // 保存【新内容】
+              title: safePrompt.title,
+              type: "edit",
+              note: changeNote || undefined,
+              createdAt: Date.now(),
+            };
+            await db.prompt_versions.add(newVersion);
           }
         }
 
@@ -459,38 +486,63 @@ export const repository = {
   // findOrCreateTags is now internal to savePrompt
 
   // == Versions ==
-  async revertToVersion(
+  /**
+   * 应用历史版本：创建一个新版本（type: revert），内容为目标版本的内容
+   * 这是 Git-like 模型：历史永远向前，恢复操作实际上是创建新版本
+   */
+  async applyVersion(
     promptId: string,
     versionId: string,
-    currentUnsavedContent: string,
   ): Promise<{ ok: boolean; error?: any }> {
     return withCommitNotification(
-      ["prompts", "prompt_versions", "tags", "prompt_search_index"],
+      ["prompts", "prompt_versions", "prompt_search_index"],
       async () => {
-        const versionToRestore = await db.prompt_versions.get(versionId);
-        if (!versionToRestore || versionToRestore.promptId !== promptId)
+        const versionToApply = await db.prompt_versions.get(versionId);
+        if (!versionToApply || versionToApply.promptId !== promptId)
           throw new Error("版本不存在或不匹配");
 
         const prompt = await db.prompts.get(promptId);
         if (!prompt) throw new Error("Prompt 不存在");
 
-        // Create a backup of the current state before reverting
-        const backupVersion: PromptVersion = {
+        // 获取当前最大版本号（兼容旧数据：旧版本可能没有 versionNumber 字段）
+        const allVersions = await db.prompt_versions
+          .where("promptId")
+          .equals(promptId)
+          .toArray();
+
+        // 安全获取下一个版本号
+        const nextVersionNumber = allVersions.length > 0
+          ? Math.max(...allVersions.map(v => typeof v.versionNumber === 'number' && !isNaN(v.versionNumber) ? v.versionNumber : 0)) + 1
+          : 1;
+
+        // 安全获取目标版本号（用于 note）
+        const targetVersionNumber = typeof versionToApply.versionNumber === 'number' && !isNaN(versionToApply.versionNumber)
+          ? versionToApply.versionNumber
+          : '?';
+
+        // 安全获取 title：如果旧版本没有 title，回退到当前 prompt 的 title
+        const safeTitle = versionToApply.title || prompt.title;
+
+        // 创建新版本（type: revert），内容为目标版本的内容
+        const revertVersion: PromptVersion = {
           id: crypto.randomUUID(),
           promptId: promptId,
-          content: currentUnsavedContent,
-          note: "自动备份：恢复前状态",
-          parentVersionId: prompt.currentVersionId || null,
+          versionNumber: nextVersionNumber,
+          content: versionToApply.content,
+          title: safeTitle,
+          type: "revert",
+          note: `恢复到 v${targetVersionNumber}`,
           createdAt: Date.now(),
         };
-        await db.prompt_versions.add(backupVersion);
+        await db.prompt_versions.add(revertVersion);
 
-        // Update the main prompt content
+        // 更新 Prompt 内容为目标版本内容（title 仅在目标版本有值时才更新）
         await db.prompts.update(promptId, {
-          content: versionToRestore.content,
-          currentVersionId: versionId,
+          content: versionToApply.content,
+          ...(versionToApply.title ? { title: versionToApply.title } : {}),
           updatedAt: Date.now(),
         });
+
         const updatedPrompt = await db.prompts.get(promptId);
         if (updatedPrompt) {
           await upsertPromptSearchIndex(updatedPrompt);

@@ -955,8 +955,23 @@ function handleContentChange() {
 function handleVersionPreview(payload: {
     version: PromptVersion;
     versionNumber: number;
+    isLatest: boolean;
 }) {
     if (!editingPrompt.value) return;
+
+    // 点击“当前版本”：保持编辑态；若当前在历史预览中，则退出预览并回到可编辑态
+    if (payload.isLatest) {
+        if (isReadonly.value && previewingVersion.value) {
+            editingPrompt.value.content = payload.version.content;
+            hasContentChanged.value = false;
+        }
+        previewingVersion.value = null;
+        baseVersionForEdit.value = null;
+        isReadonly.value = false;
+        showToast(t("prompts.versionHistory.toast.currentEditing"), "success");
+        return;
+    }
+
     editingPrompt.value.content = payload.version.content;
     previewingVersion.value = payload;
     baseVersionForEdit.value = null;

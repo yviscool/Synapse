@@ -46,7 +46,6 @@
         <div v-if="showVersionHistoryLocal && modelValue?.id" class="w-80 border-l border-gray-200 flex flex-col flex-shrink-0 min-w-0">
           <VersionHistory
             :prompt-id="modelValue.id"
-            :current-version-id="modelValue.currentVersionId"
             :current-content="contentProxy"
             @version-restored="$emit('version-restored', $event)"
             @version-deleted="$emit('version-deleted', $event)"
@@ -263,7 +262,7 @@ const emit = defineEmits<{
   // 版本删除事件
   (e: 'version-deleted', id: string): void
   // 预览版本事件
-  (e: 'preview-version', payload: { version: PromptVersion, versionNumber: number }): void
+  (e: 'preview-version', payload: { version: PromptVersion, versionNumber: number, isLatest: boolean }): void
 }>()
 
 // ===============================

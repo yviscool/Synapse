@@ -56,6 +56,7 @@ export default {
       "refreshed": "版本历史已刷新",
       "compareFailed": "版本比较失败",
       "revertSuccess": "v{version} 已设为当前版本",
+      "currentEditing": "已在编辑当前版本",
       "operationFailed": "操作失败",
       "deleteOnly": "无法删除唯一的版本",
       "deleteSuccess": "版本 {version} 已删除",

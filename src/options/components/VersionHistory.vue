@@ -39,10 +39,10 @@
             <div
               :class="[
                 'rounded-full transition-all duration-200',
-                version.id === currentVersionId
+                isLatestVersion(version)
                   ? 'w-4 h-4 bg-blue-500 border-4 border-blue-100 ring-4 ring-blue-200 dark:border-blue-400 dark:ring-blue-500/30'
                   : 'w-2.5 h-2.5 bg-gray-300 group-hover:bg-blue-400 dark:bg-gray-600 dark:group-hover:bg-blue-500',
-                selectedVersionId === version.id && version.id !== currentVersionId ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''
+                selectedVersionId === version.id && !isLatestVersion(version) ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''
               ]"
             ></div>
           </div>
@@ -54,10 +54,10 @@
               'bg-white dark:bg-gray-800/80',
               'border-gray-200/80 dark:border-gray-700/60',
               'group-hover:border-blue-300 group-hover:bg-blue-50/30 dark:group-hover:border-blue-600/70 dark:group-hover:bg-blue-900/10',
-              version.id === currentVersionId 
+              isLatestVersion(version) 
                 ? 'border-blue-300 bg-blue-50/60 dark:border-blue-600/80 dark:bg-blue-900/20' 
                 : '',
-              selectedVersionId === version.id && version.id !== currentVersionId 
+              selectedVersionId === version.id && !isLatestVersion(version) 
                 ? 'bg-blue-50/40 dark:bg-blue-800/20' 
                 : ''
             ]"
@@ -66,9 +66,10 @@
               <!-- Left Info -->
               <div class="flex flex-col">
                 <div class="flex items-center gap-2 text-sm">
-                  <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">v{{ versions.length - index }}</span>
+                  <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">v{{ getVersionNumber(version) }}</span>
                   <span class="text-gray-500 dark:text-gray-400">{{ formatRelativeTime(version.createdAt) }}</span>
-                  <span v-if="version.id === currentVersionId" class="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium dark:bg-green-900/50 dark:text-green-300">{{ t('prompts.versionHistory.current') }}</span>
+                  <span v-if="isLatestVersion(version)" class="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium dark:bg-green-900/50 dark:text-green-300">{{ t('prompts.versionHistory.current') }}</span>
+                  <span v-if="version.type === 'revert'" class="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium dark:bg-yellow-900/50 dark:text-yellow-300">{{ t('prompts.versionHistory.revert') }}</span>
                 </div>
                 <div class="text-xs text-gray-400 mt-0.5 dark:text-gray-500">{{ formatDate(version.createdAt) }}</div>
               </div>
@@ -78,15 +79,15 @@
                 <button
                   @click.stop="compareWithCurrent(version)"
                   :title="t('prompts.versionHistory.compare')"
-                  :disabled="version.id === currentVersionId"
+                  :disabled="isLatestVersion(version)"
                   class="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                 >
                   <div class="i-carbon-compare text-base"></div>
                 </button>
                 <button
-                  @click.stop="revertToVersion(version)"
+                  @click.stop="handleApplyVersion(version)"
                   :title="t('prompts.versionHistory.revert')"
-                  :disabled="version.id === currentVersionId"
+                  :disabled="isLatestVersion(version)"
                   class="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                 >
                   <div class="i-carbon-undo text-base"></div>
@@ -160,7 +161,7 @@ import type { PromptVersion } from '@/types/prompt'
 import {
   getVersionHistory,
   compareVersions,
-  revertToVersion as revertVersion,
+  applyVersion,
   deleteVersion as removeVersion,
   cleanupOldVersions as cleanupVersions
 } from '@/utils/versionUtils'
@@ -173,14 +174,13 @@ marked.setOptions({
 
 interface Props {
   promptId: string
-  currentVersionId?: string
   currentContent: string
 }
 
 interface Emits {
   (e: 'version-restored', version: PromptVersion): void
   (e: 'version-deleted', versionId: string): void
-  (e: 'preview-version', payload: { version: PromptVersion, versionNumber: number }): void
+  (e: 'preview-version', payload: { version: PromptVersion, versionNumber: number, isLatest: boolean }): void
 }
 
 const props = defineProps<Props>()
@@ -205,10 +205,6 @@ watch(() => props.promptId, () => {
   loadVersions()
 }, { immediate: true })
 
-watch(() => props.currentVersionId, (newId) => {
-  selectedVersionId.value = newId
-})
-
 // Methods
 async function loadVersions() {
   if (!props.promptId) {
@@ -219,12 +215,26 @@ async function loadVersions() {
   try {
     versions.value = await getVersionHistory(props.promptId)
     if (!selectedVersionId.value && versions.value.length > 0) {
-      selectedVersionId.value = props.currentVersionId || versions.value[0].id
+      selectedVersionId.value = versions.value[0].id
     }
   } catch (error) {
     console.error('Failed to load versions:', error)
     showToast(t('prompts.versionHistory.toast.loadFailed'), 'error')
   }
+}
+
+// Helper to determine latest version (兼容旧数据：versionNumber 可能缺失)
+function isLatestVersion(version: PromptVersion): boolean {
+  if (versions.value.length === 0) return false
+  // 使用安全的版本号获取，缺失时回退到 0
+  const safeVersionNumber = (v: PromptVersion) => 
+    typeof v.versionNumber === 'number' && !isNaN(v.versionNumber) ? v.versionNumber : 0
+  const maxVersionNumber = Math.max(...versions.value.map(safeVersionNumber))
+  // 如果所有版本都没有版本号，则使用第一个（时间最新）
+  if (maxVersionNumber === 0) {
+    return version.id === versions.value[0].id
+  }
+  return safeVersionNumber(version) === maxVersionNumber
 }
 
 async function refreshVersions() {
@@ -234,7 +244,13 @@ async function refreshVersions() {
 
 function selectVersion(version: PromptVersion) {
   selectedVersionId.value = version.id
-  emit('preview-version', { version, versionNumber: getVersionNumber(version) })
+  const vn = getVersionNumber(version)
+  const isLatest = isLatestVersion(version)
+  emit('preview-version', {
+    version,
+    versionNumber: typeof vn === 'number' ? vn : 0,
+    isLatest
+  })
 }
 
 async function compareWithCurrent(version: PromptVersion) {
@@ -252,28 +268,28 @@ async function compareWithCurrent(version: PromptVersion) {
   }
 }
 
-async function revertToVersion(version: PromptVersion) {
-  const versionNumber = getVersionNumber(version)
+async function handleApplyVersion(version: PromptVersion) {
+  const versionNumber = version.versionNumber
   const confirmed = await askConfirm(t('prompts.versionHistory.confirm.revert', { version: versionNumber }), { type: 'default' })
   if (!confirmed) return
 
   try {
-    const newVersion = await revertVersion(props.promptId, version.id, props.currentContent)
+    await applyVersion(props.promptId, version.id)
     await loadVersions()
-    emit('version-restored', newVersion)
+    emit('version-restored', version)
     showToast(t('prompts.versionHistory.toast.revertSuccess', { version: versionNumber }), 'success')
   } catch (error) {
-    console.error('Failed to revert version:', error)
+    console.error('Failed to apply version:', error)
     showToast(t('prompts.versionHistory.toast.operationFailed'), 'error')
   }
 }
 
 async function deleteVersion(version: PromptVersion) {
   if (versions.value.length <= 1) {
-    showToast(t('prompts.versionHistory.toast.deleteOnly'), 'warning')
+    showToast(t('prompts.versionHistory.toast.deleteOnly'), 'error')
     return
   }
-  const versionNumber = getVersionNumber(version)
+  const versionNumber = version.versionNumber
   const confirmed = await askConfirm(t('prompts.versionHistory.confirm.delete', { version: versionNumber }), { type: 'danger' })
   if (!confirmed) return
 
@@ -307,10 +323,15 @@ function closeComparison() {
   comparisonData.value = null
 }
 
-function getVersionNumber(version?: PromptVersion): number {
+// 获取版本号显示文本（兼容旧数据）
+function getVersionNumber(version?: PromptVersion): number | string {
   if (!version) return 0
+  if (typeof version.versionNumber === 'number' && !isNaN(version.versionNumber)) {
+    return version.versionNumber
+  }
+  // 旧数据：使用在列表中的位置（从后往前计数）
   const index = versions.value.findIndex(v => v.id === version.id)
-  return versions.value.length - index
+  return index >= 0 ? versions.value.length - index : '?'
 }
 
 function getPreview(content: string): string {

@@ -10,12 +10,17 @@ export interface Tag {
   name: string
 }
 
+/** 版本类型 */
+export type VersionType = 'initial' | 'edit' | 'revert'
+
 export interface PromptVersion {
   id: string
   promptId: string
+  versionNumber: number        // 递增版本号 (v1, v2, v3...)
   content: string
+  title: string                // 该版本的标题
   note?: string
-  parentVersionId?: string | null
+  type: VersionType           // 版本类型
   createdAt: number
 }
 
@@ -25,7 +30,6 @@ export interface Prompt {
   content: string
   categoryIds: string[]
   tagIds: string[]
-  currentVersionId?: string
   favorite?: boolean
   createdAt: number
   updatedAt: number
@@ -41,7 +45,7 @@ export interface Settings {
   theme: 'light' | 'dark' | 'auto'
   outlineEnabled: boolean
   locale: 'zh-CN' | 'en' | 'system',
-  
+
   // Cloud Sync Settings
   syncProvider?: 'google-drive' | 'onedrive'
   syncEnabled: boolean

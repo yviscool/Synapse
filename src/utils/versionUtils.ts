@@ -20,7 +20,7 @@ export async function getVersionHistory(promptId: string): Promise<PromptVersion
     .where('promptId')
     .equals(promptId)
     .toArray()
-  
+
   // 手动按创建时间降序排序（最新的在前）
   return versions.sort((a, b) => b.createdAt - a.createdAt)
 }
@@ -39,10 +39,10 @@ export async function getLatestVersion(promptId: string): Promise<PromptVersion 
 export async function compareVersions(oldContent: string, newContent: string) {
   const diffs = dmp.diff_main(oldContent, newContent)
   dmp.diff_cleanupSemantic(diffs)
-  
+
   const htmlDiff = dmp.diff_prettyHtml(diffs)
   const markdownHtml = await renderDiffAsMarkdown(diffs)
-  
+
   return {
     diffs,
     html: htmlDiff,
@@ -60,10 +60,10 @@ export async function compareVersions(oldContent: string, newContent: string) {
  */
 async function renderDiffAsMarkdown(diffs: any[]): Promise<string> {
   let html = ''
-  
+
   for (const [op, text] of diffs) {
     const renderedText = await marked.parse(text)
-    
+
     if (op === 1) { // 添加
       html += `<div class="diff-addition">${renderedText}</div>`
     } else if (op === -1) { // 删除
@@ -72,17 +72,17 @@ async function renderDiffAsMarkdown(diffs: any[]): Promise<string> {
       html += `<div class="diff-unchanged">${renderedText}</div>`
     }
   }
-  
+
   return html
 }
 
 /**
- * 恢复到指定版本
+ * 应用指定版本：创建新版本（type: revert），内容为目标版本内容
  */
-export async function revertToVersion(promptId: string, versionId: string, currentUnsavedContent: string): Promise<void> {
-  const { ok, error } = await repository.revertToVersion(promptId, versionId, currentUnsavedContent)
+export async function applyVersion(promptId: string, versionId: string): Promise<void> {
+  const { ok, error } = await repository.applyVersion(promptId, versionId)
   if (!ok) {
-    throw error || new Error('Failed to revert to version')
+    throw error || new Error('Failed to apply version')
   }
 }
 
@@ -101,14 +101,14 @@ export async function deleteVersion(versionId: string): Promise<void> {
  */
 export async function cleanupOldVersions(promptId: string, keepCount: number = 10): Promise<void> {
   const versions = await getVersionHistory(promptId)
-  
+
   if (versions.length <= keepCount) {
     return
   }
-  
+
   const toDelete = versions.slice(0, versions.length - keepCount)
   const deleteIds = toDelete.map(v => v.id)
-  
+
   await db.prompt_versions.bulkDelete(deleteIds)
 }
 
@@ -117,7 +117,7 @@ export async function cleanupOldVersions(promptId: string, keepCount: number = 1
  */
 export async function getVersionStats(promptId: string) {
   const versions = await getVersionHistory(promptId)
-  
+
   if (versions.length === 0) {
     return {
       totalVersions: 0,
@@ -126,7 +126,7 @@ export async function getVersionStats(promptId: string) {
       totalChanges: 0
     }
   }
-  
+
   return {
     totalVersions: versions.length,
     firstCreated: versions[0].createdAt,

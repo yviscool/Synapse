@@ -56,6 +56,7 @@ export default {
       "refreshed": "Version history refreshed",
       "compareFailed": "Failed to compare versions",
       "revertSuccess": "v{version} has been set as the current version",
+      "currentEditing": "Already editing the current version",
       "operationFailed": "Operation failed",
       "deleteOnly": "Cannot delete the only version",
       "deleteSuccess": "Version {version} has been deleted",
