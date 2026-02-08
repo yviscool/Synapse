@@ -78,7 +78,7 @@ onMounted(async () => {
     root: rootRef.value,
     defaultValue: props.modelValue,
     features: {
-      [Crepe.Feature.Latex]: false,
+      [Crepe.Feature.Latex]: true,
       [Crepe.Feature.CodeMirror]: true,
       [Crepe.Feature.Table]: true,
       [Crepe.Feature.ImageBlock]: true,
@@ -86,6 +86,14 @@ onMounted(async () => {
     featureConfigs: {
       placeholder: {
         text: props.placeholder,
+      },
+      [Crepe.Feature.CodeMirror]: {
+        searchPlaceholder: '搜索语言',
+        copyText: '复制',
+        noResultText: '无匹配结果',
+        previewToggleText: (previewOnlyMode: boolean) =>
+          previewOnlyMode ? '编辑' : '隐藏',
+        previewLabel: '预览',
       },
       [Crepe.Feature.BlockEdit]: {
         textGroup: {
@@ -106,6 +114,21 @@ onMounted(async () => {
           orderedList: { label: '有序列表' },
           taskList: { label: '任务列表' },
         },
+        advancedGroup: {
+          label: '高级',
+          image: { label: '图片', icon: 'image' },
+          codeBlock: { label: '代码块', icon: 'code' },
+          table: { label: '表格', icon: 'table' },
+          math: { label: '数学公式', icon: 'math' },
+        },
+      },
+      [Crepe.Feature.ImageBlock]: {
+        inlineUploadButton: '上传',
+        inlineUploadPlaceholderText: '或粘贴图片链接',
+        blockUploadButton: '上传文件',
+        blockConfirmButton: '确认 ⏎',
+        blockCaptionPlaceholderText: '输入图片说明',
+        blockUploadPlaceholderText: '或粘贴图片链接',
       },
       [Crepe.Feature.LinkTooltip]: {
         inputPlaceholder: '输入链接地址',

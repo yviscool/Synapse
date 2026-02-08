@@ -153,8 +153,9 @@ function handleStatsUpdate(nextStats: any) {
   box-shadow: 0 40px 80px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --crepe-color-on-background: #f1f5f9;
 }
-:deep(.milkdown) { height: 100%; overflow-y: auto; padding: 3rem 4rem; }
+:deep(.milkdown) { height: 100%; overflow-y: auto; padding: 0 4rem; }
 :deep(.milkdown .ProseMirror) { min-height: 100%; outline: none; font-size: 1.15rem; line-height: 1.8; }
+:deep(.milkdown .ProseMirror) { padding: 40px; }
 :deep(.milkdown-host .milkdown) { background: transparent !important; }
 :deep(::-webkit-scrollbar) { width: 6px; }
 :deep(::-webkit-scrollbar-track) { background: transparent; }
