@@ -18,105 +18,67 @@ import "@/styles"
   // 3. Create the element to mount the Vue app on, inside the shadow root.
   const appContainer = document.createElement('div')
 
-  // 4. Inject styles into shadow root.
-  //    Newer content builds may inline styles into JS (style tags in document.head),
-  //    while older builds emit dist/content.css.
+  // 4. Sync content-script styles into shadow root.
+  //    The content build emits inline <style> into document.head, so we mirror owned styles into shadow root.
   const STYLE_MARKERS = [
     '.z-2147483646',
     '.z-2147483647',
-    '.milkdown .ProseMirror',
-    '--crepe-color-background',
-    '$vite$:',
     '.prompt-selector-panel',
     '.composer-panel',
+    '.milkdown-host',
+    '--crepe-color-background',
   ]
-  let hasInjectedStyle = false
-  let hasFallbackCssLink = false
-  let styleObserver: MutationObserver | null = null
-  let pendingStyleScan = 0
 
-  const isOwnedStyle = (styleNode: HTMLStyleElement) => {
-    if ((styleNode as HTMLElement).dataset.synapseStyle === '1') return true
+  let styleObserver: MutationObserver | null = null
+
+  function isOwnedStyle(styleNode: HTMLStyleElement): boolean {
+    if ((styleNode as HTMLElement).dataset.synapseShadowStyle === '1') return true
     const cssText = styleNode.textContent || ''
     return STYLE_MARKERS.some((marker) => cssText.includes(marker))
   }
 
-  const stopStyleObserver = () => {
+  function moveOwnedStyleToShadow(styleNode: HTMLStyleElement) {
+    if (!isOwnedStyle(styleNode)) return
+    if (styleNode.parentNode === shadowRoot) return
+    ;(styleNode as HTMLElement).dataset.synapseShadowStyle = '1'
+    shadowRoot.appendChild(styleNode)
+  }
+
+  function syncOwnedStylesFromHead() {
+    const head = document.head
+    if (!head) return
+    const styleNodes = Array.from(head.querySelectorAll('style'))
+    styleNodes.forEach((styleNode) => moveOwnedStyleToShadow(styleNode))
+  }
+
+  function enableRuntimeStyleSync() {
+    syncOwnedStylesFromHead()
+    const head = document.head
+    if (!head) return
+    styleObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof HTMLStyleElement) {
+            moveOwnedStyleToShadow(node)
+          }
+        })
+      }
+    })
+
+    styleObserver.observe(head, {
+      childList: true,
+      subtree: true,
+    })
+  }
+
+  enableRuntimeStyleSync()
+
+  window.addEventListener('beforeunload', () => {
     if (styleObserver) {
       styleObserver.disconnect()
       styleObserver = null
     }
-  }
-
-  const moveStyleToShadow = (styleNode: HTMLStyleElement) => {
-    if (!isOwnedStyle(styleNode)) return
-    if (styleNode.parentNode === shadowRoot) return
-    ;(styleNode as HTMLElement).dataset.synapseStyle = '1'
-    shadowRoot.appendChild(styleNode)
-    hasInjectedStyle = true
-  }
-
-  const moveExistingStyles = () => {
-    const headStyles = Array.from(document.head.querySelectorAll('style'))
-    headStyles.forEach((styleNode) => moveStyleToShadow(styleNode))
-  }
-
-  const attachFallbackCssIfNeeded = () => {
-    if (hasInjectedStyle || hasFallbackCssLink) return
-    const fallbackCssUrl = chrome.runtime.getURL('content.css')
-    fetch(fallbackCssUrl)
-      .then((res) => {
-        if (!res.ok || hasInjectedStyle || hasFallbackCssLink) return
-        const styleEl = document.createElement('link')
-        styleEl.setAttribute('rel', 'stylesheet')
-        styleEl.setAttribute('href', fallbackCssUrl)
-        shadowRoot.appendChild(styleEl)
-        hasFallbackCssLink = true
-      })
-      .catch(() => {
-        // ignore
-      })
-  }
-
-  moveExistingStyles()
-
-  const scheduleStyleScan = () => {
-    if (pendingStyleScan) return
-    pendingStyleScan = window.setTimeout(() => {
-      pendingStyleScan = 0
-      moveExistingStyles()
-    }, 0)
-  }
-
-  styleObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
-        if (node instanceof HTMLStyleElement) {
-          moveStyleToShadow(node)
-        }
-      })
-    })
-    // 某些运行时会先插入空 style，再异步填充 textContent。
-    scheduleStyleScan()
-  })
-  styleObserver.observe(document.head, {
-    childList: true,
-    subtree: true,
-    characterData: true,
-  })
-
-  // 给运行时样式注入留一点时间窗口，再回退到静态 CSS 文件。
-  setTimeout(() => {
-    moveExistingStyles()
-    attachFallbackCssIfNeeded()
-  }, 200)
-
-  setTimeout(() => {
-    moveExistingStyles()
-    attachFallbackCssIfNeeded()
-  }, 2500)
-
-  window.addEventListener('beforeunload', stopStyleObserver, { once: true })
+  }, { once: true })
 
   shadowRoot.appendChild(appContainer)
 
@@ -124,168 +86,326 @@ import "@/styles"
   // Robust Theme Logic (健壮的主题逻辑)
   // =================================================================
 
-  const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  const THEME_DEBUG = (() => {
+    try {
+      return window.localStorage.getItem('__synapse_theme_debug') === '1'
+    } catch {
+      return false
+    }
+  })()
+  const THEME_LOG_PREFIX = '[SynapseTheme]'
+  const THEME_LOG_LIMIT = 300
+  let themeLogCount = 0
+  let lastAppliedTheme: 'dark' | 'light' | null = null
+  let lastDecisionReason = ''
+  let pendingThemeReason = 'init'
+
+  function logTheme(event: string, payload: Record<string, unknown>) {
+    if (!THEME_DEBUG) return
+    if (themeLogCount >= THEME_LOG_LIMIT) return
+    themeLogCount += 1
+    console.info(THEME_LOG_PREFIX, {
+      event,
+      host: window.location.hostname,
+      href: window.location.href,
+      ...payload,
+    })
+  }
 
   /**
    * 更新插件UI的主题
    * @param {boolean} isDark 是否为深色模式
    */
-  function applyTheme(isDark) {
+  function applyTheme(isDark: boolean) {
+    const mode = isDark ? 'dark' : 'light'
     if (isDark) {
-      appContainer.classList.add('dark');
+      appContainer.classList.add('dark')
     } else {
-      appContainer.classList.remove('dark');
+      appContainer.classList.remove('dark')
+    }
+    appContainer.setAttribute('data-theme', mode)
+    host.setAttribute('data-theme', mode)
+  }
+
+  function tokenizeThemeText(text: string): string[] {
+    return text
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/g)
+      .filter(Boolean)
+  }
+
+  function hasKeyword(tokens: Set<string>, keywords: string[]): boolean {
+    return keywords.some((keyword) => tokens.has(keyword))
+  }
+
+  function inferThemeFromColorSchemeValue(value: string | null | undefined): 'dark' | 'light' | null {
+    if (!value) return null
+    const normalized = value.toLowerCase()
+    const hasDark = normalized.includes('dark')
+    const hasLight = normalized.includes('light')
+    if (hasDark && !hasLight) return 'dark'
+    if (hasLight && !hasDark) return 'light'
+    return null
+  }
+
+  function parseRgb(color: string): [number, number, number] | null {
+    const normalized = color.trim().toLowerCase()
+    const match = normalized.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
+    if (!match) return null
+    return [Number(match[1]), Number(match[2]), Number(match[3])]
+  }
+
+  function inferThemeFromBackgroundColor(el: Element | null): 'dark' | 'light' | null {
+    if (!el) return null
+    const rgb = parseRgb(window.getComputedStyle(el).backgroundColor)
+    if (!rgb) return null
+    const [r, g, b] = rgb
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    if (luminance <= 92) return 'dark'
+    if (luminance >= 168) return 'light'
+    return null
+  }
+
+  type ThemeComputedSignals = {
+    htmlColorScheme: string
+    bodyColorScheme: string
+    htmlBackground: string
+    bodyBackground: string
+  }
+
+  const EMPTY_THEME_SIGNALS: ThemeComputedSignals = {
+    htmlColorScheme: '',
+    bodyColorScheme: '',
+    htmlBackground: '',
+    bodyBackground: '',
+  }
+
+  function readThemeComputedSignals(html: HTMLElement, body: HTMLElement | null): ThemeComputedSignals {
+    const htmlStyle = window.getComputedStyle(html)
+    const bodyStyle = body ? window.getComputedStyle(body) : null
+    return {
+      htmlColorScheme: htmlStyle.colorScheme || '',
+      bodyColorScheme: bodyStyle?.colorScheme || '',
+      htmlBackground: htmlStyle.backgroundColor || '',
+      bodyBackground: bodyStyle?.backgroundColor || '',
     }
   }
 
+  type ThemeDetectResult = {
+    theme: 'dark' | 'light' | null
+    reason: string
+    classValues: string[]
+    themeAttrValues: string[]
+    attrTokens: string[]
+    classTokens: string[]
+    htmlColorScheme: string
+    bodyColorScheme: string
+    htmlBackground: string
+    bodyBackground: string
+  }
+
   /**
-    * 核心检测函数：通过检查宿主页面的 <html> 和 <body> 元素来判断当前主题。
-    * @returns {'dark' | 'light' | null} 返回检测到的主题，如果未检测到则返回 null。
-    */
-  function detectHostPageTheme() {
-    const html = document.documentElement;
-    const body = document.body;
+   * 核心检测函数：通过检查宿主页面的 <html> 和 <body> 元素来判断当前主题。
+   * @returns {'dark' | 'light' | null}
+   */
+  function detectHostPageTheme(): ThemeDetectResult {
+    const html = document.documentElement
+    const body = document.body
 
     // 关键词列表
-    const darkKeywords = ['dark', 'night', 'dim'];
-    const lightKeywords = ['light', 'day', 'white'];
-    const systemKeywords = ['system', 'auto']; // 新增：用于检测“跟随系统”
+    const darkKeywords = ['dark', 'night', 'dim']
+    const lightKeywords = ['light', 'day', 'white']
+    const systemKeywords = ['system', 'auto']
 
-    // 1. 我们只收集“有意义”的属性值
-    // 首先包含 class
-    let attributeValues = [html.className, body.className];
+    // 1. 收集“有意义”的属性值
+    const classValues = [html.className, body?.className || '']
+    const themeAttrValues: string[] = []
 
-    const elementsToInspect = [html, body];
+    const elementsToInspect = [html, body]
     for (const element of elementsToInspect) {
-      if (!element) continue; // 确保元素存在
+      if (!element) continue
       for (let i = 0; i < element.attributes.length; i++) {
-        const attr = element.attributes[i];
-        const attrName = attr.name.toLowerCase();
+        const attr = element.attributes[i]
+        const attrName = attr.name.toLowerCase()
 
-        // 【关键修复】跳过 class（已添加）和 style（Bug 来源）
+        // 跳过 class（已收集）和 style（噪声很大）
         if (attrName === 'class' || attrName === 'style') {
-          continue;
+          continue
         }
 
-        // 【关键优化】只检查与主题相关的属性
-        // 我们只关心属性名包含 'theme' 或 'mode' 的属性
-        if (attrName.includes('theme') || attrName.includes('mode')) {
-          attributeValues.push(attr.value);
+        // 仅检查与主题相关的属性
+        if (attrName.includes('theme') || attrName.includes('mode') || attrName.includes('scheme')) {
+          themeAttrValues.push(attr.value)
         }
       }
     }
 
-    // 2. 将所有相关值合并为一个搜索字符串
-    const searchString = attributeValues.join(' ').toLowerCase();
+    const attrTokens = new Set(tokenizeThemeText(themeAttrValues.join(' ')))
+    const classTokens = new Set(tokenizeThemeText(classValues.join(' ')))
+    const attrTokenList = Array.from(attrTokens)
+    const classTokenList = Array.from(classTokens)
 
-    // 如果没有找到任何相关的类或属性，则返回 null
-    if (!searchString.trim()) {
-      return null;
+    function createResult(
+      theme: 'dark' | 'light' | null,
+      reason: string,
+      signals: ThemeComputedSignals = EMPTY_THEME_SIGNALS,
+    ): ThemeDetectResult {
+      return {
+        theme,
+        reason,
+        classValues,
+        themeAttrValues,
+        attrTokens: attrTokenList,
+        classTokens: classTokenList,
+        htmlColorScheme: signals.htmlColorScheme,
+        bodyColorScheme: signals.bodyColorScheme,
+        htmlBackground: signals.htmlBackground,
+        bodyBackground: signals.bodyBackground,
+      }
     }
 
-    // 3. 重新排序检测逻辑
+    // 3. 检测优先级
+    const attrHasSystem = hasKeyword(attrTokens, systemKeywords)
+    const attrHasDark = hasKeyword(attrTokens, darkKeywords)
+    const attrHasLight = hasKeyword(attrTokens, lightKeywords)
 
-    // 【优先级 1】: 检查是否明确设置了“跟随系统”
-    // 这将正确处理 yb-theme-mode="system"
-    if (systemKeywords.some(keyword => searchString.includes(keyword))) {
-      return null; // 返回 null，syncTheme 将回退到系统媒体查询
+    if (attrHasSystem && !attrHasDark && !attrHasLight) {
+      return createResult(null, 'attr-system')
     }
 
-    // 【优先级 2】: 检查是否为浅色模式
-    if (lightKeywords.some(keyword => searchString.includes(keyword))) {
-      return 'light';
+    if (attrHasDark && !attrHasLight) {
+      return createResult('dark', 'attr-dark')
     }
 
-    // 【优先级 3】: 检查是否为深色模式
-    if (darkKeywords.some(keyword => searchString.includes(keyword))) {
-      return 'dark';
+    if (attrHasLight && !attrHasDark) {
+      return createResult('light', 'attr-light')
     }
 
-    // 4. 如果在相关属性中未找到任何关键词，返回 null
-    return null;
+    const classHasDark = hasKeyword(classTokens, darkKeywords)
+    const classHasLight = hasKeyword(classTokens, lightKeywords)
+
+    if (classHasDark && !classHasLight) {
+      return createResult('dark', 'class-dark')
+    }
+
+    if (classHasLight && !classHasDark) {
+      return createResult('light', 'class-light')
+    }
+
+    // 如果亮暗信号同时存在，优先 dark，避免站点暗色下被“highlight/lightbox”误伤。
+    if (attrHasDark || classHasDark) {
+      return createResult('dark', 'mixed-prefer-dark')
+    }
+
+    const computedSignals = readThemeComputedSignals(html, body)
+    const colorSchemeTheme =
+      inferThemeFromColorSchemeValue(computedSignals.htmlColorScheme) ||
+      inferThemeFromColorSchemeValue(computedSignals.bodyColorScheme)
+    if (colorSchemeTheme) {
+      return createResult(colorSchemeTheme, 'computed-color-scheme', computedSignals)
+    }
+
+    const backgroundTheme =
+      inferThemeFromBackgroundColor(html) ||
+      inferThemeFromBackgroundColor(body)
+    if (backgroundTheme) {
+      return createResult(backgroundTheme, 'computed-background', computedSignals)
+    }
+
+    return createResult(null, 'fallback-system', computedSignals)
   }
 
   /**
    * 同步主题：结合页面检测和系统偏好，决定最终主题
    */
   function syncTheme() {
-    // 1. 优先使用从宿主页面检测到的主题
-    const hostTheme = detectHostPageTheme();
+    const detectResult = detectHostPageTheme()
+    const hostTheme = detectResult.theme
+    const nextTheme = hostTheme === 'dark' ? 'dark' : hostTheme === 'light' ? 'light' : (darkModeMediaQuery.matches ? 'dark' : 'light')
+    applyTheme(nextTheme === 'dark')
 
-    if (hostTheme === 'dark') {
-      applyTheme(true);
-      return; // 找到明确设置，任务结束
+    const changed = lastAppliedTheme !== nextTheme || lastDecisionReason !== detectResult.reason
+    if (changed && THEME_DEBUG) {
+      logTheme('sync', {
+        trigger: pendingThemeReason,
+        finalTheme: nextTheme,
+        detectedTheme: hostTheme,
+        reason: detectResult.reason,
+        mediaDark: darkModeMediaQuery.matches,
+        classValues: detectResult.classValues,
+        themeAttrValues: detectResult.themeAttrValues,
+        attrTokens: detectResult.attrTokens,
+        classTokens: detectResult.classTokens,
+        htmlColorScheme: detectResult.htmlColorScheme,
+        bodyColorScheme: detectResult.bodyColorScheme,
+        htmlBackground: detectResult.htmlBackground,
+        bodyBackground: detectResult.bodyBackground,
+      })
     }
 
-    if (hostTheme === 'light') {
-      applyTheme(false);
-      return; // 找到明确设置，任务结束
-    }
-
-    // 2. 如果页面没有明确主题，则回退到系统偏好设置
-    applyTheme(darkModeMediaQuery.matches);
+    lastAppliedTheme = nextTheme
+    lastDecisionReason = detectResult.reason
   }
 
   // 使用 requestAnimationFrame 合并同一帧内的多次主题同步请求，避免高频属性变化导致卡顿
-  let pendingThemeSyncRaf = 0;
-  function scheduleThemeSync() {
-    if (pendingThemeSyncRaf) return;
+  let pendingThemeSyncRaf = 0
+  function scheduleThemeSync(reason = 'unknown') {
+    pendingThemeReason = reason
+    if (pendingThemeSyncRaf) return
     pendingThemeSyncRaf = requestAnimationFrame(() => {
-      pendingThemeSyncRaf = 0;
-      syncTheme();
-    });
-  }
-
-  // 仅处理与主题高度相关的属性变化，跳过滚动期间频繁变更的无关属性（尤其是 style）
-  const THEME_ATTR_WHITELIST = new Set([
-    'class',
-    'data-theme',
-    'theme',
-    'data-mode',
-    'mode',
-    'color-scheme',
-    'data-color-scheme',
-    'data-color-mode',
-    'yb-theme-mode',
-  ]);
-  function isThemeRelatedAttribute(attributeName: string | null): boolean {
-    if (!attributeName) return false;
-    const name = attributeName.toLowerCase();
-    if (THEME_ATTR_WHITELIST.has(name)) return true;
-    return name.includes('theme') || name.includes('mode');
+      pendingThemeSyncRaf = 0
+      syncTheme()
+    })
   }
 
   // --- 初始化和监听 ---
 
   // 1. 首次加载时立即同步一次主题
   // 使用 requestAnimationFrame 确保在 body 元素可用后执行
-  scheduleThemeSync();
+  scheduleThemeSync('init')
 
   // 2. 监听系统颜色方案的变化 (作为回退方案)
-  darkModeMediaQuery.addEventListener('change', scheduleThemeSync);
+  darkModeMediaQuery.addEventListener('change', () => scheduleThemeSync('media-change'))
+  window.addEventListener('focus', () => scheduleThemeSync('window-focus'), true)
+  document.addEventListener('visibilitychange', () => scheduleThemeSync('visibility-change'))
 
   // 3. 使用 MutationObserver 监听宿主页面 <html> 和 <body> 的属性变化
   // 这是实现对网站自身主题切换进行响应的关键
   const observer = new MutationObserver((mutations) => {
-    const hasThemeSignal = mutations.some((mutation) => isThemeRelatedAttribute(mutation.attributeName));
-    if (!hasThemeSignal) return;
-    scheduleThemeSync();
-  });
+    const relevantMutations = mutations.filter((mutation) => {
+      const attr = (mutation.attributeName || '').toLowerCase()
+      if (!attr) return true
+      if (attr === 'class') return true
+      return attr.includes('theme') || attr.includes('mode') || attr.includes('scheme')
+    })
+
+    if (relevantMutations.length === 0) return
+
+    const mutationSummary = relevantMutations
+      .slice(0, 6)
+      .map((mutation) => {
+        const attr = mutation.attributeName || ''
+        const target = mutation.target as Element
+        return `${target.tagName.toLowerCase()}.${attr}`
+      })
+      .join(',')
+    scheduleThemeSync(`mutation:${mutationSummary || 'attributes'}`)
+  })
 
   // 等待 body 加载完毕再开始监听，防止 body 为 null
-  const observerConfig = { attributes: true }; // 监听属性变化，回调内部会过滤无关属性
+  const observerConfig = { attributes: true }
 
   if (document.body) {
-    observer.observe(document.documentElement, observerConfig);
-    observer.observe(document.body, observerConfig);
+    observer.observe(document.documentElement, observerConfig)
+    observer.observe(document.body, observerConfig)
   } else {
-    // 如果脚本在 DOM ready 之前运行，则等待
     document.addEventListener('DOMContentLoaded', () => {
-      observer.observe(document.documentElement, observerConfig);
-      observer.observe(document.body, observerConfig);
-      // DOM ready 后也需要再同步一次
-      scheduleThemeSync();
-    });
+      observer.observe(document.documentElement, observerConfig)
+      observer.observe(document.body, observerConfig)
+      scheduleThemeSync('dom-content-loaded')
+    })
   }
 
   // =================================================================

@@ -1,5 +1,5 @@
 <template>
-  <div ref="rootRef" class="h-full w-full" />
+  <div ref="rootRef" class="milkdown-host h-full w-full" />
 </template>
 
 <script setup lang="ts">
@@ -165,3 +165,74 @@ onBeforeUnmount(async () => {
   }
 })
 </script>
+
+<style>
+.milkdown-host {
+  height: 100%;
+  min-height: 0;
+}
+
+.milkdown-host .milkdown {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  background: var(--crepe-color-background);
+  color: var(--crepe-color-on-background);
+}
+
+.milkdown-host .milkdown .ProseMirror {
+  min-height: 100%;
+  height: auto;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+}
+
+.milkdown-host .milkdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.milkdown-host .milkdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.milkdown-host .milkdown::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.55);
+  border-radius: 9999px;
+}
+
+.milkdown-host .milkdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.72);
+}
+
+.dark .milkdown-host .milkdown,
+[data-theme='dark'] .milkdown-host .milkdown {
+  --crepe-color-background: #1b1c1d;
+  --crepe-color-on-background: #f8f9ff;
+  --crepe-color-surface: #111418;
+  --crepe-color-surface-low: #191c20;
+  --crepe-color-on-surface: #e1e2e8;
+  --crepe-color-on-surface-variant: #c3c6cf;
+  --crepe-color-outline: #8d9199;
+  --crepe-color-primary: #a1c9fd;
+  --crepe-color-secondary: #3c4858;
+  --crepe-color-on-secondary: #d7e3f8;
+  --crepe-color-inverse: #e1e2e8;
+  --crepe-color-on-inverse: #2e3135;
+  --crepe-color-inline-code: #ffb4ab;
+  --crepe-color-error: #ffb4ab;
+  --crepe-color-hover: #1d2024;
+  --crepe-color-selected: #32353a;
+  --crepe-color-inline-area: #111418;
+  color-scheme: dark;
+}
+
+:where(.dark, [data-theme='dark']) .milkdown-host .milkdown::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.7);
+}
+
+:where(.dark, [data-theme='dark']) .milkdown-host .milkdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.86);
+}
+</style>

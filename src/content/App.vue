@@ -14,6 +14,7 @@
             :hasMore="hasMore"
             :totalPrompts="totalPrompts"
             :isComposerVisible="editorVisible"
+            :activePromptTitle="editorPromptTitle"
             @select="handleSelect"
             @copy="handleCopy"
             @close="closePanel"
