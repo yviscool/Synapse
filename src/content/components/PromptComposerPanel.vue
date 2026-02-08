@@ -15,15 +15,15 @@
       <section
         class="pointer-events-auto relative flex flex-col w-[min(1170px,90vw)] h-[min(800px,85vh)] overflow-hidden rounded-2xl shadow-3xl composer-panel ml-4"
       >
-        <header class="px-8 py-5 flex-shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800 z-10">
+        <header class="px-8 py-5 flex-shrink-0 bg-white dark:bg-[#09090b] border-b border-neutral-100 dark:border-white/5 z-10">
           <div class="flex items-center justify-between">
             <div class="min-w-0 pr-6">
               <div class="flex items-center gap-2 mb-1.5">
-                 <span class="synapse-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest bg-cyan-50 text-cyan-600 dark:bg-cyan-900/40 dark:text-cyan-400 border border-cyan-100/50 dark:border-transparent">
+                 <span class="synapse-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest bg-neutral-100 text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
                     {{ t("content.composer.badge") }}
                  </span>
               </div>
-              <h3 class="synapse-header-title text-xl font-bold text-slate-800 dark:text-slate-100 truncate tracking-tight">
+              <h3 class="synapse-header-title text-xl font-bold text-neutral-900 dark:text-neutral-100 truncate tracking-tight">
                 {{ promptTitle || t("content.composer.defaultTitle") }}
               </h3>
             </div>
@@ -31,7 +31,7 @@
             <div class="flex items-center gap-3 flex-shrink-0">
                <button
                 type="button"
-                class="h-10 px-4 rounded-xl text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
+                class="h-10 px-4 rounded-xl text-sm font-medium bg-neutral-100 hover:bg-neutral-200 text-neutral-600 dark:bg-[#18181b] dark:text-neutral-400 dark:hover:bg-[#27272a] dark:hover:text-neutral-200 transition-all flex items-center gap-2"
                 @click="$emit('close')"
               >
                 <div class="i-carbon-chevron-left text-lg synapse-force-white" />
@@ -39,8 +39,7 @@
               </button>
               
               <!-- 
-                CRITICAL CHANGE: 按钮永远保持 is-enabled 状态
-                无论是否有内容，都允许用户点击
+                Insert Button: "Soulful" Inverted Style
               -->
               <button
                 type="button"
@@ -54,7 +53,7 @@
           </div>
         </header>
 
-        <div class="flex-1 min-h-0 bg-white dark:bg-slate-950 relative editor-container" :class="{ dark: isDark }">
+        <div class="flex-1 min-h-0 bg-white dark:bg-[#000000] relative editor-container" :class="{ dark: isDark }">
           <MilkdownEditor
             v-if="hasMountedEditor"
             v-model="draft"
@@ -64,11 +63,11 @@
           />
         </div>
 
-        <footer class="px-8 py-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200/50 dark:border-slate-800 text-xs text-slate-400 dark:text-slate-500 flex justify-between items-center select-none overflow-hidden">
+        <footer class="px-8 py-3 bg-white dark:bg-[#09090b] border-t border-neutral-100 dark:border-white/5 text-xs text-neutral-400 dark:text-neutral-500 flex justify-between items-center select-none overflow-hidden">
           <div class="flex gap-2 font-medium">
             <span class="synapse-footer-text">{{ t("content.composer.appendHint") }}</span>
           </div>
-          <div class="synapse-footer-badge font-mono bg-slate-200/50 dark:bg-slate-800/50 px-3 py-1 rounded-full text-[10px] tracking-tight synapse-footer-text flex-shrink-0">
+          <div class="synapse-footer-badge font-mono bg-neutral-100 dark:bg-[#18181b] px-3 py-1 rounded-full text-[10px] tracking-tight synapse-footer-text flex-shrink-0">
             {{ t("content.composer.stats", stats) }}
           </div>
         </footer>
@@ -109,49 +108,63 @@ function handleStatsUpdate(nextStats: any) {
 <style>
 /* Global recovery for dark mode elements */
 .synapse-composer-scope.dark .synapse-header-title,
-.dark .synapse-composer-scope .synapse-header-title { color: #ffffff !important; }
+.dark .synapse-composer-scope .synapse-header-title { color: #ededed !important; }
+
+.synapse-composer-scope.dark .synapse-badge,
+.dark .synapse-composer-scope .synapse-badge { 
+  color: #d4d4d4 !important; 
+  background: rgba(255, 255, 255, 0.1) !important;
+}
 
 .synapse-composer-scope.dark .synapse-force-white,
-.dark .synapse-composer-scope .synapse-force-white { color: #cbd5e1 !important; }
+.dark .synapse-composer-scope .synapse-force-white { color: #a3a3a3 !important; }
 
 .synapse-composer-scope.dark .milkdown .ProseMirror,
-.dark .synapse-composer-scope .milkdown .ProseMirror { color: #f1f5f9 !important; }
+.dark .synapse-composer-scope .milkdown .ProseMirror { color: #ededed !important; }
 
-/* Insert Button - Always Active Design */
+/* Insert Button - High Contrast Inverted */
 .synapse-insert-btn.is-enabled { 
-  background-color: #0f172a !important; 
+  background-color: #171717 !important; 
   color: #ffffff !important; 
+  border: 1px solid transparent;
 }
 .synapse-insert-btn.is-enabled:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.2) !important;
+  background-color: #000000 !important;
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3) !important;
 }
 .synapse-insert-btn.is-enabled:active {
   transform: translateY(0);
 }
 
+/* Dark Mode Insert Button (White on Black) */
 .synapse-composer-scope.dark .synapse-insert-btn.is-enabled,
 .dark .synapse-composer-scope .synapse-insert-btn.is-enabled { 
-  background-color: #ffffff !important; 
-  color: #0f172a !important; 
+  background-color: #ededed !important; 
+  color: #000000 !important; 
+}
+.synapse-composer-scope.dark .synapse-insert-btn.is-enabled:hover,
+.dark .synapse-composer-scope .synapse-insert-btn.is-enabled:hover {
+  background-color: #ffffff !important;
+  box-shadow: 0 0 20px -5px rgba(255, 255, 255, 0.3) !important;
 }
 
 .synapse-insert-text, .synapse-insert-icon { color: inherit !important; }
 
 .synapse-composer-scope.dark .synapse-footer-text,
-.dark .synapse-composer-scope .synapse-footer-text { color: #94a3b8 !important; }
+.dark .synapse-composer-scope .synapse-footer-text { color: #737373 !important; }
 </style>
 
 <style scoped>
 .composer-panel {
   background: #ffffff;
   box-shadow: 0 40px 80px -12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  --crepe-color-on-background: #475569;
+  --crepe-color-on-background: #404040;
 }
 :where(.dark, [data-theme='dark']) .composer-panel {
-  background: #0f172a; 
-  box-shadow: 0 40px 80px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  --crepe-color-on-background: #f1f5f9;
+  background: #09090b; 
+  box-shadow: 0 40px 80px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --crepe-color-on-background: #ededed;
 }
 :deep(.milkdown) { height: 100%; overflow-y: auto; padding: 0 4rem; }
 :deep(.milkdown .ProseMirror) { min-height: 100%; outline: none; font-size: 1.15rem; line-height: 1.8; }
@@ -159,6 +172,7 @@ function handleStatsUpdate(nextStats: any) {
 :deep(.milkdown-host .milkdown) { background: transparent !important; }
 :deep(::-webkit-scrollbar) { width: 6px; }
 :deep(::-webkit-scrollbar-track) { background: transparent; }
-:deep(::-webkit-scrollbar-thumb) { background: rgba(148, 163, 184, 0.25); border-radius: 10px; }
-:where(.dark, [data-theme='dark']) :deep(::-webkit-scrollbar-thumb) { background: rgba(148, 163, 184, 0.4); }
+:deep(::-webkit-scrollbar-thumb) { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
+:where(.dark, [data-theme='dark']) :deep(::-webkit-scrollbar-thumb) { background: rgba(255, 255, 255, 0.15); }
+:where(.dark, [data-theme='dark']) :deep(::-webkit-scrollbar-thumb):hover { background: rgba(255, 255, 255, 0.25); }
 </style>

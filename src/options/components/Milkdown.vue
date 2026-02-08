@@ -7,7 +7,7 @@ import { Crepe } from '@milkdown/crepe'
 import { getMarkdown, replaceAll } from '@milkdown/utils'
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 
-import "@/options/styles/milkdown-no-latex.css"
+import "@/options/styles/milkdown-theme.css"
 import '@milkdown/crepe/theme/nord.css'
 
 interface Props {
@@ -87,6 +87,13 @@ onMounted(async () => {
       placeholder: {
         text: props.placeholder,
       },
+      [Crepe.Feature.Latex]: {
+        katexOptions: {
+          throwOnError: false,
+          displayMode: true,
+          strict: false,
+        },
+      },
       [Crepe.Feature.CodeMirror]: {
         searchPlaceholder: '搜索语言',
         copyText: '复制',
@@ -164,6 +171,10 @@ watch(
     const currentMarkdown = crepe.editor.action(getMarkdown())
     if (currentMarkdown !== newValue) {
       crepe.editor.action(replaceAll(newValue || ''))
+      // 内容切换后滚动到顶部
+      requestAnimationFrame(() => {
+        rootRef.value?.querySelector('.milkdown')?.scrollTo({ top: 0, behavior: 'instant' })
+      })
     }
   },
 )
@@ -213,7 +224,7 @@ onBeforeUnmount(async () => {
 }
 
 .milkdown-host .milkdown::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .milkdown-host .milkdown::-webkit-scrollbar-track {
@@ -221,41 +232,46 @@ onBeforeUnmount(async () => {
 }
 
 .milkdown-host .milkdown::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.55);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 9999px;
 }
 
 .milkdown-host .milkdown::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.72);
+  background: rgba(0, 0, 0, 0.2);
 }
 
+/* 
+  Masterpiece Theme Definition
+  Neutral / Obsidian Palette
+  No more Slate Blue
+*/
 .dark .milkdown-host .milkdown,
 [data-theme='dark'] .milkdown-host .milkdown {
-  --crepe-color-background: #1b1c1d;
-  --crepe-color-on-background: #f8f9ff;
-  --crepe-color-surface: #111418;
-  --crepe-color-surface-low: #191c20;
-  --crepe-color-on-surface: #e1e2e8;
-  --crepe-color-on-surface-variant: #c3c6cf;
-  --crepe-color-outline: #8d9199;
-  --crepe-color-primary: #a1c9fd;
-  --crepe-color-secondary: #3c4858;
-  --crepe-color-on-secondary: #d7e3f8;
-  --crepe-color-inverse: #e1e2e8;
-  --crepe-color-on-inverse: #2e3135;
-  --crepe-color-inline-code: #ffb4ab;
-  --crepe-color-error: #ffb4ab;
-  --crepe-color-hover: #1d2024;
-  --crepe-color-selected: #32353a;
-  --crepe-color-inline-area: #111418;
+  --crepe-color-background: #000000;      /* Pure Black */
+  --crepe-color-on-background: #ededed;   /* Neutral 100 */
+  --crepe-color-surface: #09090b;         /* Neutral 950 */
+  --crepe-color-surface-low: #18181b;     /* Neutral 900 */
+  --crepe-color-on-surface: #e5e5e5;      /* Neutral 200 */
+  --crepe-color-on-surface-variant: #a3a3a3; /* Neutral 400 */
+  --crepe-color-outline: #525252;         /* Neutral 600 */
+  --crepe-color-primary: #ededed;         /* White Primary */
+  --crepe-color-secondary: #262626;       /* Neutral 800 */
+  --crepe-color-on-secondary: #ffffff;
+  --crepe-color-inverse: #ededed;
+  --crepe-color-on-inverse: #171717;
+  --crepe-color-inline-code: #e5e5e5;
+  --crepe-color-error: #f87171;
+  --crepe-color-hover: #171717;           /* Subtle Hover */
+  --crepe-color-selected: #262626;        /* Subtle Selection */
+  --crepe-color-inline-area: #18181b;     /* Code block bg */
   color-scheme: dark;
 }
 
 :where(.dark, [data-theme='dark']) .milkdown-host .milkdown::-webkit-scrollbar-thumb {
-  background: rgba(71, 85, 105, 0.7);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 :where(.dark, [data-theme='dark']) .milkdown-host .milkdown::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.86);
+  background: rgba(255, 255, 255, 0.25);
 }
 </style>
