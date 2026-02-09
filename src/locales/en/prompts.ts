@@ -13,6 +13,8 @@ export default {
   "copyContent": "Copy Content",
   "copied": "Copied",
   "copy": "Copy",
+  "fork": "Fork",
+  "forkSuffix": "(Fork)",
   "editor": {
     "titleEdit": "Edit Prompt",
     "titleCreate": "New Prompt",

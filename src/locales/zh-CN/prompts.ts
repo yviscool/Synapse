@@ -13,6 +13,8 @@ export default {
   "copyContent": "复制内容",
   "copied": "已复制",
   "copy": "复制",
+  "fork": "分叉",
+  "forkSuffix": "（分叉）",
   "editor": {
     "titleEdit": "编辑 Prompt",
     "titleCreate": "新建 Prompt",

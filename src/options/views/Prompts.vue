@@ -392,7 +392,7 @@
                                 </button>
                                 <div
                                     v-if="menuOpenId === prompt.id"
-                                    class="absolute right-0 top-10 z-10 w-28 bg-white border border-gray-200 rounded-lg shadow-lg py-1"
+                                    class="absolute right-0 top-10 z-10 w-32 bg-white border border-gray-200 rounded-lg shadow-lg py-1"
                                 >
                                     <button
                                         @click.stop="
@@ -404,6 +404,27 @@
                                         <div class="i-carbon-edit"></div>
                                         <span>{{ t("common.edit") }}</span>
                                     </button>
+                                    <button
+                                        @click.stop="
+                                            forkPrompt(prompt);
+                                            menuOpenId = null;
+                                        "
+                                        class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50"
+                                    >
+                                        <div class="i-carbon-fork"></div>
+                                        <span>{{ t("prompts.fork") }}</span>
+                                    </button>
+                                    <button
+                                        @click.stop="
+                                            copyPrompt(prompt);
+                                            menuOpenId = null;
+                                        "
+                                        class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50"
+                                    >
+                                        <div class="i-carbon-copy"></div>
+                                        <span>{{ t("prompts.copy") }}</span>
+                                    </button>
+                                    <div class="h-px bg-gray-200 my-1"></div>
                                     <button
                                         @click.stop="
                                             deletePrompt(prompt.id);
@@ -426,7 +447,7 @@
                             ></p>
                         </div>
 
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span
                                     v-for="(categoryName, categoryIndex) in prompt.categoryNames"
@@ -443,30 +464,6 @@
                                     {{ tagName }}
                                 </span>
                             </div>
-                            <button
-                                @click.stop="copyPrompt(prompt)"
-                                @dblclick.stop
-                                :class="[
-                                    'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                                    copiedId === prompt.id
-                                        ? 'bg-green-600 text-white'
-                                        : 'bg-blue-600 text-white hover:bg-blue-700',
-                                ]"
-                                :title="t('prompts.copyContent')"
-                            >
-                                <div
-                                    :class="
-                                        copiedId === prompt.id
-                                            ? 'i-carbon-checkmark'
-                                            : 'i-carbon-copy'
-                                    "
-                                ></div>
-                                <span>{{
-                                    copiedId === prompt.id
-                                        ? t("prompts.copied")
-                                        : t("prompts.copy")
-                                }}</span>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -614,7 +611,6 @@ const showDeleteCategoryModal = ref(false); // 是否显示批量删除分类模
 const changeNote = ref(""); // Prompt 版本变更的备注信息
 const hasContentChanged = ref(false); // 编辑器中的内容是否已发生变化
 const menuOpenId = ref<string | null>(null); // 当前打开的 Prompt 卡片菜单ID
-const copiedId = ref<string | null>(null); // 最近一次复制的 Prompt ID，用于显示“已复制”状态
 const isCategorySettingsOpen = ref(false); // 分类设置下拉菜单是否打开
 const categorySettingsRef = ref(null); // 分类设置按钮的模板引用，用于点击外部关闭
 const showSortMenu = ref(false); // 排序下拉菜单是否打开
@@ -853,6 +849,20 @@ function editPrompt(prompt: Prompt) {
     baseVersionForEdit.value = null;
 }
 
+function forkPrompt(prompt: Prompt) {
+    editingPrompt.value = createSafePrompt({
+        title: `${prompt.title} ${t("prompts.forkSuffix")}`.trim(),
+        content: prompt.content,
+        favorite: false,
+        categoryIds: [...(prompt.categoryIds || [])],
+        tagIds: [...(prompt.tagIds || [])],
+    });
+    editingTags.value = getTagNames(prompt.tagIds || []);
+    isReadonly.value = false;
+    previewingVersion.value = null;
+    baseVersionForEdit.value = null;
+}
+
 async function triggerRefetch() {
     await refetchFromFirstPage();
 }
@@ -928,10 +938,6 @@ async function copyPrompt(prompt: Prompt) {
 
     try {
         await navigator.clipboard.writeText(prompt.content);
-        copiedId.value = prompt.id;
-        setTimeout(() => {
-            if (copiedId.value === prompt.id) copiedId.value = null;
-        }, 1500);
         showToast(t("common.toast.copySuccess"), "success");
     } catch (error) {
         console.error("Failed to copy prompt:", error);
