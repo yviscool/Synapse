@@ -1,0 +1,125 @@
+export default {
+  title: "代码片段",
+
+  // Sidebar
+  sidebar: {
+    all: "全部",
+    starred: "收藏",
+    recent: "最近使用",
+    uncategorized: "未分类",
+    folders: "文件夹",
+    tags: "标签",
+    newFolder: "新建文件夹",
+    newSnippet: "新建片段",
+    clearAll: "清除",
+    clearTags: "清除所有标签筛选",
+    noTags: "暂无标签",
+  },
+
+  // List
+  list: {
+    empty: "暂无代码片段",
+    emptyHint: "点击上方按钮创建第一个片段",
+    searchPlaceholder: "搜索片段...",
+    sortBy: "排序",
+    sortOptions: {
+      updatedAt: "更新时间",
+      createdAt: "创建时间",
+      title: "标题",
+      usedAt: "使用时间",
+      useCount: "使用次数",
+    },
+    filterByLanguage: "按语言筛选",
+    clearFilters: "清除筛选",
+    items: "{count} 个片段",
+  },
+
+  // Editor
+  editor: {
+    titlePlaceholder: "输入片段标题...",
+    contentPlaceholder: "在此输入代码...",
+    language: "语言",
+    tags: "标签",
+    tagsPlaceholder: "输入标签，按回车添加",
+    folder: "文件夹",
+    noFolder: "未分类",
+    starred: "收藏",
+    save: "保存",
+    copy: "复制",
+    download: "下载文件",
+    copySuccess: "已复制到剪贴板",
+    delete: "删除",
+    deleteConfirm: "确定要删除这个代码片段吗？此操作不可撤销。",
+    preview: "预览",
+    edit: "编辑",
+    charCount: "{count} 字符",
+    lineCount: "{count} 行",
+    lastUsed: "上次使用",
+    useCount: "使用次数",
+    never: "从未",
+    times: "{count} 次",
+  },
+
+  // Preview
+  preview: {
+    title: "HTML 预览",
+    fullscreen: "全屏",
+    exitFullscreen: "退出全屏",
+    externalLinks: "检测到外部链接",
+    externalLinksWarning: "此 HTML 包含外部资源链接，在扩展内可能无法正常加载。",
+    exportHtml: "导出 HTML",
+    openInCodePen: "在 CodePen 中打开",
+    dependencies: "外部依赖",
+  },
+
+  // Folder
+  folder: {
+    rename: "重命名",
+    delete: "删除",
+    deleteConfirm: "确定要删除此文件夹吗？文件夹内的片段将移至未分类。",
+    newSubfolder: "新建子文件夹",
+    moveTo: "移动到",
+    maxDepthWarning: "文件夹最多支持 3 级嵌套",
+    namePlaceholder: "文件夹名称",
+  },
+
+  // Tag
+  tag: {
+    manage: "管理标签",
+    delete: "删除",
+    deleteConfirm: "确定要删除此标签吗？",
+    rename: "重命名",
+    color: "颜色",
+  },
+
+  // Languages
+  languages: {
+    html: "HTML",
+    javascript: "JavaScript",
+    typescript: "TypeScript",
+    python: "Python",
+    rust: "Rust",
+    go: "Go",
+    css: "CSS",
+    json: "JSON",
+    markdown: "Markdown",
+    sql: "SQL",
+    shell: "Shell",
+    yaml: "YAML",
+    text: "纯文本",
+  },
+
+  // Toast messages
+  toast: {
+    saveSuccess: "片段保存成功",
+    saveFailed: "保存失败",
+    deleteSuccess: "删除成功",
+    deleteFailed: "删除失败",
+    copySuccess: "已复制到剪贴板",
+    copyFailed: "复制失败",
+    folderCreated: "文件夹创建成功",
+    folderDeleted: "文件夹删除成功",
+    tagDeleted: "标签删除成功",
+    movedToFolder: "已移动到文件夹",
+  },
+};

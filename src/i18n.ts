@@ -7,6 +7,7 @@ import enCategories from "./locales/en/categories";
 import enPopup from "./locales/en/popup";
 import enContent from "./locales/en/content";
 import enTags from "./locales/en/tags";
+import enTools from "./locales/en/tools";
 import zhCommon from "./locales/zh-CN/common";
 import zhMenu from "./locales/zh-CN/menu";
 import zhSettings from "./locales/zh-CN/settings";
@@ -15,6 +16,7 @@ import zhCategories from "./locales/zh-CN/categories";
 import zhPopup from "./locales/zh-CN/popup";
 import zhContent from "./locales/zh-CN/content";
 import zhTags from "./locales/zh-CN/tags";
+import zhTools from "./locales/zh-CN/tools";
 
 // Combine messages
 const messages = {
@@ -27,6 +29,7 @@ const messages = {
     popup: enPopup,
     content: enContent,
     tags: enTags,
+    tools: enTools,
   },
   "zh-CN": {
     common: zhCommon,
@@ -37,6 +40,7 @@ const messages = {
     popup: zhPopup,
     content: zhContent,
     tags: zhTags,
+    tools: zhTools,
   },
 };
 

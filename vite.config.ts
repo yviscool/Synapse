@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
 import Components from 'unplugin-vue-components/vite'
+import monacoEditorPlugin from 'vite-plugin-monaco-editor'
 import { resolve } from 'path'
 
 const MILKDOWN_DEDUPE_DEPS = [
@@ -24,6 +25,11 @@ export default defineConfig({
       // 支持的文件类型
       include: [/\.vue$/, /\.vue\?vue/, /\.md$/],
       dts: true,
+    }),
+    // Monaco Editor plugin - inline workers to avoid CSP issues in Chrome extensions
+    (monacoEditorPlugin as any).default({
+      languageWorkers: ['editorWorkerService', 'json', 'css', 'html', 'typescript'],
+      customWorkers: [],
     }),
   ],
   resolve: {

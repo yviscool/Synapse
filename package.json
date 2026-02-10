@@ -21,10 +21,11 @@
     "diff-match-patch": "^1.0.5",
     "fuse.js": "^7.1.0",
     "marked": "^17.0.1",
+    "monaco-editor": "^0.55.1",
     "nanoid": "^5.1.5",
     "pinia": "^3.0.4",
     "rimraf": "^6.1.2",
-    "shiki": "^3.22.0",
+    "vite-plugin-monaco-editor": "^1.1.0",
     "vue": "^3.5.27",
     "vue-i18n": "^11.2.8",
     "vue-router": "^5.0.2"

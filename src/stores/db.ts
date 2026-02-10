@@ -7,6 +7,12 @@ import type {
   Tag,
   Settings,
 } from "@/types/prompt";
+import type {
+  Snippet,
+  SnippetFolder,
+  SnippetTag,
+  SnippetSearchIndex,
+} from "@/types/snippet";
 import { getDefaultCategories } from "@/utils/categoryUtils";
 
 export interface PromptSearchIndex {
@@ -24,6 +30,11 @@ export class APMDB extends Dexie {
   tags!: Table<Tag, string>;
   settings!: Table<Settings, string>;
   prompt_search_index!: Table<PromptSearchIndex, string>;
+  // Snippet tables
+  snippets!: Table<Snippet, string>;
+  snippet_folders!: Table<SnippetFolder, string>;
+  snippet_tags!: Table<SnippetTag, string>;
+  snippet_search_index!: Table<SnippetSearchIndex, string>;
 
   constructor() {
     super("apm");
@@ -46,6 +57,20 @@ export class APMDB extends Dexie {
       tags: "id, name",
       settings: "id",
       prompt_search_index: "&promptId, *tokens, *titleTokens, *tagTokens, updatedAt",
+    });
+    // Version 4: Add snippet tables
+    this.version(4).stores({
+      prompts:
+        "id, title, *categoryIds, *tagIds, updatedAt, favorite, createdAt",
+      prompt_versions: "id, promptId, createdAt",
+      categories: "id, name, sort, icon",
+      tags: "id, name",
+      settings: "id",
+      prompt_search_index: "&promptId, *tokens, *titleTokens, *tagTokens, updatedAt",
+      snippets: "id, title, language, folderId, *tagIds, starred, updatedAt, createdAt, usedAt, useCount",
+      snippet_folders: "id, name, parentId, order, createdAt",
+      snippet_tags: "id, name",
+      snippet_search_index: "&snippetId, *tokens, *titleTokens, *tagTokens, updatedAt",
     });
   }
 }
@@ -252,6 +277,97 @@ export async function rebuildPromptSearchIndex(): Promise<void> {
   await db.prompt_search_index.clear();
   if (records.length > 0) {
     await db.prompt_search_index.bulkPut(records);
+  }
+}
+
+// ============================================
+// Snippet Search Index Functions
+// ============================================
+
+async function fetchSnippetTagNameMap(tagIds?: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const uniqueTagIds = [...new Set(tagIds || [])].filter(Boolean);
+
+  const tags = uniqueTagIds.length
+    ? await db.snippet_tags.where("id").anyOf(uniqueTagIds).toArray()
+    : await db.snippet_tags.toArray();
+
+  tags.forEach((tag) => map.set(tag.id, tag.name));
+  return map;
+}
+
+function buildSnippetSearchIndexRecord(
+  snippet: Snippet,
+  tagNameMap: Map<string, string>,
+): SnippetSearchIndex {
+  const tagText = snippet.tagIds
+    .map((tagId) => tagNameMap.get(tagId))
+    .filter(Boolean)
+    .join(" ");
+
+  const titleTokens = collectSearchTokens(snippet.title, 256);
+  const contentTokens = collectSearchTokens(snippet.content, 1024);
+  const tagTokens = collectSearchTokens(tagText, 128);
+
+  const mergedTokenSet = new Set<string>([
+    ...titleTokens,
+    ...contentTokens,
+    ...tagTokens,
+  ]);
+  const tokens = [...mergedTokenSet].slice(0, SEARCH_MAX_TOKENS_PER_PROMPT);
+  const tokenSet = new Set(tokens);
+
+  return {
+    snippetId: snippet.id,
+    tokens,
+    titleTokens: titleTokens.filter((token) => tokenSet.has(token)),
+    tagTokens: tagTokens.filter((token) => tokenSet.has(token)),
+    updatedAt: snippet.updatedAt || Date.now(),
+  };
+}
+
+export async function upsertSnippetSearchIndex(
+  snippet: Snippet,
+  tagNameMap?: Map<string, string>,
+): Promise<void> {
+  if (!snippet.id) return;
+  const resolvedTagMap = tagNameMap || (await fetchSnippetTagNameMap(snippet.tagIds));
+  const record = buildSnippetSearchIndexRecord(snippet, resolvedTagMap);
+  await db.snippet_search_index.put(record);
+}
+
+export async function bulkUpsertSnippetSearchIndex(
+  snippets: Snippet[],
+): Promise<void> {
+  if (snippets.length === 0) return;
+  const tagIds = snippets.flatMap((snippet) => snippet.tagIds || []);
+  const tagNameMap = await fetchSnippetTagNameMap(tagIds);
+  const records = snippets.map((snippet) =>
+    buildSnippetSearchIndexRecord(snippet, tagNameMap),
+  );
+  await db.snippet_search_index.bulkPut(records);
+}
+
+export async function removeSnippetSearchIndex(
+  snippetIds: string | string[],
+): Promise<void> {
+  const ids = Array.isArray(snippetIds) ? snippetIds : [snippetIds];
+  if (ids.length === 0) return;
+  await db.snippet_search_index.bulkDelete(ids);
+}
+
+export async function rebuildSnippetSearchIndex(): Promise<void> {
+  const [snippets, tags] = await Promise.all([
+    db.snippets.toArray(),
+    db.snippet_tags.toArray(),
+  ]);
+  const tagNameMap = new Map(tags.map((tag) => [tag.id, tag.name]));
+  const records = snippets.map((snippet) =>
+    buildSnippetSearchIndexRecord(snippet, tagNameMap),
+  );
+  await db.snippet_search_index.clear();
+  if (records.length > 0) {
+    await db.snippet_search_index.bulkPut(records);
   }
 }
 
