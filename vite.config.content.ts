@@ -4,6 +4,16 @@ import UnoCSS from 'unocss/vite'
 import Components from 'unplugin-vue-components/vite'
 import { resolve } from 'path'
 
+const MILKDOWN_DEDUPE_DEPS = [
+  '@milkdown/core',
+  '@milkdown/prose',
+  '@milkdown/utils',
+  'prosemirror-model',
+  'prosemirror-state',
+  'prosemirror-transform',
+  'prosemirror-view',
+]
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -20,6 +30,7 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src'),
     },
+    dedupe: MILKDOWN_DEDUPE_DEPS,
   },
   esbuild: {
     charset: 'ascii',
