@@ -27,7 +27,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm' 
 
-      - run: npm install
+      - run: npm ci
 
       # 修复 git commit 身份问题 + 去掉 CRLF 警告
       - name: Setup Git identity
@@ -35,6 +35,16 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global core.autocrlf false
+
+      - name: Ensure clean working tree before version bump
+        run: |
+          echo "Git status before npm version:"
+          git status --porcelain
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Working tree is dirty before version bump. Changed files:"
+            git diff --name-only
+            exit 1
+          fi
 
       # 自动 bump 版本 & 同步 manifest.json
       - name: Bump version & sync manifest
