@@ -1,20 +1,10 @@
 import type {
   ChatConversation,
-  ChatMessage,
   ExportFormat,
   ExportOptions,
 } from "@/types/chat";
-import { formatPlatformName } from "./chatPlatform";
-
-/**
- * 获取消息内容（兼容新旧格式）
- */
-function getContent(message: ChatMessage): string {
-  if (typeof message.content === 'string') {
-    return message.content;
-  }
-  return message.content.edited || message.content.original;
-}
+import { getMessageContent } from "@/types/chat";
+import { getPlatformConfig } from "./chatPlatform";
 
 /**
  * 格式化时间戳
@@ -84,7 +74,7 @@ function exportToMarkdown(
 
   // 元数据
   if (options.includeMetadata) {
-    lines.push(`> **平台**: ${formatPlatformName(conversation.platform)}`);
+    lines.push(`> **平台**: ${getPlatformConfig(conversation.platform).name}`);
     if (conversation.link) {
       lines.push(`> **链接**: [原始对话](${conversation.link})`);
     }
@@ -117,7 +107,7 @@ function exportToMarkdown(
       lines.push("");
     }
 
-    lines.push(getContent(message));
+    lines.push(getMessageContent(message));
     lines.push("");
     lines.push("---");
     lines.push("");
@@ -144,7 +134,7 @@ function exportToTxt(
 
   // 元数据
   if (options.includeMetadata) {
-    lines.push(`平台: ${formatPlatformName(conversation.platform)}`);
+    lines.push(`平台: ${getPlatformConfig(conversation.platform).name}`);
     if (conversation.link) {
       lines.push(`链接: ${conversation.link}`);
     }
@@ -172,7 +162,7 @@ function exportToTxt(
       lines.push("");
     }
 
-    lines.push(getContent(message));
+    lines.push(getMessageContent(message));
     lines.push("");
     lines.push("-".repeat(60));
     lines.push("");
@@ -215,7 +205,7 @@ function exportToHtml(
             ${timestamp}
           </div>
           ${thinking}
-          <div class="content">${escapeHtml(getContent(m))}</div>
+          <div class="content">${escapeHtml(getMessageContent(m))}</div>
         </div>
       `;
     })
@@ -224,7 +214,7 @@ function exportToHtml(
   const metadata = options.includeMetadata
     ? `
       <div class="metadata">
-        <p><strong>平台:</strong> ${formatPlatformName(conversation.platform)}</p>
+        <p><strong>平台:</strong> ${getPlatformConfig(conversation.platform).name}</p>
         ${conversation.link ? `<p><strong>链接:</strong> <a href="${conversation.link}" target="_blank">原始对话</a></p>` : ""}
         <p><strong>采集时间:</strong> ${formatTimestamp(conversation.collectedAt)}</p>
         <p><strong>消息数:</strong> ${conversation.messageCount}</p>
@@ -289,33 +279,21 @@ export function exportConversation(
   }
 }
 
-/**
- * 获取导出文件扩展名
- */
-export function getExportExtension(format: ExportFormat): string {
-  const extensions: Record<ExportFormat, string> = {
-    json: "json",
-    markdown: "md",
-    txt: "txt",
-    html: "html",
-    pdf: "pdf",
-  };
-  return extensions[format];
-}
+const EXPORT_EXTENSIONS: Record<ExportFormat, string> = {
+  json: "json",
+  markdown: "md",
+  txt: "txt",
+  html: "html",
+  pdf: "pdf",
+};
 
-/**
- * 获取导出 MIME 类型
- */
-export function getExportMimeType(format: ExportFormat): string {
-  const mimeTypes: Record<ExportFormat, string> = {
-    json: "application/json",
-    markdown: "text/markdown",
-    txt: "text/plain",
-    html: "text/html",
-    pdf: "application/pdf",
-  };
-  return mimeTypes[format];
-}
+const EXPORT_MIME_TYPES: Record<ExportFormat, string> = {
+  json: "application/json",
+  markdown: "text/markdown",
+  txt: "text/plain",
+  html: "text/html",
+  pdf: "application/pdf",
+};
 
 /**
  * 下载导出文件
@@ -325,8 +303,8 @@ export function downloadExport(
   options: ExportOptions
 ): void {
   const content = exportConversation(conversation, options);
-  const extension = getExportExtension(options.format);
-  const mimeType = getExportMimeType(options.format);
+  const extension = EXPORT_EXTENSIONS[options.format];
+  const mimeType = EXPORT_MIME_TYPES[options.format];
   const filename = `${conversation.title.replace(/[/\\?%*:|"<>]/g, "-")}.${extension}`;
 
   const blob = new Blob([content], { type: `${mimeType};charset=utf-8` });
@@ -338,22 +316,4 @@ export function downloadExport(
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-}
-
-/**
- * 批量导出对话
- */
-export async function exportMultipleConversations(
-  conversations: ChatConversation[],
-  options: ExportOptions
-): Promise<void> {
-  // 使用 JSZip 打包（如果可用）
-  const extension = getExportExtension(options.format);
-
-  // 简单实现：逐个下载
-  for (const conversation of conversations) {
-    downloadExport(conversation, options);
-    // 添加延迟避免浏览器阻止多个下载
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
 }

@@ -6,7 +6,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { collect, getCurrentPlatformInfo } from '@/collect'
 import { MSG } from '@/utils/messaging'
-import { getPlatformColor } from '@/utils/chatPlatform'
+import { getPlatformConfig } from '@/utils/chatPlatform'
 import type { ChatPlatformInfo } from '@/utils/messaging'
 
 const containerRef = ref<HTMLElement | null>(null)
@@ -248,7 +248,7 @@ function updateFabState() {
   const badgeEl = fabElement.querySelector('.fab-badge') as HTMLElement
   if (badgeEl && platformInfo.value?.platform) {
     badgeEl.style.display = 'flex'
-    badgeEl.style.backgroundColor = getPlatformColor(platformInfo.value.platform)
+    badgeEl.style.backgroundColor = getPlatformConfig(platformInfo.value.platform).color
     badgeEl.textContent = platformInfo.value.platform.slice(0, 1).toUpperCase()
   }
 

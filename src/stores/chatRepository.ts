@@ -1,4 +1,9 @@
 import { db } from "./db";
+import { createEventBus, createCommitNotifier } from "./shared";
+import {
+  collectSearchTokens,
+  SEARCH_MAX_TOKENS,
+} from "./searchIndexUtils";
 import type {
   ChatConversation,
   ChatTag,
@@ -6,96 +11,25 @@ import type {
   ChatPlatform,
   QueryChatsParams,
   QueryChatsResult,
-  ChatMessage,
 } from "@/types/chat";
-import { MSG } from "@/utils/messaging";
-import type { Dexie, Transaction } from "dexie";
 
 // ============================================
 // Event System
 // ============================================
 type EventType = "chatsChanged" | "chatTagsChanged" | "allChatDataChanged";
-type Handler = (data?: any) => void;
-const allEvents = new Map<EventType, Handler[]>();
 
-const events = {
-  on(type: EventType, handler: Handler) {
-    const handlers = allEvents.get(type);
-    if (handlers) {
-      handlers.push(handler);
-    } else {
-      allEvents.set(type, [handler]);
-    }
-  },
-  off(type: EventType, handler: Handler) {
-    const handlers = allEvents.get(type);
-    if (handlers) {
-      handlers.splice(handlers.indexOf(handler) >>> 0, 1);
-    }
-  },
-  emit(type: EventType, evt?: any) {
-    (allEvents.get(type) || []).forEach((handler) => handler(evt));
-    if (type !== "allChatDataChanged") {
-      (allEvents.get("allChatDataChanged") || []).forEach((handler) => handler(evt));
-    }
-  },
-};
+const events = createEventBus<EventType>("allChatDataChanged");
+
+function toDataScope(eventType: EventType): string {
+  if (eventType === "chatTagsChanged") return "chat_tags";
+  return "chat_conversations";
+}
+
+const withCommitNotification = createCommitNotifier("[ChatRepository]", events, toDataScope);
 
 // ============================================
 // Search Index Functions
 // ============================================
-const SEARCH_MAX_SOURCE_LENGTH = 12000;
-const SEARCH_MAX_TOKENS = 1200;
-const LATIN_WORD_RE = /[a-z0-9]+/g;
-const CJK_SEGMENT_RE = /[\u3400-\u9fff]+/g;
-
-function normalizeSearchText(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-function collectSearchTokens(text: string, maxTokens: number): string[] {
-  const source = normalizeSearchText(text).slice(0, SEARCH_MAX_SOURCE_LENGTH);
-  if (!source) return [];
-
-  const tokens = new Set<string>();
-  const pushToken = (token: string) => {
-    if (!token || token.length > 32 || tokens.size >= maxTokens) return;
-    tokens.add(token);
-  };
-
-  // Latin words
-  const latinWords = source.match(LATIN_WORD_RE) || [];
-  for (const word of latinWords) {
-    if (word.length >= 2 || /^\d$/.test(word)) {
-      pushToken(word);
-    }
-    if (tokens.size >= maxTokens) break;
-  }
-
-  if (tokens.size >= maxTokens) return [...tokens];
-
-  // CJK characters
-  const cjkSegments = source.match(CJK_SEGMENT_RE) || [];
-  outer: for (const segment of cjkSegments) {
-    for (let i = 0; i < segment.length; i++) {
-      pushToken(segment[i]);
-      if (tokens.size >= maxTokens) break outer;
-    }
-    for (let n = 2; n <= 3; n++) {
-      if (segment.length < n) continue;
-      for (let i = 0; i <= segment.length - n; i++) {
-        pushToken(segment.slice(i, i + n));
-        if (tokens.size >= maxTokens) break outer;
-      }
-    }
-    if (segment.length <= 8) {
-      pushToken(segment);
-      if (tokens.size >= maxTokens) break;
-    }
-  }
-
-  return [...tokens];
-}
 
 async function fetchChatTagNameMap(tagIds?: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
@@ -116,7 +50,6 @@ function buildChatSearchIndexRecord(
     .filter(Boolean)
     .join(" ");
 
-  // 提取消息内容用于搜索
   const messageContent = conversation.messages
     .map((m) => m.content)
     .join(" ")
@@ -157,43 +90,6 @@ async function removeChatSearchIndex(conversationIds: string | string[]): Promis
   const ids = Array.isArray(conversationIds) ? conversationIds : [conversationIds];
   if (ids.length === 0) return;
   await db.chat_search_index.bulkDelete(ids);
-}
-
-// ============================================
-// Transaction Helper
-// ============================================
-function toDataScope(eventType: EventType): string {
-  if (eventType === "chatTagsChanged") return "chat_tags";
-  return "chat_conversations";
-}
-
-async function withCommitNotification(
-  tables: (keyof typeof db | Dexie.Table)[],
-  operation: (trans: Transaction) => Promise<any>,
-  eventType: EventType,
-  eventData?: any
-) {
-  try {
-    const result = await db.transaction(
-      "rw",
-      tables as Dexie.Table[],
-      async (trans) => {
-        const opResult = await operation(trans);
-        trans.on("complete", async () => {
-          events.emit(eventType, eventData);
-          chrome.runtime.sendMessage({
-            type: MSG.DATA_UPDATED,
-            data: { scope: toDataScope(eventType), version: Date.now().toString() },
-          });
-        });
-        return opResult;
-      }
-    );
-    return { ok: true, data: result };
-  } catch (error) {
-    console.error(`[ChatRepository] Error:`, error);
-    return { ok: false, error };
-  }
 }
 
 // ============================================

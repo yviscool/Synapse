@@ -8,6 +8,7 @@ export type ChatPlatform =
   | 'chatgpt'
   | 'claude'
   | 'gemini'
+  | 'aistudio'
   | 'deepseek'
   | 'kimi'
   | 'doubao'

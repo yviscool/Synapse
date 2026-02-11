@@ -5,12 +5,12 @@
       <div class="flex items-center gap-3 min-w-0 flex-1">
         <div
           class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          :style="{ backgroundColor: getPlatformColor(conversation.platform) + '15' }"
+          :style="{ backgroundColor: getPlatformConfig(conversation.platform).color + '15' }"
         >
           <div
-            :class="getPlatformIcon(conversation.platform)"
+            :class="getPlatformConfig(conversation.platform).icon"
             class="text-xl"
-            :style="{ color: getPlatformColor(conversation.platform) }"
+            :style="{ color: getPlatformConfig(conversation.platform).color }"
           ></div>
         </div>
         <div class="min-w-0 flex-1">
@@ -36,7 +36,7 @@
             />
           </div>
           <div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-            <span>{{ formatPlatformName(conversation.platform) }}</span>
+            <span>{{ getPlatformConfig(conversation.platform).name }}</span>
             <span>·</span>
             <span>{{ t('chat.list.messages', { count: conversation.messageCount }) }}</span>
           </div>
@@ -297,7 +297,7 @@
 import { ref, watch, nextTick, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
-import { getPlatformIcon, getPlatformColor, formatPlatformName } from '@/utils/chatPlatform'
+import { getPlatformConfig } from '@/utils/chatPlatform'
 import MilkdownEditor from '@/options/components/Milkdown.vue'
 import type { ChatConversation, ChatMessage } from '@/types/chat'
 

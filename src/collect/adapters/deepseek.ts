@@ -56,78 +56,25 @@ export class DeepSeekAdapter extends BaseAdapter {
   }
 
   /**
-   * DeepSeek 专用 Markdown 提取
-   * 处理 .md-code-block 代码块、.token 语法高亮 span、ds-markdown 结构
+   * DeepSeek 专用预处理
+   * 处理 .md-code-block 代码块 + .ds-scroll-area 表格清理
    */
-  protected override extractMarkdown(element: Element | null): string {
-    if (!element) return ''
-
-    const clone = element.cloneNode(true) as Element
-
+  protected override preprocessClone(clone: Element): void {
     // 1. 处理 DeepSeek 代码块：.md-code-block 包含 banner(语言) + pre
     clone.querySelectorAll('.md-code-block').forEach((block) => {
       const langEl = block.querySelector('.d813de27')
       const lang = langEl?.textContent?.trim().toLowerCase() || ''
-      // 移除 banner（语言标签 + 复制按钮）
       block.querySelectorAll('.md-code-block-banner-wrap').forEach((b) => b.remove())
       const pre = block.querySelector('pre')
       const codeText = pre?.textContent || ''
       block.replaceWith(`\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`)
     })
 
-    // 2. 剩余 pre > code
-    clone.querySelectorAll('pre code').forEach((code) => {
-      const lang = code.className.match(/language-(\w+)/)?.[1] || ''
-      const text = code.textContent || ''
-      code.parentElement!.replaceWith(`\n\`\`\`${lang}\n${text}\n\`\`\`\n`)
-    })
-
-    // 3. 行内代码
-    clone.querySelectorAll('code').forEach((c) => c.replaceWith(`\`${c.textContent}\``))
-
-    // 4. 链接
-    clone.querySelectorAll('a').forEach((a) => {
-      const href = a.getAttribute('href')
-      const text = a.textContent
-      if (href && text) a.replaceWith(`[${text}](${href})`)
-    })
-
-    // 5. 块级元素
-    clone.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
-      const level = parseInt(h.tagName[1])
-      h.prepend('#'.repeat(level) + ' ')
-      h.append('\n\n')
-    })
-    clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'))
-    clone.querySelectorAll('p').forEach((p) => p.append('\n\n'))
-    clone.querySelectorAll('hr').forEach((hr) => hr.replaceWith('\n---\n'))
-    clone.querySelectorAll('li').forEach((li) => {
-      const parent = li.parentElement
-      const prefix = parent?.tagName === 'OL' ? '1. ' : '- '
-      li.prepend(prefix)
-      li.append('\n')
-    })
-    clone.querySelectorAll('b, strong').forEach((b) => {
-      b.prepend('**')
-      b.append('**')
-    })
-
-    // 6. 表格处理（DeepSeek 回复中常见）
+    // 2. 表格处理（DeepSeek 回复中常见）
     clone.querySelectorAll('.ds-scroll-area table, table').forEach((table) => {
-      // 移除外层滚动容器的干扰元素
       const scrollGutters = table.closest('.ds-scroll-area')?.querySelectorAll('.ds-scroll-area__gutters')
       scrollGutters?.forEach((g) => g.remove())
     })
-
-    const raw = clone.textContent || ''
-    return raw
-      .replace(/\u200B/g, '')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .split('\n')
-      .map((l) => l.trim())
-      .join('\n')
-      .trim()
   }
 
   collectMessages(): ChatMessage[] {

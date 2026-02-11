@@ -7,53 +7,24 @@ import {
   removePromptSearchIndex,
   rebuildPromptSearchIndex,
 } from "./db";
+import { createEventBus, createCommitNotifier } from "./shared";
 import type {
   Prompt,
   PromptVersion,
   Category,
-  Tag,
   Settings,
 } from "@/types/prompt";
-import { MSG } from "@/utils/messaging";
 import { createSafePrompt } from "@/utils/promptUtils";
-import type { Dexie, Transaction } from "dexie";
 
-// A simple, typed event emitter (a tiny version of 'mitt')
+// Event system using shared factory
 type EventType =
   | "promptsChanged"
   | "tagsChanged"
   | "categoriesChanged"
   | "settingsChanged"
   | "allChanged";
-type Handler = (data?: any) => void;
-const allEvents = new Map<EventType, Handler[]>();
 
-const events = {
-  on(type: EventType, handler: Handler) {
-    const handlers = allEvents.get(type);
-    if (handlers) {
-      handlers.push(handler);
-    } else {
-      allEvents.set(type, [handler]);
-    }
-  },
-  off(type: EventType, handler: Handler) {
-    const handlers = allEvents.get(type);
-    if (handlers) {
-      handlers.splice(handlers.indexOf(handler) >>> 0, 1);
-    }
-  },
-  emit(type: EventType, evt?: any) {
-    (allEvents.get(type) || []).forEach((handler) => {
-      handler(evt);
-    });
-    if (type !== "allChanged") {
-      (allEvents.get("allChanged") || []).forEach((handler) => {
-        handler(evt);
-      });
-    }
-  },
-};
+const events = createEventBus<EventType>("allChanged");
 
 function toDataScope(eventType: EventType): "prompts" | "categories" | "tags" | "settings" {
   if (eventType === "categoriesChanged") return "categories";
@@ -62,60 +33,14 @@ function toDataScope(eventType: EventType): "prompts" | "categories" | "tags" | 
   return "prompts";
 }
 
+const withCommitNotification = createCommitNotifier("[Repository]", events, toDataScope);
+
 function isSearchRelevantPatch(patch: Partial<Prompt>): boolean {
   return (
     Object.prototype.hasOwnProperty.call(patch, "title") ||
     Object.prototype.hasOwnProperty.call(patch, "content") ||
     Object.prototype.hasOwnProperty.call(patch, "tagIds")
   );
-}
-
-/**
- * A wrapper for database write operations that ensures notifications are sent
- * only after the transaction is successfully committed.
- */
-async function withCommitNotification(
-  tables: (keyof typeof db | Dexie.Table)[],
-  operation: (trans: Transaction) => Promise<any>,
-  eventType: EventType,
-  eventData?: any,
-) {
-  try {
-    const result = await db.transaction(
-      "rw",
-      tables as Dexie.Table[],
-      async (trans) => {
-        const opResult = await operation(trans);
-
-        trans.on("complete", async () => {
-          console.log(
-            `[Repository] Transaction completed. Emitting '${eventType}'.`,
-          );
-          events.emit(eventType, eventData);
-          chrome.runtime.sendMessage({
-            type: MSG.DATA_UPDATED,
-            data: {
-              scope: toDataScope(eventType),
-              version: Date.now().toString(),
-            },
-          });
-        });
-
-        trans.on("error", (err) => {
-          console.error("[Repository] Transaction failed.", err);
-        });
-
-        return opResult;
-      },
-    );
-    return { ok: true, data: result };
-  } catch (error) {
-    console.error(
-      `[Repository] Error during transaction for event '${eventType}':`,
-      error,
-    );
-    return { ok: false, error };
-  }
 }
 
 // --- Public Repository API ---

@@ -4,52 +4,23 @@ import {
   bulkUpsertSnippetSearchIndex,
   removeSnippetSearchIndex,
 } from "./db";
+import { createEventBus, createCommitNotifier } from "./shared";
 import type {
   Snippet,
   SnippetFolder,
   SnippetTag,
-  SnippetLanguage,
   QuerySnippetsParams,
   QuerySnippetsResult,
 } from "@/types/snippet";
-import { MSG } from "@/utils/messaging";
-import type { Dexie, Transaction } from "dexie";
 
-// Event emitter for snippet changes
+// Event system using shared factory
 type EventType =
   | "snippetsChanged"
   | "foldersChanged"
   | "snippetTagsChanged"
   | "allSnippetDataChanged";
-type Handler = (data?: any) => void;
-const allEvents = new Map<EventType, Handler[]>();
 
-const events = {
-  on(type: EventType, handler: Handler) {
-    const handlers = allEvents.get(type);
-    if (handlers) {
-      handlers.push(handler);
-    } else {
-      allEvents.set(type, [handler]);
-    }
-  },
-  off(type: EventType, handler: Handler) {
-    const handlers = allEvents.get(type);
-    if (handlers) {
-      handlers.splice(handlers.indexOf(handler) >>> 0, 1);
-    }
-  },
-  emit(type: EventType, evt?: any) {
-    (allEvents.get(type) || []).forEach((handler) => {
-      handler(evt);
-    });
-    if (type !== "allSnippetDataChanged") {
-      (allEvents.get("allSnippetDataChanged") || []).forEach((handler) => {
-        handler(evt);
-      });
-    }
-  },
-};
+const events = createEventBus<EventType>("allSnippetDataChanged");
 
 function toDataScope(eventType: EventType): string {
   if (eventType === "foldersChanged") return "snippet_folders";
@@ -57,56 +28,14 @@ function toDataScope(eventType: EventType): string {
   return "snippets";
 }
 
+const withCommitNotification = createCommitNotifier("[SnippetRepository]", events, toDataScope);
+
 function isSearchRelevantPatch(patch: Partial<Snippet>): boolean {
   return (
     Object.prototype.hasOwnProperty.call(patch, "title") ||
     Object.prototype.hasOwnProperty.call(patch, "content") ||
     Object.prototype.hasOwnProperty.call(patch, "tagIds")
   );
-}
-
-async function withCommitNotification(
-  tables: (keyof typeof db | Dexie.Table)[],
-  operation: (trans: Transaction) => Promise<any>,
-  eventType: EventType,
-  eventData?: any,
-) {
-  try {
-    const result = await db.transaction(
-      "rw",
-      tables as Dexie.Table[],
-      async (trans) => {
-        const opResult = await operation(trans);
-
-        trans.on("complete", async () => {
-          console.log(
-            `[SnippetRepository] Transaction completed. Emitting '${eventType}'.`,
-          );
-          events.emit(eventType, eventData);
-          chrome.runtime.sendMessage({
-            type: MSG.DATA_UPDATED,
-            data: {
-              scope: toDataScope(eventType),
-              version: Date.now().toString(),
-            },
-          });
-        });
-
-        trans.on("error", (err) => {
-          console.error("[SnippetRepository] Transaction failed.", err);
-        });
-
-        return opResult;
-      },
-    );
-    return { ok: true, data: result };
-  } catch (error) {
-    console.error(
-      `[SnippetRepository] Error during transaction for event '${eventType}':`,
-      error,
-    );
-    return { ok: false, error };
-  }
 }
 
 function createSafeSnippet(data: Partial<Snippet>): Snippet {

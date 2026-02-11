@@ -215,9 +215,9 @@
               <!-- 平台标识 -->
               <div
                 class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                :style="{ backgroundColor: getPlatformColor(conv.platform) + '15' }"
+                :style="{ backgroundColor: getPlatformConfig(conv.platform).color + '15' }"
               >
-                <div :class="getPlatformIcon(conv.platform)" class="text-lg" :style="{ color: getPlatformColor(conv.platform) }"></div>
+                <div :class="getPlatformConfig(conv.platform).icon" class="text-lg" :style="{ color: getPlatformConfig(conv.platform).color }"></div>
               </div>
 
               <!-- 内容 -->
@@ -233,7 +233,7 @@
                   </button>
                 </div>
                 <div class="flex items-center gap-1.5 text-xs text-gray-400 mb-1.5">
-                  <span>{{ formatPlatformName(conv.platform) }}</span>
+                  <span>{{ getPlatformConfig(conv.platform).name }}</span>
                   <span>·</span>
                   <span>{{ conv.messageCount }}条</span>
                   <span>·</span>
@@ -319,9 +319,7 @@ import { chatRepository } from '@/stores/chatRepository'
 import { useChatQuery } from '@/options/composables/useChatQuery'
 import {
   getAllPlatforms,
-  getPlatformIcon,
-  getPlatformColor,
-  formatPlatformName,
+  getPlatformConfig,
 } from '@/utils/chatPlatform'
 import type { ChatConversation, ChatPlatform, PlatformConfig } from '@/types/chat'
 

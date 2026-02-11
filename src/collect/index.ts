@@ -8,9 +8,12 @@ import { ChatGPTAdapter } from './adapters/chatgpt'
 import { ClaudeAdapter } from './adapters/claude'
 import { DeepSeekAdapter } from './adapters/deepseek'
 import { GeminiAdapter } from './adapters/gemini'
+import { AIStudioAdapter } from './adapters/aistudio'
 import { KimiAdapter } from './adapters/kimi'
+import { DoubaoAdapter } from './adapters/doubao'
 import { GenericAdapter } from './adapters/generic'
 import type { ChatPlatform } from '@/types/chat'
+import { detectPlatformFromUrl } from '@/utils/chatPlatform'
 
 // 所有适配器实例
 const adapters: PlatformAdapter[] = [
@@ -18,36 +21,13 @@ const adapters: PlatformAdapter[] = [
   new ClaudeAdapter(),
   new DeepSeekAdapter(),
   new GeminiAdapter(),
+  new AIStudioAdapter(),
   new KimiAdapter(),
+  new DoubaoAdapter(),
 ]
 
 // 通用适配器作为后备
 const genericAdapter = new GenericAdapter()
-
-/**
- * 根据 URL 检测平台
- */
-export function detectPlatform(url: string = window.location.href): ChatPlatform | null {
-  const patterns: [RegExp, ChatPlatform][] = [
-    [/chat\.openai\.com|chatgpt\.com/, 'chatgpt'],
-    [/claude\.ai/, 'claude'],
-    [/chat\.deepseek\.com/, 'deepseek'],
-    [/gemini\.google\.com/, 'gemini'],
-    [/kimi\.moonshot\.cn/, 'kimi'],
-    [/doubao\.com/, 'doubao'],
-    [/yuanbao\.tencent\.com/, 'yuanbao'],
-    [/grok\.x\.ai|x\.com\/i\/grok/, 'grok'],
-    [/copilot\.microsoft\.com/, 'copilot'],
-  ]
-
-  for (const [pattern, platform] of patterns) {
-    if (pattern.test(url)) {
-      return platform
-    }
-  }
-
-  return null
-}
 
 /**
  * 获取当前页面的适配器
@@ -103,7 +83,7 @@ export function getCurrentPlatformInfo(): {
 
   if (!adapter) {
     return {
-      platform: detectPlatform(),
+      platform: detectPlatformFromUrl(window.location.href) || null,
       canCollect: false,
       conversationId: null,
     }

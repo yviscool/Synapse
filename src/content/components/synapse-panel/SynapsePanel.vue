@@ -232,7 +232,8 @@ import {
 } from 'vue'
 import { useDraggable, useWindowSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
-import { canCollect, detectPlatform } from '@/collect'
+import { canCollect } from '@/collect'
+import { detectPlatformFromUrl } from '@/utils/chatPlatform'
 import type { SiteConfig } from '@/outline/site-configs'
 
 import CollectPanel from './CollectPanel.vue'
@@ -270,7 +271,7 @@ const hint = ref<{ visible: boolean; text: string; icon: string }>({
 let hintTimeout: number | null = null
 
 // --- 是否在 AI 平台 ---
-const isAIPlatform = computed(() => canCollect() || detectPlatform() !== null)
+const isAIPlatform = computed(() => canCollect() || detectPlatformFromUrl(window.location.href) !== 'other')
 
 // --- 可用模式 ---
 const availableModes = computed(() => {

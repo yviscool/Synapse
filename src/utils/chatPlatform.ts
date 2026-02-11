@@ -26,6 +26,13 @@ export const PLATFORM_CONFIGS: Record<ChatPlatform, PlatformConfig> = {
     color: "#4285f4",
     urlPatterns: [/gemini\.google\.com/, /bard\.google\.com/],
   },
+  aistudio: {
+    id: "aistudio",
+    name: "AI Studio",
+    icon: "i-simple-icons-google",
+    color: "#4285f4",
+    urlPatterns: [/aistudio\.google\.com/],
+  },
   deepseek: {
     id: "deepseek",
     name: "DeepSeek",
@@ -101,25 +108,4 @@ export function detectPlatformFromUrl(url: string): ChatPlatform {
     }
   }
   return "other";
-}
-
-/**
- * 格式化平台名称
- */
-export function formatPlatformName(platform: ChatPlatform): string {
-  return getPlatformConfig(platform).name;
-}
-
-/**
- * 获取平台图标类名
- */
-export function getPlatformIcon(platform: ChatPlatform): string {
-  return getPlatformConfig(platform).icon;
-}
-
-/**
- * 获取平台颜色
- */
-export function getPlatformColor(platform: ChatPlatform): string {
-  return getPlatformConfig(platform).color;
 }

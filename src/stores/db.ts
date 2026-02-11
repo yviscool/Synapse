@@ -19,6 +19,11 @@ import type {
   ChatSearchIndex,
 } from "@/types/chat";
 import { getDefaultCategories } from "@/utils/categoryUtils";
+import {
+  normalizeSearchText,
+  collectSearchTokens,
+  SEARCH_MAX_TOKENS,
+} from "./searchIndexUtils";
 
 export interface PromptSearchIndex {
   promptId: string;
@@ -104,72 +109,16 @@ export class APMDB extends Dexie {
 export const db = new APMDB();
 
 const ALL_CATEGORY_NAMES = new Set(["全部", "all"]);
-const SEARCH_MAX_SOURCE_LENGTH = 12000;
-const SEARCH_MAX_TOKENS_PER_PROMPT = 1200;
 const SEARCH_MAX_QUERY_TOKENS = 12;
 const SEARCH_MAX_CANDIDATES = 500;
-const LATIN_WORD_RE = /[a-z0-9]+/g;
-const CJK_SEGMENT_RE = /[\u3400-\u9fff]+/g;
 const CJK_TOKEN_RE = /^[\u3400-\u9fff]+$/;
 const SEARCH_SCORE_BY_MATCH_LEVEL = [0, 3, 6, 8] as const;
 
 let ensureSearchIndexPromise: Promise<void> | null = null;
 let hasVerifiedSearchIndex = false;
 
-function normalizeSearchText(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
 function isCjkToken(token: string): boolean {
   return CJK_TOKEN_RE.test(token);
-}
-
-function collectSearchTokens(text: string, maxTokens: number): string[] {
-  const source = normalizeSearchText(text).slice(0, SEARCH_MAX_SOURCE_LENGTH);
-  if (!source) return [];
-
-  const tokens = new Set<string>();
-  const pushToken = (token: string) => {
-    if (!token) return;
-    if (token.length > 32) return;
-    if (tokens.size >= maxTokens) return;
-    tokens.add(token);
-  };
-
-  const latinWords = source.match(LATIN_WORD_RE) || [];
-  for (const word of latinWords) {
-    if (word.length >= 2 || /^\d$/.test(word)) {
-      pushToken(word);
-    }
-    if (tokens.size >= maxTokens) break;
-  }
-
-  if (tokens.size >= maxTokens) {
-    return [...tokens];
-  }
-
-  const cjkSegments = source.match(CJK_SEGMENT_RE) || [];
-  outer: for (const segment of cjkSegments) {
-    for (let i = 0; i < segment.length; i++) {
-      pushToken(segment[i]);
-      if (tokens.size >= maxTokens) break outer;
-    }
-
-    for (let n = 2; n <= 3; n++) {
-      if (segment.length < n) continue;
-      for (let i = 0; i <= segment.length - n; i++) {
-        pushToken(segment.slice(i, i + n));
-        if (tokens.size >= maxTokens) break outer;
-      }
-    }
-
-    if (segment.length <= 8) {
-      pushToken(segment);
-      if (tokens.size >= maxTokens) break;
-    }
-  }
-
-  return [...tokens];
 }
 
 function extractQueryTokens(query: string): string[] {
@@ -199,7 +148,7 @@ function buildPromptSearchIndexRecord(
     ...contentTokens,
     ...tagTokens,
   ]);
-  const tokens = [...mergedTokenSet].slice(0, SEARCH_MAX_TOKENS_PER_PROMPT);
+  const tokens = [...mergedTokenSet].slice(0, SEARCH_MAX_TOKENS);
   const tokenSet = new Set(tokens);
 
   return {
@@ -340,7 +289,7 @@ function buildSnippetSearchIndexRecord(
     ...contentTokens,
     ...tagTokens,
   ]);
-  const tokens = [...mergedTokenSet].slice(0, SEARCH_MAX_TOKENS_PER_PROMPT);
+  const tokens = [...mergedTokenSet].slice(0, SEARCH_MAX_TOKENS);
   const tokenSet = new Set(tokens);
 
   return {

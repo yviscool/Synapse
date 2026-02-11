@@ -96,12 +96,12 @@
           <div class="flex items-start gap-3">
             <div
               class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-              :style="{ backgroundColor: getPlatformColor(conversation.platform) + '15' }"
+              :style="{ backgroundColor: getPlatformConfig(conversation.platform).color + '15' }"
             >
               <div
-                :class="getPlatformIcon(conversation.platform)"
+                :class="getPlatformConfig(conversation.platform).icon"
                 class="text-base"
-                :style="{ color: getPlatformColor(conversation.platform) }"
+                :style="{ color: getPlatformConfig(conversation.platform).color }"
               ></div>
             </div>
             <div class="flex-1 min-w-0">
@@ -110,7 +110,7 @@
               </h4>
               <div class="flex items-center gap-2 mt-1">
                 <span class="text-xs text-gray-400">
-                  {{ formatPlatformName(conversation.platform) }}
+                  {{ getPlatformConfig(conversation.platform).name }}
                 </span>
                 <span class="text-gray-300">·</span>
                 <span class="text-xs text-gray-400">
@@ -180,7 +180,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onClickOutside } from '@vueuse/core'
-import { getPlatformIcon, getPlatformColor, formatPlatformName } from '@/utils/chatPlatform'
+import { getPlatformConfig } from '@/utils/chatPlatform'
 import type { ChatConversation } from '@/types/chat'
 
 const { t } = useI18n()

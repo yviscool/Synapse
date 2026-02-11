@@ -87,7 +87,7 @@ import { computed, watch, onMounted, type CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSyncEngine } from './useSyncEngine'
 import { getCurrentPlatformInfo } from '@/collect'
-import { getPlatformIcon, getPlatformColor, formatPlatformName } from '@/utils/chatPlatform'
+import { getPlatformConfig } from '@/utils/chatPlatform'
 
 const { t } = useI18n()
 
@@ -122,11 +122,12 @@ watch(() => syncState.value.status, (status) => {
 const platformInfo = computed(() => {
   const info = getCurrentPlatformInfo()
   if (!info.platform) return null
+  const config = getPlatformConfig(info.platform)
   return {
     id: info.platform,
-    name: formatPlatformName(info.platform),
-    icon: getPlatformIcon(info.platform),
-    color: getPlatformColor(info.platform),
+    name: config.name,
+    icon: config.icon,
+    color: config.color,
   }
 })
 

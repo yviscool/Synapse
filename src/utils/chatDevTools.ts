@@ -86,8 +86,8 @@ export async function clearAllConversations(): Promise<void> {
   console.log(`[DevTools] Cleared ${ids.length} conversations.`)
 }
 
-// 暴露到全局，方便在控制台调试
-if (typeof window !== 'undefined') {
+// 仅在开发模式下暴露到全局
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as any).__chatDevTools = {
     generateTestConversations,
     clearAllConversations,

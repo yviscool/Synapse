@@ -68,42 +68,72 @@ export abstract class BaseAdapter implements PlatformAdapter {
   }
 
   /**
+   * 平台特有的 DOM 预处理钩子
+   * 子类 override 此方法处理平台特有元素（如自定义代码块、KaTeX 公式等）
+   */
+  protected preprocessClone(_clone: Element): void {}
+
+  /**
    * 提取 Markdown 格式内容（保留代码块等）
+   * 公共流程：preprocessClone → pre>code → code → a → h1-h6 → br/p/hr/li/b → 清理
    */
   protected extractMarkdown(element: Element | null): string {
     if (!element) return ''
 
     const clone = element.cloneNode(true) as Element
 
-    // 处理代码块
+    // 1. 平台特有预处理
+    this.preprocessClone(clone)
+
+    // 2. 剩余 pre > code
     clone.querySelectorAll('pre code').forEach((code) => {
       const lang = code.className.match(/language-(\w+)/)?.[1] || ''
       const text = code.textContent || ''
       code.parentElement!.replaceWith(`\n\`\`\`${lang}\n${text}\n\`\`\`\n`)
     })
 
-    // 处理行内代码
-    clone.querySelectorAll('code').forEach((code) => {
-      code.replaceWith(`\`${code.textContent}\``)
-    })
+    // 3. 行内代码
+    clone.querySelectorAll('code').forEach((c) => c.replaceWith(`\`${c.textContent}\``))
 
-    // 处理链接
+    // 4. 链接
     clone.querySelectorAll('a').forEach((a) => {
       const href = a.getAttribute('href')
       const text = a.textContent
-      if (href && text) {
-        a.replaceWith(`[${text}](${href})`)
-      }
+      if (href && text) a.replaceWith(`[${text}](${href})`)
     })
 
-    // 处理列表
+    // 5. 标题
+    clone.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
+      const level = parseInt(h.tagName[1])
+      h.prepend('#'.repeat(level) + ' ')
+      h.append('\n\n')
+    })
+
+    // 6. 块级元素
+    clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'))
+    clone.querySelectorAll('p').forEach((p) => p.append('\n\n'))
+    clone.querySelectorAll('hr').forEach((hr) => hr.replaceWith('\n---\n'))
     clone.querySelectorAll('li').forEach((li) => {
       const parent = li.parentElement
       const prefix = parent?.tagName === 'OL' ? '1. ' : '- '
-      li.innerHTML = prefix + li.innerHTML
+      li.prepend(prefix)
+      li.append('\n')
+    })
+    clone.querySelectorAll('b, strong').forEach((b) => {
+      b.prepend('**')
+      b.append('**')
     })
 
-    return this.cleanText(clone.textContent || '')
+    // 7. 清理文本
+    const raw = clone.textContent || ''
+    return raw
+      .replace(/\u200B/g, '')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .split('\n')
+      .map((l) => l.trim())
+      .join('\n')
+      .trim()
   }
 
   /**

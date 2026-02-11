@@ -64,15 +64,11 @@ export class GeminiAdapter extends BaseAdapter {
   }
 
   /**
-   * Gemini 专用 Markdown 提取
-   * 处理 code-block / code-block-decoration / KaTeX math / response-element 等特有结构
+   * Gemini 专用预处理
+   * 处理 KaTeX .math-inline/.math-display + code-block + response-element
    */
-  protected override extractMarkdown(element: Element | null): string {
-    if (!element) return ''
-
-    const clone = element.cloneNode(true) as Element
-
-    // ── 1. KaTeX 公式：用 data-math 属性还原 LaTeX，避免嵌套 span 产生乱码 ──
+  protected override preprocessClone(clone: Element): void {
+    // 1. KaTeX 公式：用 data-math 属性还原 LaTeX
     clone.querySelectorAll('.math-inline').forEach((math) => {
       const tex = math.getAttribute('data-math') || math.textContent || ''
       math.replaceWith(`$${tex}$`)
@@ -82,73 +78,21 @@ export class GeminiAdapter extends BaseAdapter {
       math.replaceWith(`$$${tex}$$`)
     })
 
-    // ── 2. Gemini code-block 自定义元素 ──
+    // 2. Gemini code-block 自定义元素
     clone.querySelectorAll('code-block').forEach((block) => {
       const langEl = block.querySelector('code-block-decoration span')
       const lang = langEl?.textContent?.trim().toLowerCase() || ''
-      // 移除 decoration（语言标签 + 复制按钮文本）
       block.querySelectorAll('code-block-decoration').forEach((d) => d.remove())
-
       const codeEl = block.querySelector('pre code') || block.querySelector('code')
       const codeText = codeEl?.textContent || ''
       block.replaceWith(`\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`)
     })
 
-    // ── 3. 清理 response-element 空壳 ──
+    // 3. 清理 response-element 空壳
     clone.querySelectorAll('response-element').forEach((el) => {
-      // 将子节点提升到父级，移除空包装
       while (el.firstChild) el.parentNode?.insertBefore(el.firstChild, el)
       el.remove()
     })
-
-    // ── 4. 剩余 pre > code（非 code-block 包裹） ──
-    clone.querySelectorAll('pre code').forEach((code) => {
-      const lang = code.className.match(/language-(\w+)/)?.[1] || ''
-      const text = code.textContent || ''
-      code.parentElement!.replaceWith(`\n\`\`\`${lang}\n${text}\n\`\`\`\n`)
-    })
-
-    // ── 5. 行内代码 ──
-    clone.querySelectorAll('code').forEach((c) => c.replaceWith(`\`${c.textContent}\``))
-
-    // ── 6. 链接 ──
-    clone.querySelectorAll('a').forEach((a) => {
-      const href = a.getAttribute('href')
-      const text = a.textContent
-      if (href && text) a.replaceWith(`[${text}](${href})`)
-    })
-
-    // ── 7. 块级元素格式化 ──
-    clone.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
-      const level = parseInt(h.tagName[1])
-      h.prepend('#'.repeat(level) + ' ')
-      h.append('\n\n')
-    })
-    clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'))
-    clone.querySelectorAll('p').forEach((p) => p.append('\n\n'))
-    clone.querySelectorAll('hr').forEach((hr) => hr.replaceWith('\n---\n'))
-    clone.querySelectorAll('li').forEach((li) => {
-      const parent = li.parentElement
-      const prefix = parent?.tagName === 'OL' ? '1. ' : '- '
-      li.prepend(prefix)
-      li.append('\n')
-    })
-    // 加粗
-    clone.querySelectorAll('b, strong').forEach((b) => {
-      b.prepend('**')
-      b.append('**')
-    })
-
-    // ── 8. 提取文本，保留换行（不使用 cleanText 以避免破坏代码块格式） ──
-    const raw = clone.textContent || ''
-    return raw
-      .replace(/\u200B/g, '')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .split('\n')
-      .map((l) => l.trim())
-      .join('\n')
-      .trim()
   }
 
   collectMessages(): ChatMessage[] {

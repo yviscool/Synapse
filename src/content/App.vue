@@ -64,7 +64,8 @@ import { siteConfigs } from "@/outline/site-configs"; // <-- Import configs
 import { SynapsePanel } from "./components/synapse-panel";
 import PromptSelector from "./components/PromptSelector.vue";
 import PromptComposerPanel from "./components/PromptComposerPanel.vue";
-import { canCollect, detectPlatform } from "@/collect";
+import { canCollect } from "@/collect";
+import { detectPlatformFromUrl } from "@/utils/chatPlatform";
 import { appendAtEnd, findActiveInput } from "@/utils/inputAdapter";
 import {
     MSG,
@@ -124,7 +125,7 @@ const outlineConfig = computed(() => {
 
 // 是否显示统一面板（有大纲配置或在 AI 平台时显示）
 const showSynapsePanel = computed(() => {
-    return outlineConfig.value !== null || canCollect() || detectPlatform() !== null;
+    return outlineConfig.value !== null || canCollect() || detectPlatformFromUrl(window.location.href) !== 'other';
 });
 
 // === UI 控制 ===
