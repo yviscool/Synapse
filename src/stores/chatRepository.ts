@@ -1,9 +1,9 @@
 import { db } from "./db";
-import { createEventBus, createCommitNotifier } from "./shared";
+import { createEventBus, createCommitNotifier } from "./repositoryHelpers";
 import {
   fetchTagNameMap as fetchTagNameMapGeneric,
   buildSearchIndexRecord,
-} from "./searchIndexUtils";
+} from "@/utils/searchIndexUtils";
 import type {
   ChatConversation,
   ChatTag,

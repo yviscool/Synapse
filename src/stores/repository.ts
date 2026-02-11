@@ -9,7 +9,7 @@ import {
   removePromptSearchIndex,
   rebuildPromptSearchIndex,
 } from "./promptSearch";
-import { createEventBus, createCommitNotifier } from "./shared";
+import { createEventBus, createCommitNotifier } from "./repositoryHelpers";
 import type {
   Prompt,
   PromptVersion,

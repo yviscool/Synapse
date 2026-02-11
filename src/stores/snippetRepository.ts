@@ -4,7 +4,7 @@ import {
   bulkUpsertSnippetSearchIndex,
   removeSnippetSearchIndex,
 } from "./snippetSearch";
-import { createEventBus, createCommitNotifier } from "./shared";
+import { createEventBus, createCommitNotifier } from "./repositoryHelpers";
 import type {
   Snippet,
   SnippetFolder,

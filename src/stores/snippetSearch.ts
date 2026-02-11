@@ -3,7 +3,7 @@ import { db } from "./db";
 import {
   fetchTagNameMap as fetchTagNameMapGeneric,
   buildSearchIndexRecord,
-} from "./searchIndexUtils";
+} from "@/utils/searchIndexUtils";
 
 function fetchSnippetTagNameMap(tagIds?: string[]): Promise<Map<string, string>> {
   return fetchTagNameMapGeneric(db.snippet_tags, tagIds);

@@ -6,7 +6,7 @@ import {
   collectSearchTokens,
   fetchTagNameMap as fetchTagNameMapGeneric,
   buildSearchIndexRecord,
-} from "./searchIndexUtils";
+} from "@/utils/searchIndexUtils";
 
 const ALL_CATEGORY_NAMES = new Set(["全部", "all"]);
 const SEARCH_MAX_QUERY_TOKENS = 12;
