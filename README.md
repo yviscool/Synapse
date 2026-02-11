@@ -1,46 +1,47 @@
 [简体中文](README.zh-CN.md)
 
-# Synapse - Your AI Prompt Manager
+# Synapse - Your AI Toolbox
 
-> **Manage your prompts with Synapse — Efficient, Smart, Organized**
+> **Prompt Management · Chat Collection · Code Snippets — All-in-One AI Experience**
 
-Synapse is a browser extension designed for **AI Prompt Management**. It allows you to centrally manage your prompts, supports **version history**, **smart categorization**, and can automatically inject prompts into AI websites while generating **outlines for long conversations**, enabling an efficient and well-organized AI experience.
+Synapse is a browser extension built for your AI workflow — combining prompt management, chat collection, and code snippets in one place. Manage prompts with version history, full-text search, and one-click injection into AI sites. Collect conversations from 12+ platforms including ChatGPT, Claude, Gemini, and DeepSeek, with real-time sync and multi-format export. Navigate long dialogues effortlessly with auto-generated outlines. Stop scattering your AI work — keep it all in Synapse.
 
 ## ✨ Core Features
 
-*   **AI Prompt Management**
-    Create, edit, categorize, and search for prompts in one place, with Markdown support, ready to be used anytime.
+### 📝 Prompt Management
 
-*   **Version History**
-    Automatically saves historical versions of your prompts, allowing you to review and restore them at any time.
+* Create, edit, categorize, and search for prompts in one place, with Markdown support
+* Automatically saves historical versions of your prompts, allowing you to review and restore them at any time
+* Inject prompts with a single click next to AI website input boxes (type `/p` or press `Alt + K`)
+* `Ctrl + Shift + S` to quickly save selected text / right-click context menu to save
+* Full-text search to quickly locate the content you need
 
-*   **Long Conversation Outline Generation**
-    Intelligently analyzes conversations to generate a structured outline, supporting **quick navigation to the top, middle, or bottom**, along with icon-based categorization (questions, code, explanations, etc.).
+### 💬 Chat Collection & Management
 
-*   **Seamless Injection**
-    Inject prompts with a single click next to the input boxes of major AI websites like ChatGPT, Gemini, Kimi, Deepseek, and Tongyi Qianwen.
+* One-click collection of AI platform conversations, supporting both manual and real-time sync modes
+* Supports 12+ platforms: ChatGPT, Claude, Gemini, AI Studio, DeepSeek, Kimi, Doubao, Tencent Yuanbao, Grok, Copilot, MiniMax, Zhipu ChatGLM, and more
+* Filter by platform, tags, and favorites; multi-dimensional sorting (updated time, created time, collected time, title, message count)
+* Conversation detail view with outline navigation for quick jumping
+* Export to JSON / Markdown / TXT / HTML / PDF formats
 
-*   **Quick Save**
-    *   `Ctrl + Shift + S` to quickly save selected text as a prompt
-    *   Save directly from the right-click context menu
+### 🧩 Code Snippet Management
 
-*   **Full-Text Search**
-    Supports full-text search for prompts to quickly locate the content you need.
+* Folder tree organization + tag-based categorization for flexible snippet management
+* Syntax highlighting for 13 languages: HTML, JavaScript, TypeScript, Python, Rust, Go, CSS, JSON, Markdown, SQL, Shell, YAML, Text
+* Star, search, and multi-dimensional sorting to quickly locate frequently used snippets
+* One-click copy with automatic usage tracking
 
-*   **Local Backup and Restore**
-    Supports local backup and restore to ensure data security.
+### 🔖 Long Conversation Outline
 
-*   **Cloud Backup and Sync**
-    Supports Google Drive cloud sync, with more cloud storage services to be added in the future.
+* Intelligently analyzes conversations to generate structured outlines
+* Quick navigation to top, middle, or bottom, with icon-based categorization (questions, code, explanations, etc.)
+* Draggable outline interface, real-time updates, adapts to dark/light themes
 
-*   **Category Management**
-    Intelligently categorize prompts for easy management and retrieval.
+### ☁️ Data & Sync
 
-*   **Data Import and Merge**
-    Supports data import and merge for easy migration and integration.
-
-*   **Smart Experience**
-    Data is stored locally for security, with support for import/export backups. The outline interface is draggable, updates in real-time, and adapts to dark/light themes.
+* Data stored locally for security, with import/export backup support
+* Google Drive cloud sync, with more cloud storage services to be added
+* Data import and merge for easy migration and integration
 
 ---
 
@@ -70,13 +71,16 @@ Synapse is a browser extension designed for **AI Prompt Management**. It allows 
 
 ---
 
+## 🌐 Supported Platforms
+
+ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencent Yuanbao · Grok · Copilot · MiniMax · Zhipu ChatGLM and more
+
 ## 🚀 Usage Guide
 
-*   In the **AI website input box**, type `/p` or press `Alt + K` to bring up the **Prompt Selector**
-*   Quickly save a prompt:
-    *   `Ctrl + Shift + S`
-    *   Or select text → right-click → Save as prompt
-*   Synapse will automatically inject the prompt selector on AI websites and generate outlines for long conversations.
+* In the **AI website input box**, type `/p` or press `Alt + K` to bring up the **Prompt Selector**
+* Quickly save a prompt: `Ctrl + Shift + S` or select text → right-click → Save as prompt
+* Use the side panel on AI websites to collect the current conversation with one click, or enable real-time sync
+* Open the extension dashboard to manage prompts, chat records, and code snippets
 
 ---
 

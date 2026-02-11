@@ -3,7 +3,7 @@
   "name": "Synapse",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy4MuYUxwAILDMeP0kNCNgJxE2c/SDvosc3ynJygQtuTKuNA25BFOeLduNk6npDadSx+9jiJAXPWzB5mnGDaRjv7DYs141SPqAD09Z0rfa6e2KAJsacBgHAKOwpPjZSZGs+RVb7koK94rBpgWvQHL4bP2YFd8+DnO6+Imr6fxAeMW3DdWokjzr4SwcL+rk0BGX3FHbW385UOYHByOlNR8jcGifyacHQwezN2Bf4CIPsUbAuyXZGaPPT+37oPpJbaQx3f9vQguRGFaL1muEM9mZH35NTnXgDvQbM+WqR6jv8zezT+/tJ4q3NCeXqpDXe9oUPQ9DMkYHRYr+mkUA949rQIDAQAB",
   "version": "1.3.0",
-  "description": "Synapse 是一款浏览器扩展，专为 AI 提示词管理 而生。它让你在一个地方集中管理提示词，支持 版本历史、智能分类，并能在 AI 网站中自动注入提示词，同时生成 长对话大纲，实现高效、条理清晰的 AI 使用体验。",
+  "description": "Synapse — 集提示词管理、对话采集、代码片段于一体的 AI 工具箱。覆盖 ChatGPT、Claude、Gemini、DeepSeek 等 12+ 平台，一键注入提示词、实时同步对话、生成长对话大纲导航。告别碎片化，让每一次 AI 交互都有迹可循。",
   "permissions": [
     "identity",
     "activeTab",
@@ -30,7 +30,8 @@
     "https://www.doubao.com/*",
     "https://longcat.chat/*",
     "https://chat.inceptionlabs.ai/*",
-    "https://grok.com/*"
+    "https://grok.com/*",
+    "https://agent.minimaxi.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -56,7 +57,8 @@
         "https://www.doubao.com/*",
         "https://longcat.chat/*",
         "https://chat.inceptionlabs.ai/*",
-        "https://grok.com/*"
+        "https://grok.com/*",
+        "https://agent.minimaxi.com/*"
       ],
       "js": [
         "content.js"

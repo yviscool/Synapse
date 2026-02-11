@@ -96,7 +96,8 @@ export const siteConfigs: { [key: string]: SiteConfig } = {
   'chat.z.ai': {
     userMessage: 'div.group:has(.user-message)',
     messageText: '.user-message div[class*="rounded-xl"]',
-    observeTarget: 'body',
+    observeTarget: '#messages-container',
+    scrollContainer: '#messages-container',
     waitForElement: 'div.group:has(.user-message)',
   },
   'openrouter.ai': {
@@ -126,9 +127,16 @@ export const siteConfigs: { [key: string]: SiteConfig } = {
     waitForElement: '.user-message',
   },
   'grok.com': {
-    userMessage: 'div.group.items-end',
-    messageText: 'span.whitespace-pre-wrap',
+    userMessage: 'div.group.items-end[id^="response-"]',
+    messageText: '.response-content-markdown .whitespace-pre-wrap',
     observeTarget: 'div.overflow-y-auto.scrollbar-gutter-stable',
-    waitForElement: 'div.group.items-end span.whitespace-pre-wrap',
+    waitForElement: 'div.group.items-end[id^="response-"]',
+  },
+  'agent.minimaxi.com': {
+    userMessage: 'div[data-msg-id]:has(.sent)',
+    messageText: '.message-content .text-pretty',
+    observeTarget: '#message-container',
+    scrollContainer: '#message-container',
+    waitForElement: 'div[data-msg-id]',
   },
 } as const;

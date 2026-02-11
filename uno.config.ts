@@ -68,5 +68,6 @@ export default defineConfig({
     'i-mdi-question-mark-circle',   // 其他未分类\
     'i-mdi-work',                   // 工作/职业
     'i-simple-icons:taichilang',    // 易经
+    'i-ri-deepseek-fill',          // 深度搜索/挖掘
   ]
 })

@@ -11,6 +11,9 @@ import { GeminiAdapter } from './adapters/gemini'
 import { AIStudioAdapter } from './adapters/aistudio'
 import { KimiAdapter } from './adapters/kimi'
 import { DoubaoAdapter } from './adapters/doubao'
+import { GrokAdapter } from './adapters/grok'
+import { MiniMaxAdapter } from './adapters/minimax'
+import { ZAIAdapter } from './adapters/zai'
 import { GenericAdapter } from './adapters/generic'
 import type { ChatPlatform } from '@/types/chat'
 import { detectPlatformFromUrl } from '@/utils/chatPlatform'
@@ -24,6 +27,9 @@ const adapters: PlatformAdapter[] = [
   new AIStudioAdapter(),
   new KimiAdapter(),
   new DoubaoAdapter(),
+  new GrokAdapter(),
+  new MiniMaxAdapter(),
+  new ZAIAdapter(),
 ]
 
 // 通用适配器作为后备

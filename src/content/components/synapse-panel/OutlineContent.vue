@@ -50,6 +50,17 @@
         </li>
       </TransitionGroup>
 
+      <!-- 加载状态 -->
+      <Transition name="fade">
+        <div
+          v-if="isLoading && filteredItems.length === 0"
+          class="py-12 flex flex-col items-center justify-center text-gray-400 dark:text-white/80"
+        >
+          <span class="i-ph-circle-notch-bold text-2xl mb-3 opacity-60 animate-spin"></span>
+          <p class="text-sm font-medium">{{ t('content.outline.loading') }}</p>
+        </div>
+      </Transition>
+
       <!-- 空状态 -->
       <Transition name="fade">
         <div

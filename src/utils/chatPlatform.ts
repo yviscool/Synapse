@@ -75,6 +75,20 @@ export const PLATFORM_CONFIGS: Record<ChatPlatform, PlatformConfig> = {
     color: "#0078d4",
     urlPatterns: [/copilot\.microsoft\.com/],
   },
+  minimax: {
+    id: "minimax",
+    name: "MiniMax",
+    icon: "i-carbon-chat-bot",
+    color: "#6c5ce7",
+    urlPatterns: [/agent\.minimaxi\.com/],
+  },
+  zai: {
+    id: "zai",
+    name: "智谱清言",
+    icon: "i-carbon-chat-bot",
+    color: "#1a73e8",
+    urlPatterns: [/chat\.z\.ai/],
+  },
   other: {
     id: "other",
     name: "其他",

@@ -25,6 +25,7 @@ export default {
     searchPlaceholder: "Search conversation...",
     total: "{count} items in total",
     empty: "No items found.",
+    loading: "Loading outline...",
     filtered: "Showing {visible} of {total}",
     scrollToTop: "Scroll to top",
     scrollToCenter: "Scroll to center",

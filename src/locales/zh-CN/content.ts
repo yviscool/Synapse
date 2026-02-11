@@ -25,6 +25,7 @@ export default {
     searchPlaceholder: "搜索对话内容...",
     total: "共 {count} 条",
     empty: "未找到任何项目。",
+    loading: "正在加载大纲...",
     filtered: "显示 {visible} / {total} 条",
     scrollToTop: "滚动到顶部",
     scrollToCenter: "滚动到中央",

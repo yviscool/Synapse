@@ -15,6 +15,8 @@ export type ChatPlatform =
   | 'yuanbao'
   | 'grok'
   | 'copilot'
+  | 'minimax'
+  | 'zai'
   | 'other'
 
 /** 消息角色 */
