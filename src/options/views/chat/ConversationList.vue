@@ -234,7 +234,8 @@ function handleSortChange(value: SortBy) {
 function getPreviewText(conversation: ChatConversation): string {
   const lastMessage = conversation.messages[conversation.messages.length - 1]
   if (!lastMessage) return ''
-  return lastMessage.content.slice(0, 100)
+  const content = typeof lastMessage.content === 'string' ? lastMessage.content : lastMessage.content.original
+  return content.slice(0, 100)
 }
 
 function formatTime(timestamp: number): string {

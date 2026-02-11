@@ -54,6 +54,10 @@ export default {
     link: "原始链接",
     openLink: "打开原始对话",
     thinking: "思考过程",
+    edit: "编辑",
+    copy: "复制",
+    deleteMessage: "删除消息",
+    edited: "已编辑",
   },
 
   // 操作

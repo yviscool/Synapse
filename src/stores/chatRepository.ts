@@ -440,7 +440,10 @@ export const chatRepository = {
       const query = searchQuery.toLowerCase();
       filters.push((c) =>
         c.title.toLowerCase().includes(query) ||
-        c.messages.some((m) => m.content.toLowerCase().includes(query))
+        c.messages.some((m) => {
+          const content = typeof m.content === 'string' ? m.content : m.content.original
+          return content.toLowerCase().includes(query)
+        })
       );
     }
 

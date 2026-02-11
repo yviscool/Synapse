@@ -31,13 +31,12 @@
         />
         <!-- 大纲侧边栏 -->
         <!-- 仅在配置存在时渲染大纲组件 -->
-        <Outline
-            v-if="outlineConfig"
-            :config="outlineConfig"
+        <!-- 统一面板：整合大纲 + 采集 + 设置 -->
+        <SynapsePanel
+            v-if="showSynapsePanel"
+            :outlineConfig="outlineConfig"
             :key="outlineKey"
         />
-        <!-- 对话采集悬浮按钮 -->
-        <CollectFab />
         <!-- 消息提示组件 -->
         <UiToast
             v-if="ui.toast"
@@ -62,9 +61,10 @@ import {
 
 import Outline from "@/outline/Outline.vue"; // <-- Import new component
 import { siteConfigs } from "@/outline/site-configs"; // <-- Import configs
+import { SynapsePanel } from "./components/synapse-panel";
 import PromptSelector from "./components/PromptSelector.vue";
 import PromptComposerPanel from "./components/PromptComposerPanel.vue";
-import CollectFab from "./components/CollectFab.vue";
+import { canCollect, detectPlatform } from "@/collect";
 import { appendAtEnd, findActiveInput } from "@/utils/inputAdapter";
 import {
     MSG,
@@ -120,6 +120,11 @@ const outlineConfig = computed(() => {
         host.includes(domain),
     );
     return key ? siteConfigs[key] : null;
+});
+
+// 是否显示统一面板（有大纲配置或在 AI 平台时显示）
+const showSynapsePanel = computed(() => {
+    return outlineConfig.value !== null || canCollect() || detectPlatform() !== null;
 });
 
 // === UI 控制 ===

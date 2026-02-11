@@ -7,6 +7,16 @@ import type {
 import { formatPlatformName } from "./chatPlatform";
 
 /**
+ * 获取消息内容（兼容新旧格式）
+ */
+function getContent(message: ChatMessage): string {
+  if (typeof message.content === 'string') {
+    return message.content;
+  }
+  return message.content.edited || message.content.original;
+}
+
+/**
  * 格式化时间戳
  */
 function formatTimestamp(timestamp?: number): string {
@@ -107,7 +117,7 @@ function exportToMarkdown(
       lines.push("");
     }
 
-    lines.push(message.content);
+    lines.push(getContent(message));
     lines.push("");
     lines.push("---");
     lines.push("");
@@ -162,7 +172,7 @@ function exportToTxt(
       lines.push("");
     }
 
-    lines.push(message.content);
+    lines.push(getContent(message));
     lines.push("");
     lines.push("-".repeat(60));
     lines.push("");
@@ -205,7 +215,7 @@ function exportToHtml(
             ${timestamp}
           </div>
           ${thinking}
-          <div class="content">${escapeHtml(m.content)}</div>
+          <div class="content">${escapeHtml(getContent(m))}</div>
         </div>
       `;
     })
@@ -288,6 +298,7 @@ export function getExportExtension(format: ExportFormat): string {
     markdown: "md",
     txt: "txt",
     html: "html",
+    pdf: "pdf",
   };
   return extensions[format];
 }
@@ -301,6 +312,7 @@ export function getExportMimeType(format: ExportFormat): string {
     markdown: "text/markdown",
     txt: "text/plain",
     html: "text/html",
+    pdf: "application/pdf",
   };
   return mimeTypes[format];
 }

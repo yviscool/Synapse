@@ -30,15 +30,47 @@ export interface ChatAttachment {
   size?: number
 }
 
+/** 内容格式 */
+export type ContentFormat = 'html' | 'markdown' | 'text'
+
+/** 消息内容结构 - 支持编辑回溯 */
+export interface MessageContent {
+  original: string            // 原始采集内容
+  rendered?: string           // 渲染后的 HTML (用于展示)
+  edited?: string             // 用户编辑后的内容
+  format: ContentFormat       // 内容格式
+}
+
 /** 单条消息 */
 export interface ChatMessage {
   id: string
   role: MessageRole
-  content: string
+  content: string | MessageContent  // 兼容旧格式，新格式使用 MessageContent
   timestamp?: number
   thinking?: string           // AI 思考过程
   attachments?: ChatAttachment[]
   metadata?: Record<string, any>
+
+  // 编辑状态
+  isEdited?: boolean          // 是否被编辑过
+  isDeleted?: boolean         // 软删除标记
+  editedAt?: number           // 编辑时间
+}
+
+/** 获取消息的显示内容 */
+export function getMessageContent(message: ChatMessage): string {
+  if (typeof message.content === 'string') {
+    return message.content
+  }
+  return message.content.edited || message.content.original
+}
+
+/** 获取消息的原始内容 */
+export function getOriginalContent(message: ChatMessage): string {
+  if (typeof message.content === 'string') {
+    return message.content
+  }
+  return message.content.original
 }
 
 /** 对话记录 */
@@ -56,6 +88,11 @@ export interface ChatConversation {
   updatedAt: number
   collectedAt?: number        // 采集时间
   messageCount: number
+
+  // 同步状态
+  syncEnabled?: boolean       // 是否启用实时同步
+  lastSyncAt?: number         // 最后同步时间
+  syncStatus?: 'idle' | 'syncing' | 'error'  // 同步状态
 }
 
 /** 对话标签 */
@@ -105,7 +142,7 @@ export interface PlatformConfig {
 }
 
 /** 导出格式 */
-export type ExportFormat = 'json' | 'markdown' | 'txt' | 'html'
+export type ExportFormat = 'json' | 'markdown' | 'txt' | 'html' | 'pdf'
 
 /** 导出选项 */
 export interface ExportOptions {
@@ -113,4 +150,38 @@ export interface ExportOptions {
   includeMetadata?: boolean
   includeTimestamps?: boolean
   includeThinking?: boolean
+}
+
+// ============================================
+// 统一面板相关类型
+// ============================================
+
+/** 面板 Tab 类型 */
+export type PanelTab = 'outline' | 'collect' | 'settings'
+
+/** 采集模式 */
+export type CollectMode = 'manual' | 'realtime'
+
+/** 同步状态 */
+export interface SyncState {
+  enabled: boolean            // 是否启用实时同步
+  status: 'idle' | 'syncing' | 'success' | 'error'
+  lastSyncAt?: number         // 最后同步时间
+  messageCount: number        // 已采集消息数
+  error?: string              // 错误信息
+}
+
+/** 面板状态 */
+export interface PanelState {
+  isCollapsed: boolean        // 是否折叠
+  activeTab: PanelTab         // 当前激活的 Tab
+  position: { x: number; y: number }  // 面板位置
+}
+
+/** 采集设置 */
+export interface CollectSettings {
+  defaultMode: CollectMode    // 默认采集模式
+  autoSyncInterval: number    // 自动同步间隔 (ms)
+  debounceDelay: number       // 防抖延迟 (ms)
+  maxRetries: number          // 最大重试次数
 }

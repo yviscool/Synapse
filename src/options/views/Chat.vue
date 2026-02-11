@@ -409,7 +409,8 @@ function selectConversation(conv: ChatConversation) {
 function getPreviewText(conv: ChatConversation): string {
   const lastMsg = conv.messages[conv.messages.length - 1]
   if (!lastMsg) return ''
-  return lastMsg.content.slice(0, 80) + (lastMsg.content.length > 80 ? '...' : '')
+  const content = typeof lastMsg.content === 'string' ? lastMsg.content : lastMsg.content.original
+  return content.slice(0, 80) + (content.length > 80 ? '...' : '')
 }
 
 function formatRelativeTime(timestamp: number): string {

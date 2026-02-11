@@ -54,6 +54,10 @@ export default {
     link: "Original Link",
     openLink: "Open original conversation",
     thinking: "Thinking Process",
+    edit: "Edit",
+    copy: "Copy",
+    deleteMessage: "Delete message",
+    edited: "Edited",
   },
 
   // Actions
