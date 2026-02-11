@@ -1,12 +1,14 @@
 import { nanoid } from 'nanoid'
 import { db, getSettings, queryPrompts } from '@/stores/db'
 import { repository } from '@/stores/repository'
+import { chatRepository } from '@/stores/chatRepository'
 import {
   MSG,
   type RequestMessage,
   type GetPromptsPayload,
   type PromptDTO,
   type DataUpdatedPayload,
+  type ChatSavePayload,
 } from '@/utils/messaging'
 
 // --- Initialize Background ---
@@ -76,6 +78,14 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
       .catch(e => console.error('Failed to update lastUsedAt:', e))
     return false // No need to wait
   }
+
+  // Chat Collection: Save conversation
+  if (type === MSG.CHAT_SAVE) {
+    handleChatSave(data as ChatSavePayload)
+      .then(res => sendResponse(res))
+      .catch(e => sendResponse({ ok: false, error: e.message }))
+    return true
+  }
 })
 
 async function handleGetPrompts(
@@ -123,6 +133,57 @@ async function broadcastToTabs(msg: RequestMessage<DataUpdatedPayload>) {
       }
     }
   }
+}
+
+// --- Chat Collection ---
+
+/**
+ * 保存采集的对话
+ */
+async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; error?: string }> {
+  const { conversation, tags = [] } = payload
+
+  if (!conversation || !conversation.messages || conversation.messages.length === 0) {
+    return { ok: false, error: '对话内容为空' }
+  }
+
+  // 检查是否已存在相同的对话（通过 externalId）
+  if (conversation.externalId && conversation.platform) {
+    const existing = await chatRepository.getConversationByExternalId(
+      conversation.platform,
+      conversation.externalId
+    )
+    if (existing) {
+      // 更新现有对话
+      const { ok, error } = await chatRepository.updateConversation(existing.id, {
+        ...conversation,
+        updatedAt: Date.now(),
+      })
+      if (ok) {
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon-128.png',
+          title: 'Synapse',
+          message: '对话已更新！',
+        })
+      }
+      return { ok, error: error?.message }
+    }
+  }
+
+  // 创建新对话
+  const { ok, error } = await chatRepository.saveConversation(conversation, tags)
+
+  if (ok) {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon-128.png',
+      title: 'Synapse',
+      message: `已采集 ${conversation.messageCount || conversation.messages?.length || 0} 条消息！`,
+    })
+  }
+
+  return { ok, error: error?.message }
 }
 
 // --- 快捷保存功能 ---

@@ -13,6 +13,11 @@ import type {
   SnippetTag,
   SnippetSearchIndex,
 } from "@/types/snippet";
+import type {
+  ChatConversation,
+  ChatTag,
+  ChatSearchIndex,
+} from "@/types/chat";
 import { getDefaultCategories } from "@/utils/categoryUtils";
 
 export interface PromptSearchIndex {
@@ -35,6 +40,10 @@ export class APMDB extends Dexie {
   snippet_folders!: Table<SnippetFolder, string>;
   snippet_tags!: Table<SnippetTag, string>;
   snippet_search_index!: Table<SnippetSearchIndex, string>;
+  // Chat tables
+  chat_conversations!: Table<ChatConversation, string>;
+  chat_tags!: Table<ChatTag, string>;
+  chat_search_index!: Table<ChatSearchIndex, string>;
 
   constructor() {
     super("apm");
@@ -71,6 +80,23 @@ export class APMDB extends Dexie {
       snippet_folders: "id, name, parentId, order, createdAt",
       snippet_tags: "id, name",
       snippet_search_index: "&snippetId, *tokens, *titleTokens, *tagTokens, updatedAt",
+    });
+    // Version 5: Add chat tables
+    this.version(5).stores({
+      prompts:
+        "id, title, *categoryIds, *tagIds, updatedAt, favorite, createdAt",
+      prompt_versions: "id, promptId, createdAt",
+      categories: "id, name, sort, icon",
+      tags: "id, name",
+      settings: "id",
+      prompt_search_index: "&promptId, *tokens, *titleTokens, *tagTokens, updatedAt",
+      snippets: "id, title, language, folderId, *tagIds, starred, updatedAt, createdAt, usedAt, useCount",
+      snippet_folders: "id, name, parentId, order, createdAt",
+      snippet_tags: "id, name",
+      snippet_search_index: "&snippetId, *tokens, *titleTokens, *tagTokens, updatedAt",
+      chat_conversations: "id, platform, externalId, title, *tagIds, starred, updatedAt, createdAt, collectedAt, messageCount",
+      chat_tags: "id, name",
+      chat_search_index: "&conversationId, *tokens, *titleTokens, *tagTokens, updatedAt",
     });
   }
 }

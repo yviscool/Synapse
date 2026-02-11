@@ -1,5 +1,6 @@
 import type { Category, Settings } from '@/types'
 import type { FuseResultMatch } from 'fuse.js'
+import type { ChatConversation, ChatPlatform } from '@/types/chat'
 
 export const MSG = {
   // Panel/UI
@@ -11,6 +12,12 @@ export const MSG = {
   GET_SETTINGS: 'APM/GET_SETTINGS',
   DATA_UPDATED: 'APM/DATA_UPDATED',
   UPDATE_PROMPT_LAST_USED: 'APM/UPDATE_PROMPT_LAST_USED',
+
+  // Chat Collection
+  CHAT_COLLECT: 'APM/CHAT_COLLECT',
+  CHAT_CAN_COLLECT: 'APM/CHAT_CAN_COLLECT',
+  CHAT_SAVE: 'APM/CHAT_SAVE',
+  CHAT_GET_PLATFORM_INFO: 'APM/CHAT_GET_PLATFORM_INFO',
 } as const
 
 export type MessageType = typeof MSG[keyof typeof MSG]
@@ -53,6 +60,24 @@ export interface DataUpdatedPayload {
 
 export interface UpdatePromptLastUsedPayload {
   promptId: string
+}
+
+// Chat Collection Payloads
+export interface ChatCollectResult {
+  success: boolean
+  conversation?: Partial<ChatConversation>
+  error?: string
+}
+
+export interface ChatPlatformInfo {
+  platform: ChatPlatform | null
+  canCollect: boolean
+  conversationId: string | null
+}
+
+export interface ChatSavePayload {
+  conversation: Partial<ChatConversation>
+  tags?: string[]
 }
 
 // A generic message type for use in listeners

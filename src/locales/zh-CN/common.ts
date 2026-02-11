@@ -11,6 +11,7 @@ export default {
   "feedback": "反馈问题或贡献代码",
   "more": "更多",
   "edit": "编辑",
+  "add": "添加",
   "allLoaded": "已加载全部",
   "toast": {
     "saveSuccess": "保存成功！",

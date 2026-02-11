@@ -36,6 +36,8 @@
             :config="outlineConfig"
             :key="outlineKey"
         />
+        <!-- 对话采集悬浮按钮 -->
+        <CollectFab />
         <!-- 消息提示组件 -->
         <UiToast
             v-if="ui.toast"
@@ -62,6 +64,7 @@ import Outline from "@/outline/Outline.vue"; // <-- Import new component
 import { siteConfigs } from "@/outline/site-configs"; // <-- Import configs
 import PromptSelector from "./components/PromptSelector.vue";
 import PromptComposerPanel from "./components/PromptComposerPanel.vue";
+import CollectFab from "./components/CollectFab.vue";
 import { appendAtEnd, findActiveInput } from "@/utils/inputAdapter";
 import {
     MSG,

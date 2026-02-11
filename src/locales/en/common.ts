@@ -11,6 +11,7 @@ export default {
   "feedback": "Feedback or Contribute",
   "more": "More",
   "edit": "Edit",
+  "add": "Add",
   "allLoaded": "All loaded",
   "toast": {
     "saveSuccess": "Saved successfully!",
