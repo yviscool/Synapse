@@ -536,7 +536,8 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUI } from "@/stores/ui";
-import { db, type PromptWithMatches } from "@/stores/db";
+import { db } from "@/stores/db";
+import { type PromptWithMatches } from "@/stores/promptSearch";
 import { repository } from "@/stores/repository";
 import type { Prompt, Category, Tag, PromptVersion } from "@/types/prompt";
 import {
@@ -545,7 +546,6 @@ import {
 } from "@/utils/highlighter";
 import {
     createSafePrompt,
-    clonePrompt,
 } from "@/utils/promptUtils";
 import { useModal } from "@/composables/useModal";
 import {
@@ -842,7 +842,7 @@ function createNewPrompt() {
 }
 
 function editPrompt(prompt: Prompt) {
-    editingPrompt.value = clonePrompt(prompt);
+    editingPrompt.value = createSafePrompt({...prompt});
     editingTags.value = getTagNames(prompt.tagIds || []);
     isReadonly.value = false;
     previewingVersion.value = null;

@@ -2,11 +2,13 @@ import {
   db,
   DEFAULT_SETTINGS,
   ensureDefaultCategories,
+} from "./db";
+import {
   upsertPromptSearchIndex,
   bulkUpsertPromptSearchIndex,
   removePromptSearchIndex,
   rebuildPromptSearchIndex,
-} from "./db";
+} from "./promptSearch";
 import { createEventBus, createCommitNotifier } from "./shared";
 import type {
   Prompt,

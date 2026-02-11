@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from "vue";
 import { refDebounced } from "@vueuse/core";
-import { db, queryPrompts, type PromptWithMatches } from "@/stores/db";
+import { db } from "@/stores/db";
+import { queryPrompts, type PromptWithMatches } from "@/stores/promptSearch";
 import type { Category, Tag } from "@/types/prompt";
 import { parseQuery } from "@/utils/queryParser";
 

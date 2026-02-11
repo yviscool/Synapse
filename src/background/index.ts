@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
-import { db, getSettings, queryPrompts } from '@/stores/db'
+import { db, getSettings } from '@/stores/db'
+import { queryPrompts } from '@/stores/promptSearch'
 import { repository } from '@/stores/repository'
 import { chatRepository } from '@/stores/chatRepository'
 import {

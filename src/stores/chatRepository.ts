@@ -1,8 +1,8 @@
 import { db } from "./db";
 import { createEventBus, createCommitNotifier } from "./shared";
 import {
-  collectSearchTokens,
-  SEARCH_MAX_TOKENS,
+  fetchTagNameMap as fetchTagNameMapGeneric,
+  buildSearchIndexRecord,
 } from "./searchIndexUtils";
 import type {
   ChatConversation,
@@ -31,49 +31,28 @@ const withCommitNotification = createCommitNotifier("[ChatRepository]", events, 
 // Search Index Functions
 // ============================================
 
-async function fetchChatTagNameMap(tagIds?: string[]): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  const uniqueTagIds = [...new Set(tagIds || [])].filter(Boolean);
-  const tags = uniqueTagIds.length
-    ? await db.chat_tags.where("id").anyOf(uniqueTagIds).toArray()
-    : await db.chat_tags.toArray();
-  tags.forEach((tag) => map.set(tag.id, tag.name));
-  return map;
+function fetchChatTagNameMap(tagIds?: string[]): Promise<Map<string, string>> {
+  return fetchTagNameMapGeneric(db.chat_tags, tagIds);
 }
 
 function buildChatSearchIndexRecord(
   conversation: ChatConversation,
   tagNameMap: Map<string, string>
 ): ChatSearchIndex {
-  const tagText = conversation.tagIds
-    .map((tagId) => tagNameMap.get(tagId))
-    .filter(Boolean)
-    .join(" ");
-
   const messageContent = conversation.messages
     .map((m) => m.content)
     .join(" ")
     .slice(0, 8000);
 
-  const titleTokens = collectSearchTokens(conversation.title, 256);
-  const contentTokens = collectSearchTokens(messageContent, 1024);
-  const tagTokens = collectSearchTokens(tagText, 128);
-
-  const mergedTokenSet = new Set<string>([
-    ...titleTokens,
-    ...contentTokens,
-    ...tagTokens,
-  ]);
-  const tokens = [...mergedTokenSet].slice(0, SEARCH_MAX_TOKENS);
-  const tokenSet = new Set(tokens);
-
-  return {
-    conversationId: conversation.id,
-    tokens,
-    titleTokens: titleTokens.filter((token) => tokenSet.has(token)),
-    tagTokens: tagTokens.filter((token) => tokenSet.has(token)),
+  return buildSearchIndexRecord({
+    id: conversation.id,
+    idField: "conversationId",
+    title: conversation.title,
+    content: messageContent,
+    tagIds: conversation.tagIds,
+    tagNameMap,
     updatedAt: conversation.updatedAt || Date.now(),
-  };
+  }) as unknown as ChatSearchIndex;
 }
 
 async function upsertChatSearchIndex(

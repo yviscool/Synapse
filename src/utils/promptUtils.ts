@@ -23,20 +23,3 @@ export function createSafePrompt(data: Partial<Prompt>): Prompt {
     lastUsedAt: Number(data.lastUsedAt) || undefined
   }
 }
-
-/**
- * 深拷贝 Prompt 对象，确保数据安全
- */
-export function clonePrompt(prompt: Prompt): Prompt {
-  return createSafePrompt({
-    id: prompt.id,
-    title: prompt.title,
-    content: prompt.content,
-    categoryIds: [...prompt.categoryIds],
-    tagIds: [...prompt.tagIds],
-    favorite: prompt.favorite,
-    createdAt: prompt.createdAt,
-    updatedAt: prompt.updatedAt,
-    lastUsedAt: prompt.lastUsedAt
-  })
-}

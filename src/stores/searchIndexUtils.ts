@@ -3,6 +3,8 @@
  * 从 db.ts 和 chatRepository.ts 提取的公共搜索函数
  */
 
+import type { Table } from "dexie";
+
 export const SEARCH_MAX_SOURCE_LENGTH = 12000;
 export const SEARCH_MAX_TOKENS = 1200;
 
@@ -53,4 +55,56 @@ export function collectSearchTokens(text: string, maxTokens: number): string[] {
   }
 
   return [...tokens];
+}
+
+export async function fetchTagNameMap(
+  table: Table<{ id: string; name: string }, string>,
+  tagIds?: string[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const uniqueTagIds = [...new Set(tagIds || [])].filter(Boolean);
+
+  const tags = uniqueTagIds.length
+    ? await table.where("id").anyOf(uniqueTagIds).toArray()
+    : await table.toArray();
+
+  tags.forEach((tag) => map.set(tag.id, tag.name));
+  return map;
+}
+
+export interface BuildSearchIndexConfig {
+  id: string;
+  idField: string;
+  title: string;
+  content: string;
+  tagIds: string[];
+  tagNameMap: Map<string, string>;
+  updatedAt: number;
+}
+
+export function buildSearchIndexRecord(config: BuildSearchIndexConfig): Record<string, unknown> {
+  const tagText = config.tagIds
+    .map((tagId) => config.tagNameMap.get(tagId))
+    .filter(Boolean)
+    .join(" ");
+
+  const titleTokens = collectSearchTokens(config.title, 256);
+  const contentTokens = collectSearchTokens(config.content, 1024);
+  const tagTokens = collectSearchTokens(tagText, 128);
+
+  const mergedTokenSet = new Set<string>([
+    ...titleTokens,
+    ...contentTokens,
+    ...tagTokens,
+  ]);
+  const tokens = [...mergedTokenSet].slice(0, SEARCH_MAX_TOKENS);
+  const tokenSet = new Set(tokens);
+
+  return {
+    [config.idField]: config.id,
+    tokens,
+    titleTokens: titleTokens.filter((token) => tokenSet.has(token)),
+    tagTokens: tagTokens.filter((token) => tokenSet.has(token)),
+    updatedAt: config.updatedAt || Date.now(),
+  };
 }

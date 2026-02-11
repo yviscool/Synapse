@@ -1,7 +1,7 @@
 import { marked } from 'marked'
 import { db } from '@/stores/db' // Keep for read-only
 import { repository } from '@/stores/repository'
-import type { Prompt, PromptVersion } from '@/types/prompt'
+import type { PromptVersion } from '@/types/prompt'
 import DiffMatchPatch from 'diff-match-patch'
 
 // 配置 marked
@@ -23,14 +23,6 @@ export async function getVersionHistory(promptId: string): Promise<PromptVersion
 
   // 手动按创建时间降序排序（最新的在前）
   return versions.sort((a, b) => b.createdAt - a.createdAt)
-}
-
-/**
- * 获取最新版本
- */
-export async function getLatestVersion(promptId: string): Promise<PromptVersion | null> {
-  const versions = await getVersionHistory(promptId)
-  return versions.length > 0 ? versions[versions.length - 1] : null
 }
 
 /**
@@ -110,27 +102,4 @@ export async function cleanupOldVersions(promptId: string, keepCount: number = 1
   const deleteIds = toDelete.map(v => v.id)
 
   await db.prompt_versions.bulkDelete(deleteIds)
-}
-
-/**
- * 获取版本统计信息
- */
-export async function getVersionStats(promptId: string) {
-  const versions = await getVersionHistory(promptId)
-
-  if (versions.length === 0) {
-    return {
-      totalVersions: 0,
-      firstCreated: null,
-      lastModified: null,
-      totalChanges: 0
-    }
-  }
-
-  return {
-    totalVersions: versions.length,
-    firstCreated: versions[0].createdAt,
-    lastModified: versions[versions.length - 1].createdAt,
-    totalChanges: versions.length - 1
-  }
 }

@@ -1,9 +1,9 @@
+import { db } from "./db";
 import {
-  db,
   upsertSnippetSearchIndex,
   bulkUpsertSnippetSearchIndex,
   removeSnippetSearchIndex,
-} from "./db";
+} from "./snippetSearch";
 import { createEventBus, createCommitNotifier } from "./shared";
 import type {
   Snippet,

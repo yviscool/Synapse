@@ -3,7 +3,9 @@
  *
  * This service manages the entire lifecycle of syncing data with a cloud provider.
  */
-import { db, getDefaultCategoriesForInit, getSettings, rebuildPromptSearchIndex } from '@/stores/db'
+import { db, getSettings } from '@/stores/db'
+import { rebuildPromptSearchIndex } from '@/stores/promptSearch'
+import { getDefaultCategories } from '@/utils/categoryUtils'
 import { repository } from '@/stores/repository'
 import * as gdrive from '@/utils/googleDriveApi'
 import type { Category, Prompt, PromptVersion, Settings, Tag } from '@/types/prompt'
@@ -176,7 +178,7 @@ class SyncManager {
   }
 
   private isDefaultOnlyCategoryState(categories: Category[]): boolean {
-    const defaults = getDefaultCategoriesForInit()
+    const defaults = getDefaultCategories()
     if (categories.length !== defaults.length) {
       return false
     }

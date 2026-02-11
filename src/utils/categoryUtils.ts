@@ -79,23 +79,3 @@ export function getCategoryNameById(categoryId: string): string {
 export function isDefaultCategory(categoryId: string): boolean {
   return DEFAULT_CATEGORY_DEFINITIONS.some(def => def.id === categoryId)
 }
-
-/**
- * Gets the icon for a default category
- *
- * @param categoryId - The category ID
- * @returns The icon class string, or undefined if not found
- */
-export function getDefaultCategoryIcon(categoryId: string): string | undefined {
-  const definition = DEFAULT_CATEGORY_DEFINITIONS.find(def => def.id === categoryId)
-  return definition?.icon
-}
-
-/**
- * Gets all default category IDs
- *
- * @returns Array of default category IDs
- */
-export function getDefaultCategoryIds(): string[] {
-  return DEFAULT_CATEGORY_DEFINITIONS.map(def => def.id)
-}
