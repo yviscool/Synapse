@@ -11,6 +11,8 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    MarkdownEditor: typeof import('./src/components/MarkdownEditor.vue')['default']
+    Milkdown: typeof import('./src/components/Milkdown.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     UiConfirm: typeof import('./src/components/UiConfirm.vue')['default']

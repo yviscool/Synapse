@@ -316,7 +316,7 @@ import { onClickOutside } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
 import { chatRepository } from '@/stores/chatRepository'
-import { useChatQuery } from '@/options/composables/useChatQuery'
+import { useChatQuery } from './useChatQuery'
 import {
   getAllPlatforms,
   getPlatformConfig,

@@ -7,7 +7,7 @@ import { Crepe } from '@milkdown/crepe'
 import { getMarkdown, replaceAll } from '@milkdown/utils'
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 
-import "@/options/styles/milkdown-theme.css"
+import "@/styles/milkdown-theme.css"
 import '@milkdown/crepe/theme/nord.css'
 
 interface Props {

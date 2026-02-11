@@ -298,7 +298,7 @@ import { ref, watch, nextTick, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
 import { getPlatformConfig } from '@/utils/chatPlatform'
-import MilkdownEditor from '@/options/components/Milkdown.vue'
+import MilkdownEditor from '@/components/Milkdown.vue'
 import type { ChatConversation, ChatMessage } from '@/types/chat'
 
 const { t } = useI18n()

@@ -554,20 +554,20 @@ import {
     onClickOutside,
 } from "@vueuse/core";
 import { getCategoryNameById, isDefaultCategory } from "@/utils/categoryUtils";
-import { usePromptQuery } from "@/options/composables/usePromptQuery";
+import { usePromptQuery } from "./usePromptQuery";
 import { useRoute } from "vue-router";
 
 const PromptEditorModal = defineAsyncComponent(
-    () => import("@/options/components/PromptEditorModal.vue"),
+    () => import("@/options/components/prompt/PromptEditorModal.vue"),
 );
 const CategoryManager = defineAsyncComponent(
-    () => import("@/options/components/CategoryManager.vue"),
+    () => import("@/options/components/prompt/CategoryManager.vue"),
 );
 const MergeImportModal = defineAsyncComponent(
-    () => import("@/options/components/MergeImportModal.vue"),
+    () => import("@/options/components/prompt/MergeImportModal.vue"),
 );
 const DeleteCategoryModal = defineAsyncComponent(
-    () => import("@/options/components/DeleteCategoryModal.vue"),
+    () => import("@/options/components/prompt/DeleteCategoryModal.vue"),
 );
 
 const { t } = useI18n();

@@ -79,7 +79,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import MilkdownEditor from '@/options/components/Milkdown.vue'
+import MilkdownEditor from '@/components/Milkdown.vue'
 
 const props = defineProps<{
   visible: boolean

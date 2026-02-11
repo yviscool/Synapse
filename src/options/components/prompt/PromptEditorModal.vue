@@ -212,8 +212,8 @@ import { useI18n } from 'vue-i18n'
 import { useModal } from '@/composables/useModal'
 import { useMagicKeys } from '@vueuse/core'
 // 子组件导入
-import MarkdownEditor from '@/options/components/MarkdownEditor.vue'
-import VersionHistory from '@/options/components/VersionHistory.vue'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import VersionHistory from './VersionHistory.vue'
 // 类型定义导入
 import type { Prompt, Category, PromptVersion } from '@/types/prompt'
 
