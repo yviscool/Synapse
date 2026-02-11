@@ -54,6 +54,9 @@ export default {
     link: "Original Link",
     openLink: "Open original conversation",
     thinking: "Thinking Process",
+    editTitle: "Edit title",
+    thinkingLabel: "Thought",
+    thinkingTime: "{seconds}s",
     edit: "Edit",
     copy: "Copy",
     deleteMessage: "Delete message",
@@ -114,6 +117,12 @@ export default {
     starRemoved: "Removed from starred",
     collectSuccess: "Collected successfully",
     collectFailed: "Failed to collect",
+  },
+
+  // Outline
+  outline: {
+    title: "Outline",
+    empty: "No questions yet",
   },
 
   // Empty state

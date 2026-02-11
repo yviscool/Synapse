@@ -29,7 +29,7 @@ export const PLATFORM_CONFIGS: Record<ChatPlatform, PlatformConfig> = {
   deepseek: {
     id: "deepseek",
     name: "DeepSeek",
-    icon: "i-carbon-machine-learning-model",
+    icon: "i-ri-deepseek-fill",
     color: "#0066ff",
     urlPatterns: [/chat\.deepseek\.com/],
   },

@@ -2,9 +2,9 @@
   <div class="flex flex-col h-full">
     <!-- 头部工具栏 -->
     <div class="flex items-center justify-between p-4 border-b border-gray-100">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 min-w-0 flex-1">
         <div
-          class="w-10 h-10 rounded-xl flex items-center justify-center"
+          class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
           :style="{ backgroundColor: getPlatformColor(conversation.platform) + '15' }"
         >
           <div
@@ -13,9 +13,29 @@
             :style="{ color: getPlatformColor(conversation.platform) }"
           ></div>
         </div>
-        <div>
-          <h2 class="font-semibold text-gray-900 line-clamp-1">{{ conversation.title }}</h2>
-          <div class="flex items-center gap-2 text-xs text-gray-500">
+        <div class="min-w-0 flex-1">
+          <!-- 标题：展示 / 编辑 -->
+          <div v-if="!isEditingTitle" class="flex items-center gap-2 group">
+            <h2 class="font-semibold text-gray-900 line-clamp-1">{{ conversation.title }}</h2>
+            <button
+              @click="startEditTitle"
+              class="p-1 rounded text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              :title="t('chat.detail.editTitle')"
+            >
+              <div class="i-carbon-edit text-sm"></div>
+            </button>
+          </div>
+          <div v-else class="flex items-center gap-2">
+            <input
+              ref="titleInputRef"
+              v-model="editTitleValue"
+              @keydown.enter="saveTitle"
+              @keydown.escape="cancelEditTitle"
+              @blur="saveTitle"
+              class="font-semibold text-gray-900 bg-white border border-blue-300 rounded-lg px-2 py-1 w-full focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+            />
+          </div>
+          <div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
             <span>{{ formatPlatformName(conversation.platform) }}</span>
             <span>·</span>
             <span>{{ t('chat.list.messages', { count: conversation.messageCount }) }}</span>
@@ -24,7 +44,7 @@
       </div>
 
       <!-- 操作按钮 -->
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-1 flex-shrink-0">
         <button
           @click="$emit('toggle-star', conversation)"
           class="p-2 rounded-lg transition-colors"
@@ -63,130 +83,152 @@
     </div>
 
     <!-- 消息列表 -->
-    <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-gray-50/50 to-white">
-      <div
-        v-for="(message, index) in visibleMessages"
-        :key="message.id || index"
-        class="message-item group"
-        :class="message.role === 'user' ? 'flex-row-reverse' : ''"
-      >
-        <!-- 头像 -->
-        <div
-          class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-          :class="[
-            message.role === 'user'
-              ? 'bg-gradient-to-br from-blue-500 to-indigo-500'
-              : 'bg-gradient-to-br from-emerald-500 to-teal-500'
-          ]"
-        >
-          <div
-            :class="message.role === 'user' ? 'i-carbon-user' : 'i-carbon-bot'"
-            class="text-white text-sm"
-          ></div>
-        </div>
+    <div ref="messageListRef" class="flex-1 overflow-y-auto p-4 space-y-1 bg-gradient-to-b from-gray-50/50 to-white">
+      <template v-for="(message, index) in visibleMessages" :key="message.id || index">
+        <!-- 轮次分隔线 -->
+        <hr
+          v-if="message.role === 'user' && index > 0"
+          class="my-4 border-gray-200/60"
+        />
 
-        <!-- 消息内容 -->
-        <div class="message-content flex-1 min-w-0">
+        <!-- 消息项 -->
+        <div
+          :id="'msg-' + index"
+          class="message-item group"
+          :class="message.role === 'user' ? 'flex-row-reverse' : ''"
+        >
+          <!-- 头像 -->
           <div
-            class="message-bubble relative"
+            class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
             :class="[
               message.role === 'user'
-                ? 'bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-tr-md ml-auto'
-                : 'bg-white border border-gray-100 text-gray-800 rounded-tl-md'
+                ? 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                : 'bg-gradient-to-br from-emerald-500 to-teal-500'
             ]"
           >
-            <!-- 操作按钮（悬停显示） -->
             <div
-              class="message-actions absolute -top-8 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white rounded-lg shadow-md px-1 py-0.5"
-            >
-              <button
-                @click="handleEditMessage(index)"
-                class="p-1.5 text-gray-400 hover:text-blue-500 rounded"
-                :title="t('chat.detail.edit')"
-              >
-                <div class="i-carbon-edit text-sm"></div>
-              </button>
-              <button
-                @click="handleCopyMessage(index)"
-                class="p-1.5 text-gray-400 hover:text-green-500 rounded"
-                :title="t('chat.detail.copy')"
-              >
-                <div class="i-carbon-copy text-sm"></div>
-              </button>
-              <button
-                @click="handleDeleteMessage(index)"
-                class="p-1.5 text-gray-400 hover:text-red-500 rounded"
-                :title="t('chat.detail.deleteMessage')"
-              >
-                <div class="i-carbon-trash-can text-sm"></div>
-              </button>
-            </div>
-
-            <!-- 编辑标记 -->
-            <div v-if="message.isEdited" class="text-xs opacity-50 mb-1 flex items-center gap-1">
-              <div class="i-carbon-edit text-xs"></div>
-              {{ t('chat.detail.edited') }}
-            </div>
-
-            <!-- 思考过程 -->
-            <details v-if="message.thinking" class="mb-2">
-              <summary
-                class="cursor-pointer text-xs opacity-70 hover:opacity-100 flex items-center gap-1"
-              >
-                <div class="i-carbon-idea"></div>
-                {{ t('chat.detail.thinking') }}
-              </summary>
-              <div
-                class="mt-2 p-2 rounded-lg text-xs leading-relaxed"
-                :class="message.role === 'user' ? 'bg-white/10' : 'bg-gray-50'"
-              >
-                {{ message.thinking }}
-              </div>
-            </details>
-
-            <!-- 消息文本 - Markdown 渲染 -->
-            <div
-              v-if="editingIndex !== index"
-              class="message-text prose prose-sm max-w-none"
-              :class="message.role === 'user' ? 'prose-invert' : ''"
-              v-html="renderMarkdown(getMessageContent(message))"
+              :class="message.role === 'user' ? 'i-carbon-user' : 'i-carbon-bot'"
+              class="text-white text-sm"
             ></div>
+          </div>
 
-            <!-- 编辑模式 -->
-            <div v-else class="edit-mode">
-              <textarea
-                ref="editTextareaRef"
-                v-model="editContent"
-                class="w-full min-h-[100px] p-2 text-sm border border-gray-200 rounded-lg resize-y focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                :class="message.role === 'user' ? 'bg-white/10 text-white border-white/20' : 'bg-white'"
-              ></textarea>
-              <div class="flex justify-end gap-2 mt-2">
+          <!-- 消息内容 -->
+          <div class="message-content flex-1 min-w-0">
+            <div
+              class="message-bubble relative"
+              :class="[
+                message.role === 'user'
+                  ? 'user-bubble rounded-tr-md ml-auto'
+                  : 'bg-white border border-gray-100 text-gray-800 rounded-tl-md'
+              ]"
+            >
+              <!-- 操作按钮（悬停显示） -->
+              <div
+                class="message-actions absolute -top-8 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white rounded-lg shadow-md px-1 py-0.5"
+              >
                 <button
-                  @click="cancelEdit"
-                  class="px-3 py-1.5 text-xs rounded-lg"
-                  :class="message.role === 'user' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'"
+                  @click="handleEditMessage(index)"
+                  class="p-1.5 text-gray-400 hover:text-blue-500 rounded"
+                  :title="t('chat.detail.edit')"
                 >
-                  {{ t('common.cancel') }}
+                  <div class="i-carbon-edit text-sm"></div>
                 </button>
                 <button
-                  @click="saveEdit(index)"
-                  class="px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  @click="handleCopyMessage(index)"
+                  class="p-1.5 text-gray-400 hover:text-green-500 rounded"
+                  :title="t('chat.detail.copy')"
                 >
-                  {{ t('common.save') }}
+                  <div class="i-carbon-copy text-sm"></div>
+                </button>
+                <button
+                  @click="handleDeleteMessage(index)"
+                  class="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                  :title="t('chat.detail.deleteMessage')"
+                >
+                  <div class="i-carbon-trash-can text-sm"></div>
                 </button>
               </div>
-            </div>
 
-            <!-- 时间戳 -->
-            <div
-              v-if="message.timestamp && editingIndex !== index"
-              class="mt-2 text-xs opacity-50"
-            >
-              {{ formatMessageTime(message.timestamp) }}
+              <!-- Thinking 卡片（AI 气泡内部顶部） -->
+              <div
+                v-if="message.role === 'assistant' && message.thinking"
+                class="thinking-card mb-3 rounded-lg border border-purple-100 bg-purple-50/50 overflow-hidden -mx-1"
+              >
+                <div
+                  @click="toggleThinking(index)"
+                  class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-purple-100/50 transition-colors"
+                >
+                  <div class="flex items-center gap-2 text-xs text-purple-700">
+                    <span>💭</span>
+                    <span class="font-medium">{{ t('chat.detail.thinkingLabel') }}</span>
+                    <span v-if="message.metadata?.thinkingDuration" class="text-purple-400">
+                      ({{ t('chat.detail.thinkingTime', { seconds: Math.round(message.metadata.thinkingDuration / 1000) }) }})
+                    </span>
+                  </div>
+                  <div
+                    class="i-carbon-chevron-down text-purple-400 text-xs transition-transform duration-200"
+                    :class="{ 'rotate-180': thinkingExpanded.has(index) }"
+                  ></div>
+                </div>
+                <div
+                  class="thinking-content overflow-hidden transition-all duration-300 ease-in-out"
+                  :style="{ maxHeight: thinkingExpanded.has(index) ? '500px' : '0px' }"
+                >
+                  <div
+                    class="px-3 pb-2 text-xs text-purple-800/70 leading-relaxed prose prose-xs max-w-none"
+                    v-html="renderMarkdown(message.thinking)"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- 编辑标记 -->
+              <div v-if="message.isEdited" class="text-xs opacity-50 mb-1 flex items-center gap-1">
+                <div class="i-carbon-edit text-xs"></div>
+                {{ t('chat.detail.edited') }}
+              </div>
+
+              <!-- 消息文本 - Markdown 渲染 -->
+              <div
+                v-if="editingIndex !== index"
+                class="message-text prose prose-sm max-w-none"
+                v-html="renderMarkdown(getMessageContent(message))"
+              ></div>
+
+              <!-- 编辑模式 -->
+              <div v-else class="edit-mode">
+                <div class="border border-gray-200 rounded-lg overflow-hidden bg-white edit-milkdown-wrapper">
+                  <MilkdownEditor
+                    v-model="editContent"
+                    placeholder="编辑消息..."
+                  />
+                </div>
+                <div class="flex justify-end gap-2 mt-2">
+                  <button
+                    @click="cancelEdit"
+                    class="px-3 py-1.5 text-xs rounded-lg bg-gray-100 text-gray-600"
+                  >
+                    {{ t('common.cancel') }}
+                  </button>
+                  <button
+                    @click="saveEdit(index)"
+                    class="px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    {{ t('common.save') }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- 时间戳 -->
+              <div
+                v-if="message.timestamp && editingIndex !== index"
+                class="mt-2 text-xs opacity-50"
+              >
+                {{ formatMessageTime(message.timestamp) }}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </template>
     </div>
 
     <!-- 底部信息栏 -->
@@ -252,10 +294,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
 import { getPlatformIcon, getPlatformColor, formatPlatformName } from '@/utils/chatPlatform'
+import MilkdownEditor from '@/options/components/Milkdown.vue'
 import type { ChatConversation, ChatMessage } from '@/types/chat'
 
 const { t } = useI18n()
@@ -277,17 +320,22 @@ const localNote = ref(props.conversation.note || '')
 const showTagInput = ref(false)
 const newTag = ref('')
 const tagInputRef = ref<HTMLInputElement | null>(null)
-const editTextareaRef = ref<HTMLTextAreaElement | null>(null)
+const messageListRef = ref<HTMLElement | null>(null)
+
+// 标题编辑
+const isEditingTitle = ref(false)
+const editTitleValue = ref('')
+const titleInputRef = ref<HTMLInputElement | null>(null)
+
+// Thinking 展开状态
+const thinkingExpanded = reactive(new Set<number>())
 
 // 编辑状态
 const editingIndex = ref<number | null>(null)
 const editContent = ref('')
 
 // 配置 marked
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-})
+marked.setOptions({ breaks: true, gfm: true })
 
 // 过滤已删除的消息
 const visibleMessages = computed(() => {
@@ -296,9 +344,7 @@ const visibleMessages = computed(() => {
 
 // 获取消息内容（兼容新旧格式）
 function getMessageContent(message: ChatMessage): string {
-  if (typeof message.content === 'string') {
-    return message.content
-  }
+  if (typeof message.content === 'string') return message.content
   return message.content.edited || message.content.original
 }
 
@@ -311,10 +357,53 @@ function renderMarkdown(content: string): string {
   }
 }
 
+// 标题编辑
+async function startEditTitle() {
+  editTitleValue.value = props.conversation.title
+  isEditingTitle.value = true
+  await nextTick()
+  titleInputRef.value?.focus()
+  titleInputRef.value?.select()
+}
+
+function saveTitle() {
+  const newTitle = editTitleValue.value.trim()
+  if (newTitle && newTitle !== props.conversation.title) {
+    emit('update', props.conversation.id, { title: newTitle })
+  }
+  isEditingTitle.value = false
+}
+
+function cancelEditTitle() {
+  isEditingTitle.value = false
+}
+
+// Thinking 展开/收起
+function toggleThinking(index: number) {
+  if (thinkingExpanded.has(index)) {
+    thinkingExpanded.delete(index)
+  } else {
+    thinkingExpanded.add(index)
+  }
+}
+
+// 滚动到指定消息
+function scrollToMessage(index: number) {
+  const el = document.getElementById('msg-' + index)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+// 暴露方法
+defineExpose({ scrollToMessage })
+
 // 监听 conversation 变化
 watch(() => props.conversation, (newConv) => {
   localNote.value = newConv.note || ''
   editingIndex.value = null
+  isEditingTitle.value = false
+  thinkingExpanded.clear()
 }, { immediate: true })
 
 watch(showTagInput, async (show) => {
@@ -333,15 +422,12 @@ function getTagName(tagId: string): string {
 function addTag() {
   const tagName = newTag.value.trim()
   if (!tagName) return
-
   const currentTagNames = props.conversation.tagIds
     .map(id => getTagName(id))
     .filter(Boolean)
-
   if (!currentTagNames.includes(tagName)) {
     emit('update', props.conversation.id, {}, [...currentTagNames, tagName])
   }
-
   newTag.value = ''
   showTagInput.value = false
 }
@@ -363,8 +449,6 @@ async function handleEditMessage(index: number) {
   const message = visibleMessages.value[index]
   editingIndex.value = index
   editContent.value = getMessageContent(message)
-  await nextTick()
-  editTextareaRef.value?.focus()
 }
 
 function cancelEdit() {
@@ -375,25 +459,19 @@ function cancelEdit() {
 function saveEdit(index: number) {
   const message = visibleMessages.value[index]
   const originalIndex = props.conversation.messages.findIndex(m => m.id === message.id)
-
   if (originalIndex === -1) return
 
-  // 更新消息内容
   const updatedMessages = [...props.conversation.messages]
   const updatedMessage = { ...updatedMessages[originalIndex] }
 
   if (typeof updatedMessage.content === 'string') {
-    // 转换为新格式
     updatedMessage.content = {
       original: updatedMessage.content,
       edited: editContent.value,
       format: 'text',
     }
   } else {
-    updatedMessage.content = {
-      ...updatedMessage.content,
-      edited: editContent.value,
-    }
+    updatedMessage.content = { ...updatedMessage.content, edited: editContent.value }
   }
 
   updatedMessage.isEdited = true
@@ -401,7 +479,6 @@ function saveEdit(index: number) {
   updatedMessages[originalIndex] = updatedMessage
 
   emit('update', props.conversation.id, { messages: updatedMessages })
-
   editingIndex.value = null
   editContent.value = ''
 }
@@ -409,7 +486,6 @@ function saveEdit(index: number) {
 async function handleCopyMessage(index: number) {
   const message = visibleMessages.value[index]
   const content = getMessageContent(message)
-
   try {
     await navigator.clipboard.writeText(content)
   } catch {
@@ -420,15 +496,10 @@ async function handleCopyMessage(index: number) {
 function handleDeleteMessage(index: number) {
   const message = visibleMessages.value[index]
   const originalIndex = props.conversation.messages.findIndex(m => m.id === message.id)
-
   if (originalIndex === -1) return
 
-  // 软删除
   const updatedMessages = [...props.conversation.messages]
-  updatedMessages[originalIndex] = {
-    ...updatedMessages[originalIndex],
-    isDeleted: true,
-  }
+  updatedMessages[originalIndex] = { ...updatedMessages[originalIndex], isDeleted: true }
 
   emit('update', props.conversation.id, {
     messages: updatedMessages,
@@ -438,19 +509,12 @@ function handleDeleteMessage(index: number) {
 
 // 格式化时间
 function formatMessageTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
 function formatFullTime(timestamp: number): string {
   return new Date(timestamp).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
   })
 }
 </script>
@@ -462,7 +526,7 @@ function formatFullTime(timestamp: number): string {
 }
 
 .message-content {
-  max-width: 80%;
+  max-width: 85%;
 }
 
 .message-bubble {
@@ -471,9 +535,20 @@ function formatFullTime(timestamp: number): string {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.user-bubble {
+  background-color: #EBF5FF;
+  color: #1e293b;
+}
+
+/* Thinking 卡片 */
+.thinking-content {
+  will-change: max-height;
+}
+
 /* Markdown 样式 */
 .message-text :deep(pre) {
-  background: rgba(0, 0, 0, 0.05);
+  background: #1e1e2e;
+  color: #cdd6f4;
   padding: 12px;
   border-radius: 8px;
   overflow-x: auto;
@@ -481,7 +556,7 @@ function formatFullTime(timestamp: number): string {
 }
 
 .message-text :deep(code) {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.06);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.875em;
@@ -490,6 +565,7 @@ function formatFullTime(timestamp: number): string {
 .message-text :deep(pre code) {
   background: transparent;
   padding: 0;
+  color: inherit;
 }
 
 .message-text :deep(ul),
@@ -506,7 +582,7 @@ function formatFullTime(timestamp: number): string {
 }
 
 .message-text :deep(a) {
-  color: inherit;
+  color: #3b82f6;
   text-decoration: underline;
 }
 
@@ -523,22 +599,25 @@ function formatFullTime(timestamp: number): string {
   text-align: left;
 }
 
-/* 用户消息的 Markdown 样式 */
-.prose-invert :deep(pre) {
-  background: rgba(255, 255, 255, 0.1);
+/* 编辑模式 - Milkdown 编辑器 */
+.edit-milkdown-wrapper {
+  max-height: 50vh;
 }
 
-.prose-invert :deep(code) {
-  background: rgba(255, 255, 255, 0.1);
+.edit-milkdown-wrapper :deep(.milkdown-host) {
+  height: auto;
+  min-height: 0;
 }
 
-.prose-invert :deep(th),
-.prose-invert :deep(td) {
-  border-color: rgba(255, 255, 255, 0.2);
+.edit-milkdown-wrapper :deep(.milkdown-host .milkdown) {
+  height: auto;
+  max-height: 50vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
-/* 编辑模式 */
-.edit-mode textarea {
-  font-family: inherit;
+.edit-milkdown-wrapper :deep(.milkdown-host .milkdown .ProseMirror) {
+  min-height: 80px;
+  padding: 12px;
 }
 </style>

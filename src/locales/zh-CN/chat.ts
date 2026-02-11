@@ -54,6 +54,9 @@ export default {
     link: "原始链接",
     openLink: "打开原始对话",
     thinking: "思考过程",
+    editTitle: "编辑标题",
+    thinkingLabel: "已思考",
+    thinkingTime: "{seconds}秒",
     edit: "编辑",
     copy: "复制",
     deleteMessage: "删除消息",
@@ -114,6 +117,12 @@ export default {
     starRemoved: "已取消收藏",
     collectSuccess: "采集成功",
     collectFailed: "采集失败",
+  },
+
+  // 大纲
+  outline: {
+    title: "大纲",
+    empty: "暂无提问",
   },
 
   // 空状态

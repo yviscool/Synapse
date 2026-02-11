@@ -181,7 +181,7 @@
       <!-- 主内容区：左列表 + 右详情 -->
       <div class="flex gap-6 min-h-[calc(100vh-320px)]">
         <!-- 左侧：对话列表 -->
-        <aside class="w-[380px] flex-shrink-0 bg-white rounded-xl border border-gray-200/50 flex flex-col overflow-hidden">
+        <aside class="w-[320px] flex-shrink-0 bg-white rounded-xl border border-gray-200/50 flex flex-col overflow-hidden">
           <!-- 列表头部 -->
           <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <span class="text-sm text-gray-500 font-medium">
@@ -259,6 +259,7 @@
         <section class="flex-1 min-w-0 bg-white rounded-xl border border-gray-200/50 overflow-hidden flex flex-col">
           <ConversationDetail
             v-if="selectedConversation"
+            ref="detailRef"
             :conversation="selectedConversation"
             :tags="tags"
             @update="handleUpdateConversation"
@@ -270,6 +271,34 @@
         </section>
       </div>
     </main>
+
+    <!-- 语雀风格大纲导航 - 固定在视口右侧 -->
+    <transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 translate-x-4"
+      enter-to-class="opacity-100 translate-x-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 translate-x-0"
+      leave-to-class="opacity-0 translate-x-4"
+    >
+      <ChatOutline
+        v-if="selectedConversation && showOutline"
+        :messages="selectedConversation.messages"
+        :active-index="activeMessageIndex"
+        @jump="handleOutlineJump"
+      />
+    </transition>
+
+    <!-- 大纲切换按钮 - 固定右侧 -->
+    <button
+      v-if="selectedConversation"
+      @click="showOutline = !showOutline"
+      class="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-md text-gray-400 hover:text-blue-500 hover:border-blue-300 hover:shadow-lg transition-all"
+      :class="{ '!text-blue-500 !border-blue-300 !bg-blue-50': showOutline }"
+      :title="t('chat.outline.title')"
+    >
+      <div class="i-carbon-list-boxes text-sm"></div>
+    </button>
 
     <!-- 导出模态框 -->
     <ExportModal
@@ -305,6 +334,7 @@ if (import.meta.env.DEV) {
 const ConversationDetail = defineAsyncComponent(() => import('./chat/ConversationDetail.vue'))
 const EmptyDetail = defineAsyncComponent(() => import('./chat/EmptyDetail.vue'))
 const ExportModal = defineAsyncComponent(() => import('./chat/ExportModal.vue'))
+const ChatOutline = defineAsyncComponent(() => import('./chat/ChatOutline.vue'))
 
 const { t } = useI18n()
 const { showToast, askConfirm } = useUI()
@@ -341,6 +371,9 @@ const showSortMenu = ref(false)
 const sortRef = ref<HTMLElement | null>(null)
 const listRef = ref<HTMLElement | null>(null)
 const loaderRef = ref<HTMLElement | null>(null)
+const detailRef = ref<InstanceType<typeof ConversationDetail> | null>(null)
+const activeMessageIndex = ref(0)
+const showOutline = ref(true)
 
 // Platform scroll state
 const platformViewportRef = ref<HTMLElement | null>(null)
@@ -475,6 +508,11 @@ function handleExport(conv: ChatConversation) {
   showExportModal.value = true
 }
 
+function handleOutlineJump(index: number) {
+  activeMessageIndex.value = index
+  detailRef.value?.scrollToMessage(index)
+}
+
 // Platform scroll methods
 function updatePlatformDimensions() {
   if (platformViewportRef.value && platformContentRef.value) {
@@ -551,8 +589,8 @@ onUnmounted(() => {
 <style scoped>
 /* 响应式布局 */
 @media (max-width: 1200px) {
-  .w-\[380px\] {
-    width: 320px;
+  .w-\[320px\] {
+    width: 280px;
   }
 }
 
@@ -561,7 +599,7 @@ onUnmounted(() => {
     flex-direction: column;
   }
 
-  .w-\[380px\] {
+  .w-\[320px\] {
     width: 100%;
     max-height: 400px;
   }
