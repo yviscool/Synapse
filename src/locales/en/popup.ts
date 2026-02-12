@@ -1,10 +1,22 @@
 export default {
-  "searchPlaceholder": "Search or create...",
-  "noResults": "No results found",
-  "empty": "It's empty here",
-  "noResultsHint": "Try different keywords, or press Enter to create.",
-  "emptyHint": "Try searching or create your first Prompt!",
-  "newPromptHtml": "New \"<span class='truncate font-bold'>{query}</span>\"",
-  "myFavorites": "My Favorites",
-  "recentlyUsed": "Recently Used"
+  recentActivity: "Recent Activity",
+  noActivity: "No recent activity",
+  noActivityHint: "Use Synapse on any AI platform and your traces show here.",
+  activity: {
+    usedPrompt: "Used \"{title}\"",
+    capturedChat: "Captured \"{title}\"",
+    savedSnippet: "Saved \"{title}\"",
+  },
+  shortcuts: {
+    promptSelector: "Prompt selector",
+    quickSave: "Quick save",
+    rightClick: "Save selection",
+  },
+  openDashboard: "Open Dashboard",
+  timeAgo: {
+    justNow: "Just now",
+    minutesAgo: "{n} min ago",
+    hoursAgo: "{n}h ago",
+    daysAgo: "{n}d ago",
+  },
 }

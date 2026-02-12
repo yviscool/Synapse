@@ -1,325 +1,224 @@
 <template>
-  <div
-    class="relative w-[420px] max-h-[550px] flex flex-col overflow-hidden rounded-lg bg-white font-sans text-gray-800 shadow-2xl dark:bg-gray-900 dark:text-gray-200"
-    @keydown="handleKeydown"
-    @mousemove="isKeyboardNavigating = false"
-  >
-    <div
-      v-if="isExiting"
-      class="absolute z-20 bg-blue-500/10 backdrop-blur-sm"
-      :style="{
-        top: `${exitState.top}px`,
-        left: `${exitState.left}px`,
-        width: `${exitState.width}px`,
-        height: `${exitState.height}px`,
-        transition: 'all 400ms cubic-bezier(0.4, 0, 0.2, 1)',
-      }"
-      :class="{ '!top-0 !left-0 !w-full !h-full !rounded-none': isExiting }"
-    >
-      <div class="flex h-full w-full items-center justify-center">
-        <div
-          class="i-carbon-checkmark-outline text-5xl text-blue-500 transition-all duration-300 ease-in-out"
-          :class="{
-            'opacity-100 scale-100 delay-150': isExiting,
-            'opacity-0 scale-50': !isExiting
-          }"
-        ></div>
+  <div class="w-[320px] flex flex-col overflow-hidden rounded-lg bg-white font-sans text-gray-800 shadow-2xl dark:bg-gray-900 dark:text-gray-200">
+    <!-- Header: Brand -->
+    <div class="flex items-center justify-center py-5">
+      <h1
+        class="text-xl font-bold bg-clip-text text-transparent relative inline-block"
+        style="background-image: linear-gradient(135deg, #00d5ff 0%, #00a6ff 12%, #0066ff 24%, #3b3bff 34%, #6a00ff 46%, #8b00ff 56%, #ff00b8 66%, #ff1744 76%, #ff7a00 88%, #ffc107 100%);"
+      >
+        Synapse
+        <span class="pointer-events-none absolute rounded-full bg-white" style="width: 0.6rem; height: 0.6rem; top: -0.3rem; left: -0.3rem; box-shadow: 0 0 10px rgba(255,255,255,0.9);"></span>
+        <span class="pointer-events-none absolute rounded-full bg-white" style="width: 0.6rem; height: 0.6rem; bottom: -0.3rem; right: -0.3rem; box-shadow: 0 0 10px rgba(255,255,255,0.9);"></span>
+        <span class="pointer-events-none absolute" style="left: -0.5rem; bottom: -0.2rem">
+          <span class="absolute rounded-full" style="width: 0.35rem; height: 0.35rem; left: -0.15rem; bottom: 0; background-color: #5b21b6; opacity: 0.95;"></span>
+          <span class="absolute rounded-full" style="width: 0.25rem; height: 0.25rem; left: -0.45rem; bottom: 0.3rem; background-color: #7c3aed; opacity: 0.85;"></span>
+          <span class="absolute rounded-full" style="width: 0.18rem; height: 0.18rem; left: -0.65rem; bottom: 0.65rem; background-color: #a78bfa; opacity: 0.8;"></span>
+        </span>
+      </h1>
+    </div>
+
+    <div class="h-px bg-gray-200 dark:bg-gray-700/50"></div>
+
+    <!-- Activity Feed -->
+    <div class="flex flex-col px-3 py-3">
+      <h2 class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+        {{ t('popup.recentActivity') }}
+      </h2>
+      <div v-if="activities.length" class="flex flex-col gap-1">
+        <button
+          v-for="(item, i) in activities"
+          :key="item.id"
+          class="activity-item flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+          :style="{ '--stagger': `${i * 40}ms` }"
+          @click="openRoute(item.route)"
+        >
+          <div class="mt-0.5 text-sm" :class="item.iconClass">{{ item.icon }}</div>
+          <div class="flex-1 overflow-hidden">
+            <div class="truncate text-sm">{{ item.label }}</div>
+            <div class="truncate text-xs text-gray-400 dark:text-gray-500">
+              {{ item.sub }}
+            </div>
+          </div>
+        </button>
+      </div>
+      <div v-else class="flex flex-col items-center py-6 text-center text-gray-400">
+        <div class="i-carbon-activity text-2xl mb-2 opacity-40"></div>
+        <p class="text-sm">{{ t('popup.noActivity') }}</p>
+        <p class="mt-1 text-xs opacity-70">{{ t('popup.noActivityHint') }}</p>
       </div>
     </div>
 
-    <div
-      class="flex flex-1 flex-col overflow-y-auto transition-opacity duration-200"
-      :class="{ 'opacity-0': isExiting }"
-    >
-      <div class="sticky top-0 z-10 bg-white/80 p-3 backdrop-blur-sm dark:bg-gray-900/80">
-        <div class="flex items-center gap-2">
-          <div class="relative flex-1">
-            <div class="i-carbon-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></div>
-            <input
-              ref="searchInputRef"
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('popup.searchPlaceholder')"
-              class="w-full rounded-lg border-2 border-transparent bg-gray-100 py-2 pl-9 pr-4 text-base transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:bg-gray-800"
-            />
-          </div>
-          <button
-            ref="settingsButtonRef"
-            @click="openOptionsPage($event.currentTarget as HTMLElement)"
-            class="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-            :aria-label="t('settings.title')"
-          >
-            <div class="i-carbon-settings text-xl"></div>
-          </button>
-        </div>
+    <div class="h-px bg-gray-200 dark:bg-gray-700/50"></div>
+
+    <!-- Shortcuts Cheatsheet -->
+    <div class="flex flex-col gap-1.5 px-4 py-3">
+      <div class="flex items-center justify-between text-xs">
+        <kbd class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-gray-500 dark:bg-gray-800 dark:text-gray-400">{{ hotkeyOpen }}</kbd>
+        <span class="text-gray-400 dark:text-gray-500">{{ t('popup.shortcuts.promptSelector') }}</span>
       </div>
-
-      <div class="px-2 pb-2">
-        <ul v-if="displayList.length">
-          <template v-for="(item, index) in displayList" :key="item.key">
-            <li v-if="item.type === 'header'" class="mt-3 first:mt-0">
-              <h2 class="mb-1 flex items-center gap-2 px-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
-                <div :class="item.icon"></div>
-                {{ item.title }}
-              </h2>
-            </li>
-
-            <li
-              v-else-if="item.type === 'action'"
-              :ref="el => setListItemRef(index, el)"
-              :class="['flex cursor-pointer items-center gap-3 rounded-lg p-3 transition-colors', { 'bg-blue-500/10': highlightIndex === index }]"
-              @click="item.action($event.currentTarget as HTMLElement)"
-              @mouseenter="!isKeyboardNavigating && (highlightIndex = index)"
-            >
-              <div :class="[item.icon, 'text-lg text-blue-500']"></div>
-              <div class="font-medium" v-html="item.htmlTitle"></div>
-            </li>
-
-            <li
-              v-else-if="item.type === 'prompt'"
-              :ref="el => setListItemRef(index, el)"
-              :class="['group cursor-pointer rounded-lg p-3 transition-colors', { 'bg-blue-500/10': highlightIndex === index }]"
-              @click="selectPrompt(item.data, $event.currentTarget as HTMLElement)"
-              @mouseenter="!isKeyboardNavigating && (highlightIndex = index)"
-            >
-               <div class="flex items-center justify-between">
-                <div class="flex-1 overflow-hidden">
-                  <div class="truncate font-semibold">{{ item.data.title }}</div>
-                  <div class="mt-1 truncate text-sm text-gray-600 dark:text-gray-400">{{ item.data.content }}</div>
-                </div>
-                <button @click.stop="editPrompt(item.data, $event.currentTarget as HTMLElement)" class="ml-2 rounded-full p-2 text-gray-500 opacity-0 transition-all hover:bg-gray-200/60 group-hover:opacity-100 focus:opacity-100 dark:hover:bg-gray-700/50" :aria-label="t('common.edit')">
-                  <div class="i-carbon-edit text-lg"></div>
-                </button>
-              </div>
-            </li>
-          </template>
-        </ul>
-        <div v-else class="py-8 text-center text-gray-500">
-          <p class="text-lg font-semibold">{{ searchQuery ? t('popup.noResults') : t('popup.empty') }}</p>
-          <p class="mt-2 text-sm">{{ searchQuery ? t('popup.noResultsHint') : t('popup.emptyHint') }}</p>
-        </div>
+      <div class="flex items-center justify-between text-xs">
+        <kbd class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-gray-500 dark:bg-gray-800 dark:text-gray-400">Ctrl+Shift+S</kbd>
+        <span class="text-gray-400 dark:text-gray-500">{{ t('popup.shortcuts.quickSave') }}</span>
       </div>
+      <div class="flex items-center justify-between text-xs">
+        <kbd class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-gray-500 dark:bg-gray-800 dark:text-gray-400">Right-click</kbd>
+        <span class="text-gray-400 dark:text-gray-500">{{ t('popup.shortcuts.rightClick') }}</span>
+      </div>
+    </div>
+
+    <div class="h-px bg-gray-200 dark:bg-gray-700/50"></div>
+
+    <!-- Dashboard Button -->
+    <div class="flex justify-center px-4 py-3">
+      <button
+        @click="openRoute('options.html')"
+        class="w-full rounded-lg bg-blue-500 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-blue-600 active:bg-blue-700"
+      >
+        {{ t('popup.openDashboard') }} →
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, onBeforeUpdate, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { db, getSettings } from '@/stores/db'
-import { repository } from '@/stores/repository'
-import type { Prompt } from '@/types'
+import { getPlatformConfig } from '@/utils/chatPlatform'
 import { MSG, type DataUpdatedPayload } from '@/utils/messaging'
+import type { ChatPlatform } from '@/types/chat'
 
-// --- Refs & State ---
-const searchQuery = ref('')
-const allPrompts = ref<Prompt[]>([])
-const highlightIndex = ref(-1)
-const searchInputRef = ref<HTMLInputElement | null>(null)
-const settingsButtonRef = ref<HTMLButtonElement | null>(null)
-const listItemsRef = ref<HTMLElement[]>([])
-const isKeyboardNavigating = ref(false)
 const { t, locale } = useI18n()
 
-// [JOBS] SIMPLIFIED: One state to rule all exits.
-const isExiting = ref(false)
-const exitState = ref({ top: 0, left: 0, width: 0, height: 0 })
+const hotkeyOpen = ref('Alt+K')
 
-// --- Lifecycle & Setup ---
-onMounted(async () => {
-  searchInputRef.value?.focus()
-  await db.open()
-  await setLocale()
-  await loadPrompts()
-  chrome.runtime.onMessage.addListener(handleMessage)
-})
-
-onUnmounted(() => {
-  chrome.runtime.onMessage.removeListener(handleMessage)
-})
-
-onBeforeUpdate(() => {
-  listItemsRef.value = []
-})
-
-// --- Data Handling ---
-async function loadPrompts() {
-  const promptsFromDB = await db.prompts.toArray()
-  allPrompts.value = promptsFromDB.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+// --- Activity types ---
+interface ActivityItem {
+  id: string
+  icon: string
+  iconClass: string
+  label: string
+  sub: string
+  time: number
+  route: string
 }
 
+const activities = ref<ActivityItem[]>([])
+
+// --- Time formatting ---
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return t('popup.timeAgo.justNow')
+  if (mins < 60) return t('popup.timeAgo.minutesAgo', { n: mins })
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return t('popup.timeAgo.hoursAgo', { n: hours })
+  const days = Math.floor(hours / 24)
+  return t('popup.timeAgo.daysAgo', { n: days })
+}
+
+// --- Locale ---
 const systemLanguage = computed(() => {
-  const lang = navigator.language.toLowerCase();
-  return lang.startsWith('zh') ? t('settings.language.systemLang.chinese') : t('settings.language.systemLang.english');
-});
+  const lang = navigator.language.toLowerCase()
+  return lang.startsWith('zh') ? 'zh-CN' : 'en'
+})
 
 async function setLocale() {
   const settings = await getSettings()
+  hotkeyOpen.value = settings.hotkeyOpen || 'Alt+K'
   if (settings.locale === 'system') {
-    locale.value = systemLanguage.value === '中文' ? 'zh-CN' : 'en'
+    locale.value = systemLanguage.value
   } else {
     locale.value = settings.locale
   }
 }
+// --- Load activity feed ---
+async function loadActivities() {
+  const [allPrompts, chats, snippets] = await Promise.all([
+    db.prompts.toArray(),
+    db.chat_conversations.orderBy('updatedAt').reverse().limit(5).toArray(),
+    db.snippets.orderBy('updatedAt').reverse().limit(5).toArray(),
+  ])
 
+  const prompts = allPrompts
+    .filter(p => !!p.lastUsedAt)
+    .sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0))
+    .slice(0, 5)
+
+  const items: ActivityItem[] = []
+
+  for (const p of prompts) {
+    items.push({
+      id: `prompt-${p.id}`,
+      icon: '📝',
+      iconClass: '',
+      label: t('popup.activity.usedPrompt', { title: p.title }),
+      sub: timeAgo(p.lastUsedAt!),
+      time: p.lastUsedAt!,
+      route: 'options.html#/prompts',
+    })
+  }
+
+  for (const c of chats) {
+    const platform = getPlatformConfig(c.platform as ChatPlatform)
+    items.push({
+      id: `chat-${c.id}`,
+      icon: '💬',
+      iconClass: '',
+      label: t('popup.activity.capturedChat', { title: c.title }),
+      sub: `${platform.name} · ${timeAgo(c.updatedAt)}`,
+      time: c.updatedAt,
+      route: 'options.html#/chat',
+    })
+  }
+
+  for (const s of snippets) {
+    items.push({
+      id: `snippet-${s.id}`,
+      icon: '</>',
+      iconClass: 'font-mono text-xs',
+      label: t('popup.activity.savedSnippet', { title: s.title }),
+      sub: timeAgo(s.updatedAt),
+      time: s.updatedAt,
+      route: 'options.html#/tools',
+    })
+  }
+
+  items.sort((a, b) => b.time - a.time)
+  activities.value = items.slice(0, 5)
+}
+
+// --- Navigation ---
+function openRoute(route: string) {
+  chrome.tabs.create({ url: chrome.runtime.getURL(route) })
+}
+
+// --- Message handler ---
 function handleMessage(msg: { type: string; data: any }) {
   if (msg?.type === MSG.DATA_UPDATED) {
     const { scope } = msg.data as DataUpdatedPayload
     if (scope === 'settings') {
       setLocale()
     } else {
-      loadPrompts()
+      loadActivities()
     }
   }
 }
 
-// --- [JOBS] REBUILT: A single, unified source of truth for what's displayed.
-// This eliminates ALL complex logic from the template and keydown handler.
-const displayList = computed(() => {
-  const list: any[] = []
-  const query = searchQuery.value.trim().toLowerCase()
-
-  if (query) {
-    // Search Mode
-    list.push({
-      type: 'action',
-      key: 'add-action',
-      icon: 'i-carbon-add-alt',
-      htmlTitle: t('popup.newPromptHtml', { query: searchQuery.value }),
-      action: createNewPromptFromSearch
-    });
-    const filtered = allPrompts.value.filter(p =>
-      p.title.toLowerCase().includes(query) || p.content.toLowerCase().includes(query)
-    );
-    filtered.forEach(p => list.push({ type: 'prompt', key: p.id, data: p }))
-  } else {
-    // Default View
-    const favorites = allPrompts.value.filter(p => p.favorite).slice(0, 5)
-    if (favorites.length) {
-      list.push({ type: 'header', key: 'fav-header', title: t('popup.myFavorites'), icon: 'i-carbon-favorite-filled text-yellow-500' })
-      favorites.forEach(p => list.push({ type: 'prompt', key: p.id, data: p }))
-    }
-
-    const favoriteIds = new Set(favorites.map(p => p.id))
-    const recents = allPrompts.value
-      .filter(p => p.lastUsedAt && !favoriteIds.has(p.id))
-      .sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0))
-      .slice(0, 5)
-
-    if (recents.length) {
-      list.push({ type: 'header', key: 'rec-header', title: t('popup.recentlyUsed'), icon: 'i-carbon-time' })
-      recents.forEach(p => list.push({ type: 'prompt', key: p.id, data: p }))
-    }
-  }
-  return list
+// --- Lifecycle ---
+onMounted(async () => {
+  await db.open()
+  await setLocale()
+  await loadActivities()
+  chrome.runtime.onMessage.addListener(handleMessage)
 })
 
-// --- [JOBS] REBUILT: One function to handle all exits. It takes the origin element and the action to perform.
-function exitWithAnimation(element: HTMLElement, actionCallback: () => void) {
-  if (!element || isExiting.value) return
-  
-  const rect = element.getBoundingClientRect()
-  exitState.value = { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
-  isExiting.value = true
-
-  // The action happens after the animation starts, ensuring a smooth transition.
-  setTimeout(() => {
-    actionCallback()
-    // The window closes after the animation is mostly complete.
-    setTimeout(() => window.close(), 300)
-  }, 150)
-}
-
-// --- Actions ---
-async function selectPrompt(prompt: Prompt, element: HTMLElement) {
-  exitWithAnimation(element, async () => {
-    try {
-      await navigator.clipboard.writeText(prompt.content)
-      // This is a "soft" update, but we use the repository for consistency.
-      // The notification will fire, but it's a small price for correctness.
-      await repository.updatePrompt(prompt.id, { lastUsedAt: Date.now() })
-    } catch (e) {
-      console.error("Failed to copy or update prompt:", e)
-    }
-  })
-}
-
-function editPrompt(prompt: Prompt, element: HTMLElement) {
-  exitWithAnimation(element, () => {
-    const url = `options.html?action=edit&id=${prompt.id}`
-    chrome.tabs.create({ url: chrome.runtime.getURL(url) })
-  })
-}
-
-function createNewPromptFromSearch(element: HTMLElement) {
-  exitWithAnimation(element, () => {
-    const url = `options.html?action=new&title=${encodeURIComponent(searchQuery.value)}`
-    chrome.tabs.create({ url: chrome.runtime.getURL(url) })
-  })
-}
-
-function openOptionsPage(element: HTMLElement) {
-  exitWithAnimation(element, () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('options.html') })
-  })
-}
-
-// --- Keyboard Navigation ---
-const setListItemRef = (index: number, el: any) => {
-  if (el) listItemsRef.value[index] = el as HTMLElement
-}
-
-// [JOBS] REBUILT: The logic is now breathtakingly simple because it operates on the unified `displayList`.
-function handleKeydown(e: KeyboardEvent) {
-  isKeyboardNavigating.value = true
-  const list = displayList.value
-  const totalItems = list.length
-  if (totalItems === 0 && e.key !== 'Escape') return
-
-  switch (e.key) {
-    case 'ArrowUp':
-      e.preventDefault()
-      if (highlightIndex.value > 0) highlightIndex.value--
-      break
-
-    case 'ArrowDown':
-      e.preventDefault()
-      if (highlightIndex.value < totalItems - 1) highlightIndex.value++
-      break
-
-    case 'Enter':
-      e.preventDefault()
-      const item = list[highlightIndex.value]
-      const element = listItemsRef.value[highlightIndex.value]
-      if (!item || !element || item.type === 'header') return
-
-      if (item.type === 'prompt') {
-        selectPrompt(item.data, element)
-      } else if (item.type === 'action') {
-        item.action(element)
-      }
-      break
-
-    case 'Escape':
-      window.close()
-      break
-  }
-}
-
-// --- Watchers ---
-watch(searchQuery, () => {
-  highlightIndex.value = displayList.value.findIndex(item => item.type !== 'header')
-}, { flush: 'post' })
-
-watch(highlightIndex, (newIndex) => {
-  if (newIndex !== -1) {
-    listItemsRef.value[newIndex]?.scrollIntoView({ block: 'nearest' })
-  }
-}, { flush: 'post' })
+onUnmounted(() => {
+  chrome.runtime.onMessage.removeListener(handleMessage)
+})
 </script>
 
 <style>
-/* Styles remain unchanged as they were already excellent. */
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -335,5 +234,20 @@ body {
 }
 .dark ::-webkit-scrollbar-thumb {
   background: #4b5563;
+}
+
+.activity-item {
+  animation: slideIn 200ms ease-out both;
+  animation-delay: var(--stagger, 0ms);
+}
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
