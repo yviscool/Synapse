@@ -2,11 +2,12 @@ import enSettings from "../en/settings";
 
 export default {
   ...enSettings,
-  title: "Настройки",
+  title: "설정",
   language: {
-    title: "Язык",
+    ...enSettings.language,
+    title: "언어",
     localeNames: {
-      zhCN: "中文",
+      zhCN: "简体中文",
       zhTW: "繁體中文",
       en: "English",
       de: "Deutsch",
@@ -14,7 +15,7 @@ export default {
       ko: "한국어",
       ruRU: "Русский",
     },
-    followSystem: "Следовать системному",
-    currentSystem: "Текущий язык системы: {lang}",
+    followSystem: "시스템 언어 따르기",
+    currentSystem: "현재 시스템 언어: {lang}",
   },
 };

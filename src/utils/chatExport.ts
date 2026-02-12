@@ -7,7 +7,14 @@ import { getMessageContent } from "@/types/chat";
 import { resolveLocalePreference } from "@/utils/locale";
 import { getPlatformConfig } from "./chatPlatform";
 
-type ExportLocaleKey = "zh-CN" | "en" | "ja-JP" | "ru-RU";
+type ExportLocaleKey =
+  | "zh-CN"
+  | "zh-TW"
+  | "en"
+  | "de"
+  | "ja-JP"
+  | "ko"
+  | "ru-RU";
 
 type ExportLabels = {
   platform: string;
@@ -31,6 +38,16 @@ const EXPORT_LABELS: Record<ExportLocaleKey, ExportLabels> = {
     user: "用户",
     assistant: "助手",
   },
+  "zh-TW": {
+    platform: "平台",
+    link: "連結",
+    originalConversation: "原始對話",
+    collectedAt: "採集時間",
+    messageCount: "訊息數",
+    thinking: "思考過程",
+    user: "使用者",
+    assistant: "助手",
+  },
   en: {
     platform: "Platform",
     link: "Link",
@@ -41,6 +58,16 @@ const EXPORT_LABELS: Record<ExportLocaleKey, ExportLabels> = {
     user: "User",
     assistant: "Assistant",
   },
+  de: {
+    platform: "Plattform",
+    link: "Link",
+    originalConversation: "Originalunterhaltung",
+    collectedAt: "Erfasst am",
+    messageCount: "Anzahl Nachrichten",
+    thinking: "Denkprozess",
+    user: "Benutzer",
+    assistant: "Assistent",
+  },
   "ja-JP": {
     platform: "プラットフォーム",
     link: "リンク",
@@ -50,6 +77,16 @@ const EXPORT_LABELS: Record<ExportLocaleKey, ExportLabels> = {
     thinking: "思考プロセス",
     user: "ユーザー",
     assistant: "アシスタント",
+  },
+  ko: {
+    platform: "플랫폼",
+    link: "링크",
+    originalConversation: "원본 대화",
+    collectedAt: "수집 시간",
+    messageCount: "메시지 수",
+    thinking: "사고 과정",
+    user: "사용자",
+    assistant: "어시스턴트",
   },
   "ru-RU": {
     platform: "Платформа",

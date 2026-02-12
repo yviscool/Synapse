@@ -4,8 +4,11 @@ export default {
     title: "Language",
     localeNames: {
       zhCN: "中文",
+      zhTW: "繁體中文",
       en: "English",
+      de: "Deutsch",
       jaJP: "日本語",
+      ko: "한국어",
       ruRU: "Русский",
     },
     followSystem: "Follow System",

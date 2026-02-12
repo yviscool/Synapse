@@ -242,8 +242,11 @@ const resetConfirmationText = ref('')
 
 const LOCALE_NAME_KEY_MAP: Record<SupportedLocale, string> = {
   'zh-CN': 'zhCN',
+  'zh-TW': 'zhTW',
   en: 'en',
+  de: 'de',
   'ja-JP': 'jaJP',
+  ko: 'ko',
   'ru-RU': 'ruRU',
 }
 

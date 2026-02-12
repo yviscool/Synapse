@@ -4,8 +4,13 @@ import { SUPPORTED_LOCALES } from "@/types/i18n";
 const DEFAULT_LOCALE: SupportedLocale = "en";
 
 const LOCALE_PREFIX_MAP: Array<{ prefix: string; locale: SupportedLocale }> = [
+  { prefix: "zh-tw", locale: "zh-TW" },
+  { prefix: "zh-hk", locale: "zh-TW" },
+  { prefix: "zh-mo", locale: "zh-TW" },
   { prefix: "zh", locale: "zh-CN" },
+  { prefix: "de", locale: "de" },
   { prefix: "ja", locale: "ja-JP" },
+  { prefix: "ko", locale: "ko" },
   { prefix: "ru", locale: "ru-RU" },
   { prefix: "en", locale: "en" },
 ];
