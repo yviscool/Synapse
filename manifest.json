@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Synapse",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy4MuYUxwAILDMeP0kNCNgJxE2c/SDvosc3ynJygQtuTKuNA25BFOeLduNk6npDadSx+9jiJAXPWzB5mnGDaRjv7DYs141SPqAD09Z0rfa6e2KAJsacBgHAKOwpPjZSZGs+RVb7koK94rBpgWvQHL4bP2YFd8+DnO6+Imr6fxAeMW3DdWokjzr4SwcL+rk0BGX3FHbW385UOYHByOlNR8jcGifyacHQwezN2Bf4CIPsUbAuyXZGaPPT+37oPpJbaQx3f9vQguRGFaL1muEM9mZH35NTnXgDvQbM+WqR6jv8zezT+/tJ4q3NCeXqpDXe9oUPQ9DMkYHRYr+mkUA949rQIDAQAB",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Synapse — 集提示词管理、对话采集、代码片段于一体的 AI 工具箱。覆盖 ChatGPT、Claude、Gemini、DeepSeek 等 12+ 平台，一键注入提示词、实时同步对话、生成长对话大纲导航。告别碎片化，让每一次 AI 交互都有迹可循。",
   "permissions": [
     "identity",
