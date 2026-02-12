@@ -298,6 +298,16 @@ defineExpose({
   background-color: #ededed !important; /* Neutral-100 */
   color: #171717 !important; /* Neutral-900 */
 }
+
+/* Dark Mode Highlight Mark */
+.synapse-selector-root.dark mark,
+.dark .synapse-selector-root mark {
+  background-color: rgba(250, 204, 21, 0.4) !important; /* Yellow-400 */
+  color: #fefce8 !important; /* Yellow-50 */
+  text-decoration: none;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
 </style>
 
 <style scoped>
@@ -346,12 +356,5 @@ defineExpose({
   color: inherit !important;
   border-radius: 2px;
   padding: 0 1px;
-}
-.dark :deep(mark), [data-theme='dark'] :deep(mark) {
-   background-color: rgba(253, 224, 71, 0.2) !important;
-   color: #fef08a !important; /* Yellow-200 */
-   text-decoration: underline;
-   text-decoration-color: rgba(253, 224, 71, 0.5);
-   box-shadow: none;
 }
 </style>

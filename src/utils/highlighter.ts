@@ -47,9 +47,14 @@ export function generateHighlightedPreviewHtml(
   }
 
   const indices = (keyMatches!.indices || []) as ReadonlyArray<readonly [number, number]>
-  const firstMatch = indices[0]
+  let bestMatch = indices[0]
+  for (const idx of indices) {
+    if ((idx[1] - idx[0]) > (bestMatch[1] - bestMatch[0])) {
+      bestMatch = idx
+    }
+  }
   const leadContext = Math.floor(maxLength * 0.35)
-  let start = Math.max(0, firstMatch[0] - leadContext)
+  let start = Math.max(0, bestMatch[0] - leadContext)
   let end = Math.min(text.length, start + maxLength)
 
   if (end - start < maxLength) {
@@ -85,7 +90,7 @@ function renderHighlightedByIndices(
     if (start > lastIndex) {
       parts.push(escapeHtml(text.substring(lastIndex, start)))
     }
-    parts.push(`<mark class="bg-yellow-200/80 rounded-sm px-0.5">${escapeHtml(text.substring(start, end + 1))}</mark>`)
+    parts.push(`<mark>${escapeHtml(text.substring(start, end + 1))}</mark>`)
     lastIndex = end + 1
   })
 
