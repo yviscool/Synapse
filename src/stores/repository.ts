@@ -9,6 +9,8 @@ import {
   removePromptSearchIndex,
   rebuildPromptSearchIndex,
 } from "./promptSearch";
+import { rebuildSnippetSearchIndex } from "./snippetSearch";
+import { rebuildChatSearchIndex } from "./chatSearch";
 import { createEventBus, createCommitNotifier } from "./repositoryHelpers";
 import type {
   Prompt,
@@ -17,6 +19,8 @@ import type {
   Settings,
   Tag,
 } from "@/types/prompt";
+import type { Snippet, SnippetFolder, SnippetTag } from "@/types/snippet";
+import type { ChatConversation, ChatTag } from "@/types/chat";
 import { createSafePrompt } from "@/utils/promptUtils";
 
 // Event system using shared factory
@@ -44,6 +48,13 @@ type BackupImportData = {
   categories?: unknown;
   tags?: unknown;
   settings?: Partial<Settings>;
+  // Snippets
+  snippets?: unknown;
+  snippet_folders?: unknown;
+  snippet_tags?: unknown;
+  // Chats
+  chat_conversations?: unknown;
+  chat_tags?: unknown;
 };
 
 function toError(error: unknown): Error {
@@ -537,9 +548,18 @@ export const repository = {
         db.tags,
         db.settings,
         db.prompt_search_index,
+        db.snippets,
+        db.snippet_folders,
+        db.snippet_tags,
+        db.snippet_search_index,
+        db.chat_conversations,
+        db.chat_tags,
+        db.chat_search_index,
       ],
       async () => {
         const currentSettings = await db.settings.get("global");
+
+        // --- Prompts ---
         await db.prompts.clear();
         await db.prompt_versions.clear();
         await db.categories.clear();
@@ -557,6 +577,34 @@ export const repository = {
         if (Array.isArray(importedData.tags)) {
           await db.tags.bulkPut(importedData.tags as Tag[]);
         }
+
+        // --- Snippets ---
+        await db.snippets.clear();
+        await db.snippet_folders.clear();
+        await db.snippet_tags.clear();
+        await db.snippet_search_index.clear();
+        if (Array.isArray(importedData.snippets)) {
+          await db.snippets.bulkPut(importedData.snippets as Snippet[]);
+        }
+        if (Array.isArray(importedData.snippet_folders)) {
+          await db.snippet_folders.bulkPut(importedData.snippet_folders as SnippetFolder[]);
+        }
+        if (Array.isArray(importedData.snippet_tags)) {
+          await db.snippet_tags.bulkPut(importedData.snippet_tags as SnippetTag[]);
+        }
+
+        // --- Chats ---
+        await db.chat_conversations.clear();
+        await db.chat_tags.clear();
+        await db.chat_search_index.clear();
+        if (Array.isArray(importedData.chat_conversations)) {
+          await db.chat_conversations.bulkPut(importedData.chat_conversations as ChatConversation[]);
+        }
+        if (Array.isArray(importedData.chat_tags)) {
+          await db.chat_tags.bulkPut(importedData.chat_tags as ChatTag[]);
+        }
+
+        // --- Settings ---
         const settingsToApply: Settings = {
           ...DEFAULT_SETTINGS,
           ...(importedData.settings || {}),
@@ -569,7 +617,11 @@ export const repository = {
           settingsToApply.lastSyncTimestamp = currentSettings.lastSyncTimestamp;
         }
         await db.settings.put(settingsToApply);
+
+        // --- Rebuild search indexes ---
         await rebuildPromptSearchIndex();
+        await rebuildSnippetSearchIndex();
+        await rebuildChatSearchIndex();
       },
       "allChanged",
     );
@@ -584,19 +636,40 @@ export const repository = {
         db.tags,
         db.settings,
         db.prompt_search_index,
+        db.snippets,
+        db.snippet_folders,
+        db.snippet_tags,
+        db.snippet_search_index,
+        db.chat_conversations,
+        db.chat_tags,
+        db.chat_search_index,
       ],
       async () => {
         const currentSettings = await db.settings.get("global");
+
+        // --- Prompts ---
         await db.prompts.clear();
         await db.prompt_versions.clear();
         await db.categories.clear();
         await db.tags.clear();
-        await db.settings.clear();
         await db.prompt_search_index.clear();
 
+        // --- Snippets ---
+        await db.snippets.clear();
+        await db.snippet_folders.clear();
+        await db.snippet_tags.clear();
+        await db.snippet_search_index.clear();
+
+        // --- Chats ---
+        await db.chat_conversations.clear();
+        await db.chat_tags.clear();
+        await db.chat_search_index.clear();
+
+        // --- Settings ---
+        await db.settings.clear();
         const newSettings: Settings = {
           ...DEFAULT_SETTINGS,
-          id: "global", // Explicitly set the key path
+          id: "global",
         };
         if (currentSettings) {
           newSettings.syncEnabled = currentSettings.syncEnabled;

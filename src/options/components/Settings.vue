@@ -518,13 +518,22 @@ async function handleSyncNow() {
 const exportData = async () => {
   try {
     const exportObject = {
+      // Prompts
       prompts: await db.prompts.toArray(),
       prompt_versions: await db.prompt_versions.toArray(),
       categories: await db.categories.toArray(),
       tags: await db.tags.toArray(),
+      // Snippets
+      snippets: await db.snippets.toArray(),
+      snippet_folders: await db.snippet_folders.toArray(),
+      snippet_tags: await db.snippet_tags.toArray(),
+      // Chats
+      chat_conversations: await db.chat_conversations.toArray(),
+      chat_tags: await db.chat_tags.toArray(),
+      // Meta
       settings: await getSettings(),
       exportTime: new Date().toISOString(),
-      version: '2.0.0' 
+      version: '2.0.0'
     };
 
     const dataStr = JSON.stringify(exportObject, null, 2);
@@ -552,7 +561,7 @@ const importData = async (event: Event) => {
     const text = await file.text()
     const importedData = JSON.parse(text)
     
-    if (!importedData.prompts && !importedData.settings) {
+    if (!importedData.prompts && !importedData.snippets && !importedData.chat_conversations && !importedData.settings) {
       throw new Error(t('settings.data.local.invalidFileError'))
     }
 

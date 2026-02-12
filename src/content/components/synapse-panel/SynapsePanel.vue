@@ -251,6 +251,7 @@ const { height: windowHeight } = useWindowSize()
 
 // --- 状态 ---
 const containerRef = ref<HTMLElement | null>(null)
+const STORAGE_KEY_COLLAPSED = 'synapse-panel-collapsed'
 const isCollapsed = ref(false)
 const isHovered = ref(false)
 const isMounted = ref(false)
@@ -331,8 +332,13 @@ function handleDragStart(e: MouseEvent | TouchEvent) {
   if (!isCollapsed.value) e.stopPropagation()
 }
 
+function persistCollapsed(value: boolean) {
+  chrome.storage.local.set({ [STORAGE_KEY_COLLAPSED]: value })
+}
+
 function toggleCollapse() {
   isCollapsed.value = !isCollapsed.value
+  persistCollapsed(isCollapsed.value)
   if (isCollapsed.value) {
     showSettings.value = false
   }
@@ -341,6 +347,7 @@ function toggleCollapse() {
 function handleCollapsedClick() {
   if (wasDragged.value) return
   isCollapsed.value = false
+  persistCollapsed(false)
 }
 
 function handleRefresh() {
@@ -434,6 +441,14 @@ const ElegantTooltip = defineComponent({
 
 // --- 初始化 ---
 onMounted(async () => {
+  // 从扩展存储恢复折叠状态（跨域共享）
+  try {
+    const result = await chrome.storage.local.get(STORAGE_KEY_COLLAPSED)
+    if (result[STORAGE_KEY_COLLAPSED] === true) {
+      isCollapsed.value = true
+    }
+  } catch { /* ignore */ }
+
   await nextTick()
   isMounted.value = true
   containerRef.value?.classList.add('animate-slide-in-right')

@@ -5,10 +5,14 @@
  */
 import { db, getSettings } from '@/stores/db'
 import { rebuildPromptSearchIndex } from '@/stores/promptSearch'
+import { rebuildSnippetSearchIndex } from '@/stores/snippetSearch'
+import { rebuildChatSearchIndex } from '@/stores/chatSearch'
 import { getDefaultCategories } from '@/utils/categoryUtils'
 import { repository } from '@/stores/repository'
 import * as gdrive from '@/utils/googleDriveApi'
 import type { Category, Prompt, PromptVersion, Settings, Tag } from '@/types/prompt'
+import type { Snippet, SnippetFolder, SnippetTag } from '@/types/snippet'
+import type { ChatConversation, ChatTag } from '@/types/chat'
 
 
 const MAX_BACKUPS_TO_KEEP = 10;
@@ -25,6 +29,13 @@ interface SyncPayload {
   categories: Category[]
   tags: Tag[]
   settings: Settings
+  // Snippets
+  snippets: Snippet[]
+  snippet_folders: SnippetFolder[]
+  snippet_tags: SnippetTag[]
+  // Chats
+  chat_conversations: ChatConversation[]
+  chat_tags: ChatTag[]
 }
 
 type BackupImportData = {
@@ -33,6 +44,13 @@ type BackupImportData = {
   categories?: Category[]
   tags?: Tag[]
   settings?: Partial<Settings>
+  // Snippets
+  snippets?: Snippet[]
+  snippet_folders?: SnippetFolder[]
+  snippet_tags?: SnippetTag[]
+  // Chats
+  chat_conversations?: ChatConversation[]
+  chat_tags?: ChatTag[]
 }
 
 class SyncManager {
@@ -175,14 +193,27 @@ class SyncManager {
   }
 
   private async buildLocalSyncPayload(): Promise<SyncPayload> {
-    const [prompts, prompt_versions, categories, tags, settings] = await Promise.all([
+    const [
+      prompts, prompt_versions, categories, tags, settings,
+      snippets, snippet_folders, snippet_tags,
+      chat_conversations, chat_tags,
+    ] = await Promise.all([
       db.prompts.toArray(),
       db.prompt_versions.toArray(),
       db.categories.toArray(),
       db.tags.toArray(),
       getSettings(),
+      db.snippets.toArray(),
+      db.snippet_folders.toArray(),
+      db.snippet_tags.toArray(),
+      db.chat_conversations.toArray(),
+      db.chat_tags.toArray(),
     ])
-    return { prompts, prompt_versions, categories, tags, settings }
+    return {
+      prompts, prompt_versions, categories, tags, settings,
+      snippets, snippet_folders, snippet_tags,
+      chat_conversations, chat_tags,
+    }
   }
 
   private isDefaultOnlyCategoryState(categories: Category[]): boolean {
@@ -213,6 +244,11 @@ class SyncManager {
       payload.prompts.length > 0
       || payload.prompt_versions.length > 0
       || payload.tags.length > 0
+      || payload.snippets.length > 0
+      || payload.snippet_folders.length > 0
+      || payload.snippet_tags.length > 0
+      || payload.chat_conversations.length > 0
+      || payload.chat_tags.length > 0
     ) {
       return true
     }
@@ -238,31 +274,46 @@ class SyncManager {
     const promptVersions = Array.isArray(importedData.prompt_versions) ? importedData.prompt_versions : []
     const categories = Array.isArray(importedData.categories) ? importedData.categories : []
     const tags = Array.isArray(importedData.tags) ? importedData.tags : []
+    const snippets = Array.isArray(importedData.snippets) ? importedData.snippets : []
+    const snippetFolders = Array.isArray(importedData.snippet_folders) ? importedData.snippet_folders : []
+    const snippetTags = Array.isArray(importedData.snippet_tags) ? importedData.snippet_tags : []
+    const chatConversations = Array.isArray(importedData.chat_conversations) ? importedData.chat_conversations : []
+    const chatTags = Array.isArray(importedData.chat_tags) ? importedData.chat_tags : []
     const importedSettings = importedData.settings && typeof importedData.settings === 'object'
       ? importedData.settings
       : null
 
-    await db.transaction('rw', [db.prompts, db.prompt_versions, db.categories, db.tags, db.settings, db.prompt_search_index], async () => {
+    await db.transaction('rw', [
+      db.prompts, db.prompt_versions, db.categories, db.tags,
+      db.settings, db.prompt_search_index,
+      db.snippets, db.snippet_folders, db.snippet_tags, db.snippet_search_index,
+      db.chat_conversations, db.chat_tags, db.chat_search_index,
+    ], async () => {
+      // --- Prompts ---
       await db.prompts.clear()
-      if (prompts.length > 0) {
-        await db.prompts.bulkPut(prompts)
-      }
-
+      if (prompts.length > 0) await db.prompts.bulkPut(prompts)
       await db.prompt_versions.clear()
-      if (promptVersions.length > 0) {
-        await db.prompt_versions.bulkPut(promptVersions)
-      }
-
+      if (promptVersions.length > 0) await db.prompt_versions.bulkPut(promptVersions)
       await db.categories.clear()
-      if (categories.length > 0) {
-        await db.categories.bulkPut(categories)
-      }
-
+      if (categories.length > 0) await db.categories.bulkPut(categories)
       await db.tags.clear()
-      if (tags.length > 0) {
-        await db.tags.bulkPut(tags)
-      }
+      if (tags.length > 0) await db.tags.bulkPut(tags)
 
+      // --- Snippets ---
+      await db.snippets.clear()
+      if (snippets.length > 0) await db.snippets.bulkPut(snippets)
+      await db.snippet_folders.clear()
+      if (snippetFolders.length > 0) await db.snippet_folders.bulkPut(snippetFolders)
+      await db.snippet_tags.clear()
+      if (snippetTags.length > 0) await db.snippet_tags.bulkPut(snippetTags)
+
+      // --- Chats ---
+      await db.chat_conversations.clear()
+      if (chatConversations.length > 0) await db.chat_conversations.bulkPut(chatConversations)
+      await db.chat_tags.clear()
+      if (chatTags.length > 0) await db.chat_tags.bulkPut(chatTags)
+
+      // --- Settings ---
       const currentSettings = await getSettings();
       const newSettings = {
         ...currentSettings,
@@ -273,7 +324,10 @@ class SyncManager {
       };
       await db.settings.put(newSettings)
 
+      // --- Rebuild search indexes ---
       await rebuildPromptSearchIndex()
+      await rebuildSnippetSearchIndex()
+      await rebuildChatSearchIndex()
     })
   }
 
