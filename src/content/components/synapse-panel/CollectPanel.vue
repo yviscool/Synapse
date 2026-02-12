@@ -83,21 +83,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, type CSSProperties } from 'vue'
+import { computed, watch, type CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useSyncEngine } from './useSyncEngine'
+import type { SyncEngineInstance } from './useSyncEngine'
 import { getCurrentPlatformInfo } from '@/collect'
 import { getPlatformConfig } from '@/utils/chatPlatform'
 import { MSG } from '@/utils/messaging'
 
 const { t, locale } = useI18n()
 
+const props = defineProps<{
+  syncEngine: SyncEngineInstance
+}>()
+
 const emit = defineEmits<{
   'sync-status-change': [status: 'idle' | 'syncing' | 'success' | 'error']
   viewDetail: []
 }>()
 
-// 同步引擎
+// 直接使用父组件传入的同步引擎
 const {
   syncState,
   isEnabled,
@@ -105,14 +109,7 @@ const {
   canSync,
   toggle,
   manualSync,
-} = useSyncEngine({
-  onSyncSuccess: () => {
-    emit('sync-status-change', 'success')
-  },
-  onSyncError: () => {
-    emit('sync-status-change', 'error')
-  },
-})
+} = props.syncEngine
 
 // 同步状态变化时通知父组件
 watch(() => syncState.value.status, (status) => {
@@ -189,18 +186,6 @@ function handleViewDetail() {
   chrome.runtime.sendMessage({ type: MSG.OPEN_OPTIONS, data: { view: 'chat' } })
   emit('viewDetail')
 }
-
-// 初始化
-onMounted(async () => {
-  try {
-    const result = await chrome.storage.local.get('syncEnabled')
-    if (result.syncEnabled && canSync.value) {
-      toggle()
-    }
-  } catch (e) {
-    // ignore
-  }
-})
 </script>
 
 <style scoped>

@@ -29,6 +29,8 @@ const DEFAULT_OPTIONS: Required<UseSyncEngineOptions> = {
   onSyncError: () => {},
 }
 
+export const STORAGE_KEY_SYNC_ENABLED = 'synapse-realtime-sync-enabled'
+
 export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options }
 
@@ -283,6 +285,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     if (!canSync.value) return
 
     syncState.value.enabled = true
+    chrome.storage?.local?.set({ [STORAGE_KEY_SYNC_ENABLED]: true })
     startObserver()
     startCheckTimer()
 
@@ -295,6 +298,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
    */
   function disable() {
     syncState.value.enabled = false
+    chrome.storage?.local?.set({ [STORAGE_KEY_SYNC_ENABLED]: false })
     stopObserver()
     stopCheckTimer()
   }
@@ -337,3 +341,5 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     manualSync,
   }
 }
+
+export type SyncEngineInstance = ReturnType<typeof useSyncEngine>

@@ -10,7 +10,8 @@
     "scripting",
     "contextMenus",
     "tabs",
-    "notifications"
+    "notifications",
+    "storage"
   ],
   "host_permissions": [
     "https://chatgpt.com/*",

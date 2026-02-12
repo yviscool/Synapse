@@ -125,6 +125,7 @@
           <CollectPanel
             v-else-if="activeMode === 'collect'"
             key="collect"
+            :syncEngine="syncEngine"
             @sync-status-change="handleSyncStatusChange"
           />
         </Transition>
@@ -239,6 +240,7 @@ import type { SiteConfig } from '@/outline/site-configs'
 import CollectPanel from './CollectPanel.vue'
 import OutlineContent from './OutlineContent.vue'
 import SettingsPanel from './SettingsPanel.vue'
+import { useSyncEngine, STORAGE_KEY_SYNC_ENABLED } from './useSyncEngine'
 
 type PanelMode = 'outline' | 'collect'
 
@@ -262,6 +264,12 @@ const activeMode = ref<PanelMode>('outline')
 
 // 同步状态
 const syncStatus = ref<'idle' | 'syncing' | 'success' | 'error'>('idle')
+
+// 同步引擎（在面板层级初始化，不依赖 CollectPanel 挂载）
+const syncEngine = useSyncEngine({
+  onSyncSuccess: () => { syncStatus.value = 'success' },
+  onSyncError: () => { syncStatus.value = 'error' },
+})
 
 // Hint 状态
 const hint = ref<{ visible: boolean; text: string; icon: string }>({
@@ -333,7 +341,7 @@ function handleDragStart(e: MouseEvent | TouchEvent) {
 }
 
 function persistCollapsed(value: boolean) {
-  chrome.storage.local.set({ [STORAGE_KEY_COLLAPSED]: value })
+  chrome.storage?.local?.set({ [STORAGE_KEY_COLLAPSED]: value })
 }
 
 function toggleCollapse() {
@@ -441,11 +449,15 @@ const ElegantTooltip = defineComponent({
 
 // --- 初始化 ---
 onMounted(async () => {
-  // 从扩展存储恢复折叠状态（跨域共享）
+  // 从扩展存储恢复状态（跨域共享）
   try {
-    const result = await chrome.storage.local.get(STORAGE_KEY_COLLAPSED)
-    if (result[STORAGE_KEY_COLLAPSED] === true) {
+    const result = await chrome.storage?.local?.get([STORAGE_KEY_COLLAPSED, STORAGE_KEY_SYNC_ENABLED])
+    if (result?.[STORAGE_KEY_COLLAPSED] === true) {
       isCollapsed.value = true
+    }
+    // 恢复实时同步状态
+    if (result?.[STORAGE_KEY_SYNC_ENABLED] === true && syncEngine.canSync.value && !syncEngine.isEnabled.value) {
+      syncEngine.enable()
     }
   } catch { /* ignore */ }
 
