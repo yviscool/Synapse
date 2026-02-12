@@ -4,10 +4,9 @@
  */
 
 import { BaseAdapter } from './base'
-import type { ChatMessage, ChatPlatform } from '@/types/chat'
+import type { ChatMessage } from '@/types/chat'
 
 export class GenericAdapter extends BaseAdapter {
-  platform: ChatPlatform = 'other'
 
   // 通用消息选择器
   private readonly MESSAGE_SELECTORS = [

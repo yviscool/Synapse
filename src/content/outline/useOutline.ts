@@ -31,7 +31,7 @@
 import { ref, onMounted, onUnmounted, Ref, watch } from 'vue';
 import { useScroll, useDebounceFn } from '@vueuse/core';
 // 导入配置文件的“类型”，而不是实体，这样 hook 保持纯净
-import type { SiteConfig } from './site-configs';
+import type { SiteConfig } from '../site-configs';
 import type { OutlineItem } from './types';
 import { smartTruncate, getIntelligentIcon } from './utils';
 

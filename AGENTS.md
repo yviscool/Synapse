@@ -38,3 +38,57 @@
 
 > **语言要求**：所有回复、思考过程及任务清单，均须使用中文。
 > **固定指令**：`Implementation Plan, Task List and Thought in Chinese`
+
+**新增站点规则**
+
+> 项目采用统一平台配置架构，Outline（大纲导航）和 Collect（对话采集）共用 `src/content/site-configs.ts` 作为唯一选择器数据源。新增站点时按以下步骤操作：
+>
+> **第一步（必须）：添加站点配置**
+>
+> 在 `src/content/site-configs.ts` 的 `siteConfigs` 中新增一条，key 为域名：
+>
+> ```ts
+> 'newsite.com': {
+>   platform: 'other',              // 或在 ChatPlatform 中新增枚举值
+>   observeTarget: '...',           // MutationObserver 监听的消息容器
+>   userMessage: '...',             // 用户消息元素选择器（Outline 用）
+>   messageText: '...',             // 消息文本选择器（Outline 用）
+>   waitForElement: '...',          // 等待首条消息出现的选择器
+>   urlPattern: /newsite\.com/,     // URL 匹配正则
+>   conversationIdPattern: /\.../,  // 可选：从 URL 提取对话 ID
+>   titleSelector: ['...'],         // 可选：标题 DOM 选择器数组
+> }
+> ```
+>
+> 仅此一步即可获得：Outline 导航、useSyncEngine 精确 Observer、GenericAdapter 启发式采集。
+>
+> **第二步（可选）：新建专用 Adapter**
+>
+> 当 GenericAdapter 无法正确采集时，在 `src/content/collect/adapters/` 下新建文件：
+>
+> ```ts
+> import { BaseAdapter } from './base'
+> import type { ChatMessage } from '@/types/chat'
+>
+> export class NewSiteAdapter extends BaseAdapter {
+>   // BaseAdapter 已提供：isConversationPage / getConversationId / getTitle
+>   // 仅在需要平台特定 fallback 时 override getTitle
+>
+>   collectMessages(): ChatMessage[] { /* 平台特定 DOM 遍历 */ }
+>
+>   // 可选：自定义代码块/公式预处理
+>   protected override preprocessClone(clone: Element): void { }
+> }
+> ```
+>
+> 然后在 `src/content/collect/index.ts` 的 `adapterMap` 中注册：
+>
+> ```ts
+> import { NewSiteAdapter } from './adapters/newsite'
+> const adapterMap = { ..., newsite: (c) => new NewSiteAdapter(c) }
+> ```
+>
+> **第三步（仅全新平台标识时）：**
+>
+> - `src/types/chat.ts` — 在 `ChatPlatform` 类型中新增枚举值
+> - `src/utils/chatPlatform.ts` — 在 `PLATFORM_CONFIGS` 中添加图标、颜色等 UI 配置

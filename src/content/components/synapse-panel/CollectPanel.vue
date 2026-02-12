@@ -86,7 +86,7 @@
 import { computed, watch, type CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SyncEngineInstance } from './useSyncEngine'
-import { getCurrentPlatformInfo } from '@/collect'
+import { getCurrentPlatformInfo } from '@/content/collect'
 import { getPlatformConfig } from '@/utils/chatPlatform'
 import { MSG } from '@/utils/messaging'
 

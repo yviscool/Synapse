@@ -24,36 +24,18 @@
  */
 
 import { BaseAdapter } from './base'
-import type { ChatMessage, ChatPlatform } from '@/types/chat'
+import type { ChatMessage } from '@/types/chat'
 
 export class GeminiAdapter extends BaseAdapter {
-  platform: ChatPlatform = 'gemini'
+  override getTitle(): string {
+    const base = super.getTitle()
+    if (base !== '未命名对话') return base
 
-  isConversationPage(): boolean {
-    return /gemini\.google\.com\/app/.test(window.location.href)
-  }
-
-  getConversationId(): string | null {
-    const match = window.location.pathname.match(/\/app\/([a-zA-Z0-9_-]+)/)
-    return match ? match[1] : null
-  }
-
-  getTitle(): string {
-    // 优先从顶栏 DOM 获取对话标题（最可靠）
-    const titleEl = document.querySelector('[data-test-id="conversation-title"]') ||
-      document.querySelector('.conversation-title')
-    if (titleEl) {
-      const title = this.extractText(titleEl)
-      if (title) return title
-    }
-
-    // 回退到 document.title — 清理所有 Gemini 后缀变体
     const pageTitle = document.title
       .replace(/\s*[-–—]\s*(Google\s+)?Gemini\s*$/i, '')
       .trim()
     if (pageTitle) return pageTitle
 
-    // 回退到第一条用户提问
     const firstQuery = document.querySelector('user-query .query-text')
     if (firstQuery) {
       const text = this.extractText(firstQuery)

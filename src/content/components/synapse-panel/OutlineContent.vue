@@ -79,8 +79,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useOutline } from '@/outline/useOutline'
-import type { SiteConfig } from '@/outline/site-configs'
+import { useOutline } from '@/content/outline/useOutline'
+import type { SiteConfig } from '@/content/site-configs'
 
 // 图标常量
 const ICONS = {

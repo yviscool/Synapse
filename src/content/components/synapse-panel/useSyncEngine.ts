@@ -4,7 +4,8 @@
  */
 
 import { ref, computed, onUnmounted } from 'vue'
-import { collect, getAdapter, canCollect } from '@/collect'
+import { collect, canCollect } from '@/content/collect'
+import { getSiteConfig } from '@/content/site-configs'
 import { MSG } from '@/utils/messaging'
 import type { SyncState, ChatConversation, ChatMessage } from '@/types/chat'
 
@@ -23,7 +24,7 @@ export interface UseSyncEngineOptions {
 
 const DEFAULT_OPTIONS: Required<UseSyncEngineOptions> = {
   debounceDelay: 1000,
-  checkInterval: 3000,
+  checkInterval: 5000,
   maxRetries: 3,
   onSyncSuccess: () => {},
   onSyncError: () => {},
@@ -168,65 +169,22 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   }
 
   /**
-   * 检查是否为消息相关的 DOM 变化
-   */
-  function isMessageRelatedMutation(mutation: MutationRecord): boolean {
-    const adapter = getAdapter()
-    if (!adapter) return false
-
-    // 检查新增节点
-    const addedNodes = Array.from(mutation.addedNodes)
-    for (const node of addedNodes) {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const el = node as Element
-        // 检查是否包含消息相关的属性或类名
-        if (
-          el.hasAttribute?.('data-message-author-role') ||
-          el.querySelector?.('[data-message-author-role]') ||
-          el.classList?.contains('message') ||
-          el.classList?.contains('conversation-turn')
-        ) {
-          return true
-        }
-      }
-    }
-
-    // 检查文本内容变化（可能是流式输出）
-    if (mutation.type === 'characterData') {
-      let target = mutation.target as Node
-      while (target && target !== document.body) {
-        if (target.nodeType === Node.ELEMENT_NODE) {
-          const el = target as Element
-          if (
-            el.hasAttribute?.('data-message-author-role') ||
-            el.closest?.('[data-message-author-role]')
-          ) {
-            return true
-          }
-        }
-        target = target.parentNode as Node
-      }
-    }
-
-    return false
-  }
-
-  /**
    * 启动 MutationObserver
+   * 精确监听 observeTarget 容器，不再监听 document.body
    */
   function startObserver() {
     if (observer) return
 
-    observer = new MutationObserver((mutations) => {
-      if (!syncState.value.enabled) return
+    const config = getSiteConfig()
+    const targetSelector = config?.observeTarget
+    const target = targetSelector ? document.querySelector(targetSelector) : null
 
-      const hasRelevantChanges = mutations.some(isMessageRelatedMutation)
-      if (hasRelevantChanges) {
-        debouncedSync()
-      }
+    observer = new MutationObserver(() => {
+      if (!syncState.value.enabled) return
+      debouncedSync()
     })
 
-    observer.observe(document.body, {
+    observer.observe(target || document.body, {
       childList: true,
       subtree: true,
       characterData: true,

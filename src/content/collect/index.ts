@@ -1,9 +1,11 @@
 /**
  * 适配器管理器
- * 根据当前页面 URL 自动选择合适的适配器
+ * 根据统一 SiteConfig 自动选择合适的适配器
  */
 
 import type { PlatformAdapter, CollectResult } from './adapters/base'
+import type { SiteConfig } from '../site-configs'
+import { getSiteConfig } from '../site-configs'
 import { ChatGPTAdapter } from './adapters/chatgpt'
 import { ClaudeAdapter } from './adapters/claude'
 import { DeepSeekAdapter } from './adapters/deepseek'
@@ -18,40 +20,30 @@ import { GenericAdapter } from './adapters/generic'
 import type { ChatPlatform } from '@/types/chat'
 import { detectPlatformFromUrl } from '@/utils/chatPlatform'
 
-// 所有适配器实例
-const adapters: PlatformAdapter[] = [
-  new ChatGPTAdapter(),
-  new ClaudeAdapter(),
-  new DeepSeekAdapter(),
-  new GeminiAdapter(),
-  new AIStudioAdapter(),
-  new KimiAdapter(),
-  new DoubaoAdapter(),
-  new GrokAdapter(),
-  new MiniMaxAdapter(),
-  new ZAIAdapter(),
-]
-
-// 通用适配器作为后备
-const genericAdapter = new GenericAdapter()
+const adapterMap: Record<string, (config: SiteConfig) => PlatformAdapter> = {
+  chatgpt: (c) => new ChatGPTAdapter(c),
+  claude: (c) => new ClaudeAdapter(c),
+  deepseek: (c) => new DeepSeekAdapter(c),
+  gemini: (c) => new GeminiAdapter(c),
+  aistudio: (c) => new AIStudioAdapter(c),
+  kimi: (c) => new KimiAdapter(c),
+  doubao: (c) => new DoubaoAdapter(c),
+  grok: (c) => new GrokAdapter(c),
+  minimax: (c) => new MiniMaxAdapter(c),
+  zai: (c) => new ZAIAdapter(c),
+}
 
 /**
  * 获取当前页面的适配器
  */
 export function getAdapter(): PlatformAdapter | null {
-  // 先尝试专用适配器
-  for (const adapter of adapters) {
-    if (adapter.isConversationPage()) {
-      return adapter
-    }
-  }
+  const config = getSiteConfig()
+  if (!config) return null
 
-  // 尝试通用适配器
-  if (genericAdapter.isConversationPage()) {
-    return genericAdapter
-  }
+  const factory = adapterMap[config.platform]
+  const adapter = factory ? factory(config) : new GenericAdapter(config)
 
-  return null
+  return adapter.isConversationPage() ? adapter : null
 }
 
 /**

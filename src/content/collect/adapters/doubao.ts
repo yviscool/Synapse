@@ -18,33 +18,16 @@
  */
 
 import { BaseAdapter } from './base'
-import type { ChatMessage, ChatPlatform } from '@/types/chat'
+import type { ChatMessage } from '@/types/chat'
 
 export class DoubaoAdapter extends BaseAdapter {
-  platform: ChatPlatform = 'doubao'
-
-  isConversationPage(): boolean {
-    return /doubao\.com/.test(window.location.href)
-  }
-
-  getConversationId(): string | null {
-    const match = window.location.pathname.match(/\/chat\/([a-zA-Z0-9]+)/)
-    return match ? match[1] : null
-  }
-
-  getTitle(): string {
-    // 顶部标题区域的 .truncate 元素
-    const titleEl = document.querySelector(
-      '.flex.justify-center .truncate'
-    )
-    if (titleEl?.textContent?.trim()) {
-      return this.cleanText(titleEl.textContent)
-    }
+  override getTitle(): string {
+    const base = super.getTitle()
+    if (base !== '未命名对话') return base
 
     const pageTitle = document.title.replace(/\s*[-–—]\s*豆包\s*$/i, '').trim()
     if (pageTitle && pageTitle !== '豆包') return pageTitle
 
-    // fallback: 第一条用户消息
     const firstUser = document.querySelector(
       '[data-testid="send_message"] [data-testid="message_text_content"]'
     )

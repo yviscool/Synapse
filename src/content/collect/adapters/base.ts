@@ -1,9 +1,13 @@
 /**
  * AI 平台对话采集适配器基类
  * 定义统一的采集接口，各平台继承实现
+ *
+ * 通用逻辑（isConversationPage / getConversationId / getTitle）
+ * 由基类根据 SiteConfig 提供默认实现，子类可 override 补充 fallback。
  */
 
 import type { ChatMessage, ChatPlatform, ChatConversation } from '@/types/chat'
+import type { SiteConfig } from '../../site-configs'
 
 export interface CollectResult {
   success: boolean
@@ -35,11 +39,46 @@ export interface PlatformAdapter {
  * 适配器基类
  */
 export abstract class BaseAdapter implements PlatformAdapter {
-  abstract platform: ChatPlatform
+  platform: ChatPlatform
+  protected config: SiteConfig
 
-  abstract isConversationPage(): boolean
-  abstract getConversationId(): string | null
-  abstract getTitle(): string
+  constructor(config: SiteConfig) {
+    this.config = config
+    this.platform = config.platform
+  }
+
+  /** 通用实现：用 config.urlPattern 判定 */
+  isConversationPage(): boolean {
+    return this.config.urlPattern.test(window.location.href)
+  }
+
+  /** 通用实现：用 config.conversationIdPattern 从 URL 提取 */
+  getConversationId(): string | null {
+    if (!this.config.conversationIdPattern) return null
+    const match = window.location.href.match(this.config.conversationIdPattern)
+    return match ? match[1] : null
+  }
+
+  /** 通用实现：按 config.titleSelector 数组逐个尝试，子类可 override 补充 fallback */
+  getTitle(): string {
+    if (this.config.titleSelector) {
+      for (const selector of this.config.titleSelector) {
+        const el = document.querySelector(selector)
+        if (el?.textContent?.trim()) {
+          return this.cleanText(el.textContent)
+        }
+      }
+    }
+
+    // fallback: 页面标题
+    const pageTitle = document.title
+      .replace(/\s*[-–—|·]\s*.*$/, '')
+      .trim()
+    if (pageTitle && pageTitle.length > 2) return pageTitle
+
+    return '未命名对话'
+  }
+
   abstract collectMessages(): ChatMessage[]
 
   /**

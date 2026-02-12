@@ -19,26 +19,16 @@
  */
 
 import { BaseAdapter } from './base'
-import type { ChatMessage, ChatPlatform } from '@/types/chat'
+import type { ChatMessage } from '@/types/chat'
 
 export class GrokAdapter extends BaseAdapter {
-  platform: ChatPlatform = 'grok'
+  override getTitle(): string {
+    const base = super.getTitle()
+    if (base !== '未命名对话') return base
 
-  isConversationPage(): boolean {
-    return /grok\.com/.test(window.location.href)
-  }
-
-  getConversationId(): string | null {
-    // Grok URL: https://grok.com/chat/xxx
-    const match = window.location.pathname.match(/\/chat\/([a-zA-Z0-9_-]+)/)
-    return match ? match[1] : null
-  }
-
-  getTitle(): string {
     const pageTitle = document.title.replace(/\s*[-–—]\s*Grok\s*$/i, '').trim()
     if (pageTitle && pageTitle !== 'Grok') return pageTitle
 
-    // fallback: 第一条用户消息
     const firstUser = document.querySelector(
       'div.group.items-end .response-content-markdown'
     )

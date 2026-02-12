@@ -25,31 +25,18 @@
  */
 
 import { BaseAdapter } from './base'
-import type { ChatMessage, ChatPlatform } from '@/types/chat'
+import type { ChatMessage } from '@/types/chat'
 
 export class AIStudioAdapter extends BaseAdapter {
-  platform: ChatPlatform = 'aistudio'
+  override getTitle(): string {
+    const base = super.getTitle()
+    if (base !== '未命名对话') return base
 
-  isConversationPage(): boolean {
-    return /aistudio\.google\.com/.test(window.location.href)
-  }
-
-  getConversationId(): string | null {
-    const match = window.location.pathname.match(/\/prompts\/([a-zA-Z0-9_-]+)/)
-    return match ? match[1] : null
-  }
-
-  getTitle(): string {
-    const titleEl = document.querySelector('h1.mode-title')
-    if (titleEl?.textContent?.trim()) {
-      return this.cleanText(titleEl.textContent)
-    }
     const pageTitle = document.title
       .replace(/\s*[-–—]\s*(Google\s+)?AI\s*Studio\s*$/i, '')
       .trim()
     if (pageTitle && pageTitle !== 'Google AI Studio') return pageTitle
 
-    // fallback: 第一条用户消息
     const firstUser = document.querySelector(
       'ms-chat-turn .chat-turn-container.user ms-cmark-node.user-chunk'
     )

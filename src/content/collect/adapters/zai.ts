@@ -19,21 +19,13 @@
  */
 
 import { BaseAdapter } from './base'
-import type { ChatMessage, ChatPlatform } from '@/types/chat'
+import type { ChatMessage } from '@/types/chat'
 
 export class ZAIAdapter extends BaseAdapter {
-  platform: ChatPlatform = 'zai'
+  override getTitle(): string {
+    const base = super.getTitle()
+    if (base !== '未命名对话') return base
 
-  isConversationPage(): boolean {
-    return /chat\.z\.ai/.test(window.location.hostname)
-  }
-
-  getConversationId(): string | null {
-    const match = window.location.pathname.match(/\/chat\/([^/?]+)/)
-    return match?.[1] || null
-  }
-
-  getTitle(): string {
     const pageTitle = document.title.replace(/\s*[-–—]\s*智谱清言\s*$/i, '').trim()
     if (pageTitle && pageTitle !== '智谱清言') return pageTitle
 

@@ -21,31 +21,16 @@
  */
 
 import { BaseAdapter } from './base'
-import type { ChatMessage, ChatPlatform } from '@/types/chat'
+import type { ChatMessage } from '@/types/chat'
 
 export class DeepSeekAdapter extends BaseAdapter {
-  platform: ChatPlatform = 'deepseek'
-
-  isConversationPage(): boolean {
-    return /chat\.deepseek\.com/.test(window.location.href)
-  }
-
-  getConversationId(): string | null {
-    const match = window.location.pathname.match(/\/a\/chat\/s\/([a-zA-Z0-9]+)/)
-    return match ? match[1] : null
-  }
-
-  getTitle(): string {
-    // 顶栏标题元素
-    const titleEl = document.querySelector('.afa34042')
-    if (titleEl?.textContent?.trim()) {
-      return this.cleanText(titleEl.textContent)
-    }
+  override getTitle(): string {
+    const base = super.getTitle()
+    if (base !== '未命名对话') return base
 
     const pageTitle = document.title.replace(/\s*[-–—]\s*DeepSeek\s*$/i, '').trim()
     if (pageTitle && pageTitle !== 'DeepSeek') return pageTitle
 
-    // 第一条用户消息
     const firstUser = document.querySelector('.fbb737a4')
     if (firstUser) {
       const text = this.extractText(firstUser)

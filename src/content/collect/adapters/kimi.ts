@@ -21,32 +21,16 @@
  */
 
 import { BaseAdapter } from './base'
-import type { ChatMessage, ChatPlatform } from '@/types/chat'
+import type { ChatMessage } from '@/types/chat'
 
 export class KimiAdapter extends BaseAdapter {
-  platform: ChatPlatform = 'kimi'
+  override getTitle(): string {
+    const base = super.getTitle()
+    if (base !== '未命名对话') return base
 
-  isConversationPage(): boolean {
-    return /kimi\.(moonshot\.cn|com)\/chat\//.test(window.location.href)
-  }
-
-  getConversationId(): string | null {
-    const match = window.location.pathname.match(/\/chat\/([a-f0-9-]+)/)
-    return match ? match[1] : null
-  }
-
-  getTitle(): string {
-    // 聊天头部标题
-    const headerTitle = document.querySelector('.chat-header-content h2')
-    if (headerTitle?.textContent?.trim()) {
-      return this.cleanText(headerTitle.textContent)
-    }
-
-    // 页面标题兜底
     const pageTitle = document.title.replace(/\s*[-–—]\s*Kimi\s*$/i, '').trim()
     if (pageTitle && pageTitle !== 'Kimi') return pageTitle
 
-    // 第一条用户消息
     const firstUser = document.querySelector('.chat-content-item-user .user-content')
     if (firstUser) {
       const text = this.extractText(firstUser)

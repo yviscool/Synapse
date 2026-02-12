@@ -59,11 +59,11 @@ import {
     useScrollLock,
 } from "@vueuse/core";
 
-import { siteConfigs } from "@/outline/site-configs"; // <-- Import configs
+import { siteConfigs } from "@/content/site-configs";
 import { SynapsePanel } from "./components/synapse-panel";
 import PromptSelector from "./components/PromptSelector.vue";
 import PromptComposerPanel from "./components/PromptComposerPanel.vue";
-import { canCollect } from "@/collect";
+import { canCollect } from "@/content/collect";
 import { detectPlatformFromUrl } from "@/utils/chatPlatform";
 import { appendAtEnd, findActiveInput } from "@/utils/inputAdapter";
 import {

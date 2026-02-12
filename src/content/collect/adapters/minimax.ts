@@ -15,31 +15,16 @@
  */
 
 import { BaseAdapter } from './base'
-import type { ChatMessage, ChatPlatform } from '@/types/chat'
+import type { ChatMessage } from '@/types/chat'
 
 export class MiniMaxAdapter extends BaseAdapter {
-  platform: ChatPlatform = 'minimax'
-
-  isConversationPage(): boolean {
-    return /agent\.minimaxi\.com\/chat/.test(window.location.href)
-  }
-
-  getConversationId(): string | null {
-    const url = new URL(window.location.href)
-    return url.searchParams.get('id')
-  }
-
-  getTitle(): string {
-    // 顶部 tab 标题
-    const tabTitle = document.querySelector('.truncate.flex-1')
-    if (tabTitle?.textContent?.trim()) {
-      return this.cleanText(tabTitle.textContent)
-    }
+  override getTitle(): string {
+    const base = super.getTitle()
+    if (base !== '未命名对话') return base
 
     const pageTitle = document.title.replace(/\s*[-–—]\s*海螺AI\s*$/i, '').trim()
     if (pageTitle && pageTitle !== '海螺AI') return pageTitle
 
-    // fallback: 第一条用户消息
     const firstUser = document.querySelector('.message.sent .message-content .text-pretty')
     if (firstUser) {
       const text = this.extractText(firstUser)
@@ -47,6 +32,12 @@ export class MiniMaxAdapter extends BaseAdapter {
     }
 
     return '未命名对话'
+  }
+
+  /** MiniMax 的 getConversationId 从 query param 提取 */
+  override getConversationId(): string | null {
+    const url = new URL(window.location.href)
+    return url.searchParams.get('id')
   }
 
   collectMessages(): ChatMessage[] {
