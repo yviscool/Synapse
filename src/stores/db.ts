@@ -3,6 +3,7 @@ import type { Prompt, PromptVersion, Category, Tag, Settings } from "@/types/pro
 import type { Snippet, SnippetFolder, SnippetTag, SnippetSearchIndex } from "@/types/snippet";
 import type { ChatConversation, ChatTag, ChatSearchIndex } from "@/types/chat";
 import { getDefaultCategories } from "@/utils/categoryUtils";
+import { resolveSystemLocale } from "@/utils/locale";
 
 export interface PromptSearchIndex {
   promptId: string;
@@ -105,8 +106,7 @@ export async function getSettings(): Promise<Settings> {
     s = { ...DEFAULT_SETTINGS };
     await db.settings.put(s);
   } else if (!s.locale) {
-    const lang = navigator.language.toLowerCase();
-    s.locale = lang.startsWith("zh") ? "zh-CN" : "en";
+    s.locale = resolveSystemLocale();
     await db.settings.put(s);
   }
   return s;

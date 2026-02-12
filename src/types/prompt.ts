@@ -1,3 +1,5 @@
+import type { LocalePreference } from "./i18n"
+
 export interface Category {
   id: string
   name: string
@@ -44,7 +46,7 @@ export interface Settings {
   panelPos: { x: number; y: number } | null
   theme: 'light' | 'dark' | 'auto'
   outlineEnabled: boolean
-  locale: 'zh-CN' | 'en' | 'system',
+  locale: LocalePreference,
 
   // Cloud Sync Settings
   syncProvider?: 'google-drive' | 'onedrive'

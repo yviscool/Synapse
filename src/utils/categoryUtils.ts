@@ -7,6 +7,7 @@
 
 import type { Category } from '@/types/prompt'
 import i18n from '@/i18n'
+import { SUPPORTED_LOCALES } from '@/types/i18n'
 
 /**
  * Category definition with translation key
@@ -22,7 +23,7 @@ interface CategoryDefinition {
  * Default category definitions
  * These are the base definitions that will be internationalized
  */
-const DEFAULT_CATEGORY_DEFINITIONS: CategoryDefinition[] = [
+export const DEFAULT_CATEGORY_DEFINITIONS: CategoryDefinition[] = [
   { id: 'creative', translationKey: 'creative', sort: 1, icon: 'i-carbon-idea' },
   { id: 'image', translationKey: 'image', sort: 2, icon: 'i-carbon-image' },
   { id: 'writing', translationKey: 'writing', sort: 3, icon: 'i-carbon-pen' },
@@ -78,4 +79,35 @@ export function getCategoryNameById(categoryId: string): string {
  */
 export function isDefaultCategory(categoryId: string): boolean {
   return DEFAULT_CATEGORY_DEFINITIONS.some(def => def.id === categoryId)
+}
+
+function readMessagePath(source: unknown, path: string[]): unknown {
+  let current = source as Record<string, unknown> | undefined
+  for (const segment of path) {
+    if (!current || typeof current !== 'object' || !(segment in current)) {
+      return undefined
+    }
+    current = current[segment] as Record<string, unknown>
+  }
+  return current
+}
+
+export function getDefaultCategoryAliases(categoryId: string): string[] {
+  const definition = DEFAULT_CATEGORY_DEFINITIONS.find(def => def.id === categoryId)
+  if (!definition) return [categoryId]
+
+  const aliases = new Set<string>([categoryId, definition.translationKey])
+  for (const locale of SUPPORTED_LOCALES) {
+    const message = i18n.global.getLocaleMessage(locale)
+    const localizedName = readMessagePath(message, [
+      'categories',
+      'defaultCategories',
+      definition.translationKey,
+    ])
+    if (typeof localizedName === 'string' && localizedName.trim()) {
+      aliases.add(localizedName.trim())
+    }
+  }
+
+  return [...aliases]
 }

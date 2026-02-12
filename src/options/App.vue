@@ -199,13 +199,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from "vue";
+import { ref, onMounted, onUnmounted, defineAsyncComponent } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from 'vue-router';
 import { ui, useUI } from "@/stores/ui";
 import { getSettings } from "@/stores/db";
 import { MSG, type DataUpdatedPayload, type RequestMessage } from "@/utils/messaging";
 import { useModal } from "@/composables/useModal";
+import { resolveLocalePreference } from "@/utils/locale";
 
 const Settings = defineAsyncComponent(() => import("./components/Settings.vue"));
 
@@ -219,19 +220,9 @@ const menuItems = [
     { name: 'menu.tools', path: '/tools' },
 ];
 
-// --- i18n & Real-time Sync ---
-const systemLanguage = computed(() => {
-    const lang = navigator.language.toLowerCase();
-    return lang.startsWith("zh") ? "中文" : "English";
-});
-
 async function setLocale() {
     const settings = await getSettings();
-    if (settings.locale === "system") {
-        locale.value = systemLanguage.value === "中文" ? "zh-CN" : "en";
-    } else {
-        locale.value = settings.locale;
-    }
+    locale.value = resolveLocalePreference(settings.locale);
 }
 
 const handleMessage = (message: RequestMessage<unknown>) => {

@@ -4,14 +4,75 @@ import type {
   ExportOptions,
 } from "@/types/chat";
 import { getMessageContent } from "@/types/chat";
+import { resolveLocalePreference } from "@/utils/locale";
 import { getPlatformConfig } from "./chatPlatform";
+
+type ExportLocaleKey = "zh-CN" | "en" | "ja-JP" | "ru-RU";
+
+type ExportLabels = {
+  platform: string;
+  link: string;
+  originalConversation: string;
+  collectedAt: string;
+  messageCount: string;
+  thinking: string;
+  user: string;
+  assistant: string;
+};
+
+const EXPORT_LABELS: Record<ExportLocaleKey, ExportLabels> = {
+  "zh-CN": {
+    platform: "平台",
+    link: "链接",
+    originalConversation: "原始对话",
+    collectedAt: "采集时间",
+    messageCount: "消息数",
+    thinking: "思考过程",
+    user: "用户",
+    assistant: "助手",
+  },
+  en: {
+    platform: "Platform",
+    link: "Link",
+    originalConversation: "Original Conversation",
+    collectedAt: "Collected At",
+    messageCount: "Message Count",
+    thinking: "Thinking",
+    user: "User",
+    assistant: "Assistant",
+  },
+  "ja-JP": {
+    platform: "プラットフォーム",
+    link: "リンク",
+    originalConversation: "元の会話",
+    collectedAt: "収集日時",
+    messageCount: "メッセージ数",
+    thinking: "思考プロセス",
+    user: "ユーザー",
+    assistant: "アシスタント",
+  },
+  "ru-RU": {
+    platform: "Платформа",
+    link: "Ссылка",
+    originalConversation: "Исходный диалог",
+    collectedAt: "Время сбора",
+    messageCount: "Количество сообщений",
+    thinking: "Ход мыслей",
+    user: "Пользователь",
+    assistant: "Ассистент",
+  },
+};
+
+function resolveExportLocale(locale?: string): ExportLocaleKey {
+  return resolveLocalePreference(locale) as ExportLocaleKey;
+}
 
 /**
  * 格式化时间戳
  */
-function formatTimestamp(timestamp?: number): string {
+function formatTimestamp(timestamp: number | undefined, locale: string): string {
   if (!timestamp) return "";
-  return new Date(timestamp).toLocaleString("zh-CN", {
+  return new Date(timestamp).toLocaleString(locale, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -87,8 +148,10 @@ function exportToJson(
  */
 function exportToMarkdown(
   conversation: ChatConversation,
-  options: ExportOptions
+  options: ExportOptions,
+  locale: ExportLocaleKey
 ): string {
+  const labels = EXPORT_LABELS[locale];
   const lines: string[] = [];
 
   // 标题
@@ -97,12 +160,12 @@ function exportToMarkdown(
 
   // 元数据
   if (options.includeMetadata) {
-    lines.push(`> **平台**: ${getPlatformConfig(conversation.platform).name}`);
+    lines.push(`> **${labels.platform}**: ${getPlatformConfig(conversation.platform).name}`);
     if (conversation.link) {
-      lines.push(`> **链接**: [原始对话](${conversation.link})`);
+      lines.push(`> **${labels.link}**: [${labels.originalConversation}](${conversation.link})`);
     }
-    lines.push(`> **采集时间**: ${formatTimestamp(conversation.collectedAt)}`);
-    lines.push(`> **消息数**: ${conversation.messageCount}`);
+    lines.push(`> **${labels.collectedAt}**: ${formatTimestamp(conversation.collectedAt, locale)}`);
+    lines.push(`> **${labels.messageCount}**: ${conversation.messageCount}`);
     lines.push("");
     lines.push("---");
     lines.push("");
@@ -110,10 +173,10 @@ function exportToMarkdown(
 
   // 消息
   for (const message of conversation.messages) {
-    const roleLabel = message.role === "user" ? "👤 **User**" : "🤖 **Assistant**";
+    const roleLabel = message.role === "user" ? `👤 **${labels.user}**` : `🤖 **${labels.assistant}**`;
 
     if (options.includeTimestamps && message.timestamp) {
-      lines.push(`### ${roleLabel} · ${formatTimestamp(message.timestamp)}`);
+      lines.push(`### ${roleLabel} · ${formatTimestamp(message.timestamp, locale)}`);
     } else {
       lines.push(`### ${roleLabel}`);
     }
@@ -122,7 +185,7 @@ function exportToMarkdown(
     // 思考过程
     if (options.includeThinking && message.thinking) {
       lines.push("<details>");
-      lines.push("<summary>💭 思考过程</summary>");
+      lines.push(`<summary>💭 ${labels.thinking}</summary>`);
       lines.push("");
       lines.push(message.thinking);
       lines.push("");
@@ -144,8 +207,10 @@ function exportToMarkdown(
  */
 function exportToTxt(
   conversation: ChatConversation,
-  options: ExportOptions
+  options: ExportOptions,
+  locale: ExportLocaleKey
 ): string {
+  const labels = EXPORT_LABELS[locale];
   const lines: string[] = [];
   const separator = "=".repeat(60);
 
@@ -157,12 +222,12 @@ function exportToTxt(
 
   // 元数据
   if (options.includeMetadata) {
-    lines.push(`平台: ${getPlatformConfig(conversation.platform).name}`);
+    lines.push(`${labels.platform}: ${getPlatformConfig(conversation.platform).name}`);
     if (conversation.link) {
-      lines.push(`链接: ${conversation.link}`);
+      lines.push(`${labels.link}: ${conversation.link}`);
     }
-    lines.push(`采集时间: ${formatTimestamp(conversation.collectedAt)}`);
-    lines.push(`消息数: ${conversation.messageCount}`);
+    lines.push(`${labels.collectedAt}: ${formatTimestamp(conversation.collectedAt, locale)}`);
+    lines.push(`${labels.messageCount}: ${conversation.messageCount}`);
     lines.push("");
     lines.push("-".repeat(60));
     lines.push("");
@@ -170,17 +235,17 @@ function exportToTxt(
 
   // 消息
   for (const message of conversation.messages) {
-    const roleLabel = message.role === "user" ? "[User]" : "[Assistant]";
+    const roleLabel = message.role === "user" ? `[${labels.user}]` : `[${labels.assistant}]`;
 
     if (options.includeTimestamps && message.timestamp) {
-      lines.push(`${roleLabel} (${formatTimestamp(message.timestamp)})`);
+      lines.push(`${roleLabel} (${formatTimestamp(message.timestamp, locale)})`);
     } else {
       lines.push(roleLabel);
     }
     lines.push("");
 
     if (options.includeThinking && message.thinking) {
-      lines.push("[思考过程]");
+      lines.push(`[${labels.thinking}]`);
       lines.push(message.thinking);
       lines.push("");
     }
@@ -199,8 +264,10 @@ function exportToTxt(
  */
 function exportToHtml(
   conversation: ChatConversation,
-  options: ExportOptions
+  options: ExportOptions,
+  locale: ExportLocaleKey
 ): string {
+  const labels = EXPORT_LABELS[locale];
   const escapeHtml = (text: string) =>
     text
       .replace(/&/g, "&amp;")
@@ -213,12 +280,12 @@ function exportToHtml(
   const messages = conversation.messages
     .map((m) => {
       const roleClass = m.role === "user" ? "user" : "assistant";
-      const roleLabel = m.role === "user" ? "User" : "Assistant";
+      const roleLabel = m.role === "user" ? labels.user : labels.assistant;
       const timestamp = options.includeTimestamps && m.timestamp
-        ? `<span class="timestamp">${formatTimestamp(m.timestamp)}</span>`
+        ? `<span class="timestamp">${formatTimestamp(m.timestamp, locale)}</span>`
         : "";
       const thinking = options.includeThinking && m.thinking
-        ? `<details class="thinking"><summary>💭 思考过程</summary><div>${escapeHtml(m.thinking)}</div></details>`
+        ? `<details class="thinking"><summary>💭 ${labels.thinking}</summary><div>${escapeHtml(m.thinking)}</div></details>`
         : "";
 
       return `
@@ -237,16 +304,16 @@ function exportToHtml(
   const metadata = options.includeMetadata
     ? `
       <div class="metadata">
-        <p><strong>平台:</strong> ${getPlatformConfig(conversation.platform).name}</p>
-        ${conversation.link ? `<p><strong>链接:</strong> <a href="${conversation.link}" target="_blank">原始对话</a></p>` : ""}
-        <p><strong>采集时间:</strong> ${formatTimestamp(conversation.collectedAt)}</p>
-        <p><strong>消息数:</strong> ${conversation.messageCount}</p>
+        <p><strong>${labels.platform}:</strong> ${getPlatformConfig(conversation.platform).name}</p>
+        ${conversation.link ? `<p><strong>${labels.link}:</strong> <a href="${conversation.link}" target="_blank">${labels.originalConversation}</a></p>` : ""}
+        <p><strong>${labels.collectedAt}:</strong> ${formatTimestamp(conversation.collectedAt, locale)}</p>
+        <p><strong>${labels.messageCount}:</strong> ${conversation.messageCount}</p>
       </div>
     `
     : "";
 
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${locale}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -286,17 +353,19 @@ function exportToHtml(
  */
 export function exportConversation(
   conversation: ChatConversation,
-  options: ExportOptions
+  options: ExportOptions,
+  locale?: string
 ): string {
+  const resolvedLocale = resolveExportLocale(locale);
   switch (options.format) {
     case "json":
       return exportToJson(conversation, options);
     case "markdown":
-      return exportToMarkdown(conversation, options);
+      return exportToMarkdown(conversation, options, resolvedLocale);
     case "txt":
-      return exportToTxt(conversation, options);
+      return exportToTxt(conversation, options, resolvedLocale);
     case "html":
-      return exportToHtml(conversation, options);
+      return exportToHtml(conversation, options, resolvedLocale);
     default:
       return exportToJson(conversation, options);
   }
@@ -323,9 +392,10 @@ const EXPORT_MIME_TYPES: Record<ExportFormat, string> = {
  */
 export function downloadExport(
   conversation: ChatConversation,
-  options: ExportOptions
+  options: ExportOptions,
+  locale?: string
 ): void {
-  const content = exportConversation(conversation, options);
+  const content = exportConversation(conversation, options, locale);
   const extension = EXPORT_EXTENSIONS[options.format];
   const mimeType = EXPORT_MIME_TYPES[options.format];
   const filename = `${conversation.title.replace(/[/\\?%*:|"<>]/g, "-")}.${extension}`;

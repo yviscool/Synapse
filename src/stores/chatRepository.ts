@@ -12,6 +12,7 @@ import type {
   QueryChatsParams,
   QueryChatsResult,
 } from "@/types/chat";
+import { compareLocalizedText } from "@/utils/intl";
 
 // ============================================
 // Event System
@@ -332,7 +333,7 @@ export const chatRepository = {
     // Sort
     conversations.sort((a, b) => {
       if (sortBy === "title") {
-        return a.title.localeCompare(b.title, "zh-CN");
+        return compareLocalizedText(a.title, b.title);
       }
       if (sortBy === "messageCount") {
         return b.messageCount - a.messageCount;

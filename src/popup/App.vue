@@ -81,12 +81,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { db, getSettings } from '@/stores/db'
 import { getPlatformConfig } from '@/utils/chatPlatform'
 import { MSG, type DataUpdatedPayload, type RequestMessage } from '@/utils/messaging'
 import type { ChatPlatform } from '@/types/chat'
+import { resolveLocalePreference } from '@/utils/locale'
 
 const { t, locale } = useI18n()
 
@@ -117,20 +118,10 @@ function timeAgo(ts: number): string {
   return t('popup.timeAgo.daysAgo', { n: days })
 }
 
-// --- Locale ---
-const systemLanguage = computed(() => {
-  const lang = navigator.language.toLowerCase()
-  return lang.startsWith('zh') ? 'zh-CN' : 'en'
-})
-
 async function setLocale() {
   const settings = await getSettings()
   hotkeyOpen.value = settings.hotkeyOpen || 'Alt+K'
-  if (settings.locale === 'system') {
-    locale.value = systemLanguage.value
-  } else {
-    locale.value = settings.locale
-  }
+  locale.value = resolveLocalePreference(settings.locale)
 }
 // --- Load activity feed ---
 async function loadActivities() {

@@ -7,11 +7,13 @@ import {
   fetchTagNameMap as fetchTagNameMapGeneric,
   buildSearchIndexRecord,
 } from "@/utils/searchIndexUtils";
+import { compareLocalizedText } from "@/utils/intl";
+import { getDefaultCategoryAliases, isDefaultCategory } from "@/utils/categoryUtils";
 
 const ALL_CATEGORY_NAMES = new Set(["全部", "all"]);
 const SEARCH_MAX_QUERY_TOKENS = 12;
 const SEARCH_MAX_CANDIDATES = 500;
-const CJK_TOKEN_RE = /^[\u3400-\u9fff]+$/;
+const CJK_TOKEN_RE = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+$/u;
 const SEARCH_SCORE_BY_MATCH_LEVEL = [0, 3, 6, 8] as const;
 
 let ensureSearchIndexPromise: Promise<void> | null = null;
@@ -227,6 +229,56 @@ function normalizeCategoryNames(
   return [...normalized];
 }
 
+function normalizeCategoryToken(token: string): string {
+  return token.trim().toLowerCase();
+}
+
+async function resolveCategoryIds(
+  categoryNames: string[],
+  directCategoryIds: string[] = [],
+): Promise<string[] | undefined> {
+  const directIds = [...new Set(directCategoryIds.map((id) => id.trim()).filter(Boolean))];
+  const normalizedNames = categoryNames
+    .map(normalizeCategoryToken)
+    .filter((name) => name && !ALL_CATEGORY_NAMES.has(name));
+
+  if (directIds.length === 0 && normalizedNames.length === 0) {
+    return undefined;
+  }
+
+  if (normalizedNames.length === 0) {
+    return directIds;
+  }
+
+  const categories = await db.categories.toArray();
+  const aliasMap = new Map<string, string>();
+
+  const addAlias = (alias: string, categoryId: string) => {
+    const key = normalizeCategoryToken(alias);
+    if (!key) return;
+    aliasMap.set(key, categoryId);
+  };
+
+  for (const category of categories) {
+    addAlias(category.id, category.id);
+    addAlias(category.name, category.id);
+
+    if (isDefaultCategory(category.id)) {
+      const aliases = getDefaultCategoryAliases(category.id);
+      aliases.forEach((alias) => addAlias(alias, category.id));
+    }
+  }
+
+  const resolvedByName = new Set<string>();
+  normalizedNames.forEach((name) => {
+    const id = aliasMap.get(name);
+    if (id) resolvedByName.add(id);
+  });
+
+  const merged = [...new Set([...directIds, ...resolvedByName])];
+  return merged;
+}
+
 function sortPromptsInMemory(
   prompts: PromptWithMatches[],
   sortBy: "updatedAt" | "createdAt" | "title",
@@ -235,7 +287,7 @@ function sortPromptsInMemory(
 
   sorted.sort((a, b) => {
     if (sortBy === "title") {
-      return a.title.localeCompare(b.title, "zh-CN");
+      return compareLocalizedText(a.title, b.title);
     }
     return (b[sortBy] || 0) - (a[sortBy] || 0);
   });
@@ -363,6 +415,7 @@ async function fetchPromptsWithoutSearch(
 export interface QueryPromptsParams {
   searchQuery?: string;
   category?: string;
+  categoryIds?: string[];
   categoryNames?: string[];
   tagNames?: string[];
   favoriteOnly?: boolean;
@@ -385,6 +438,7 @@ export async function queryPrompts(
   const {
     searchQuery,
     category,
+    categoryIds: initialCategoryIds,
     categoryNames: initialCategoryNames,
     tagNames,
     favoriteOnly,
@@ -400,13 +454,11 @@ export async function queryPrompts(
   const resolvedTagNames =
     tagNames?.map((name) => name.trim()).filter(Boolean) || [];
 
-  let categoryIds: string[] | undefined;
-  if (resolvedCategoryNames.length > 0) {
-    const categories = await db.categories
-      .where("name")
-      .anyOf(resolvedCategoryNames)
-      .toArray();
-    categoryIds = categories.map((item) => item.id);
+  const categoryIds = await resolveCategoryIds(
+    resolvedCategoryNames,
+    initialCategoryIds || [],
+  );
+  if (categoryIds && (resolvedCategoryNames.length > 0 || (initialCategoryIds || []).length > 0)) {
     if (categoryIds.length === 0) {
       return { prompts: [], total: 0 };
     }

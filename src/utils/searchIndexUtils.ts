@@ -8,8 +8,8 @@ import type { Table } from "dexie";
 export const SEARCH_MAX_SOURCE_LENGTH = 12000;
 export const SEARCH_MAX_TOKENS = 1200;
 
-const LATIN_WORD_RE = /[a-z0-9]+/g;
-const CJK_SEGMENT_RE = /[\u3400-\u9fff]+/g;
+const WORD_RE = /[\p{L}\p{N}]+/gu;
+const CJK_SEGMENT_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+/gu;
 
 export function normalizeSearchText(text: string): string {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
@@ -25,8 +25,8 @@ export function collectSearchTokens(text: string, maxTokens: number): string[] {
     tokens.add(token);
   };
 
-  const latinWords = source.match(LATIN_WORD_RE) || [];
-  for (const word of latinWords) {
+  const words = source.match(WORD_RE) || [];
+  for (const word of words) {
     if (word.length >= 2 || /^\d$/.test(word)) {
       pushToken(word);
     }

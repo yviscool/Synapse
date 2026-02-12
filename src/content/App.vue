@@ -76,6 +76,8 @@ import {
 } from "@/utils/messaging";
 import type { FuseResultMatch } from "fuse.js";
 import { getCategoryNameById, isDefaultCategory } from "@/utils/categoryUtils";
+import type { LocalePreference } from "@/types/i18n";
+import { resolveLocalePreference } from "@/utils/locale";
 
 const INPUT_SELECTOR_HINTS = [
     "#prompt-textarea.ProseMirror[contenteditable='true']",
@@ -90,7 +92,7 @@ const TRACE_PREFIX = "[SynapseTrace]";
 
 type InsertTraceFn = (step: string, payload?: Record<string, unknown>) => void;
 type ContentSettingsPayload = {
-    locale: "zh-CN" | "en" | "system";
+    locale: LocalePreference;
     theme?: "light" | "dark" | "system";
 };
 
@@ -160,10 +162,6 @@ onUnmounted(() => {
 
 // === i18n & Theme & Real-time Sync ---
 const theme = ref("light");
-const systemLanguage = computed(() => {
-    const lang = navigator.language.toLowerCase();
-    return lang.startsWith("zh") ? "中文" : "English";
-});
 
 const isDark = computed(() => {
     if (theme.value === "dark") return true;
@@ -182,11 +180,7 @@ async function initSettings() {
         if (!res?.ok || !settings) return;
         
         // Handle Locale
-        if (settings.locale === "system") {
-            locale.value = systemLanguage.value === "中文" ? "zh-CN" : "en";
-        } else {
-            locale.value = settings.locale;
-        }
+        locale.value = resolveLocalePreference(settings.locale);
 
         // Handle Theme
         theme.value = settings.theme || "system";

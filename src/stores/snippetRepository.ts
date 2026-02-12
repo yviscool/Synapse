@@ -12,6 +12,7 @@ import type {
   QuerySnippetsParams,
   QuerySnippetsResult,
 } from "@/types/snippet";
+import { compareLocalizedText } from "@/utils/intl";
 
 // Event system using shared factory
 type EventType =
@@ -507,7 +508,7 @@ export const snippetRepository = {
     // Sort
     snippets.sort((a, b) => {
       if (sortBy === "title") {
-        return a.title.localeCompare(b.title, "zh-CN");
+        return compareLocalizedText(a.title, b.title);
       }
       if (sortBy === "usedAt") {
         return (b.usedAt || 0) - (a.usedAt || 0);

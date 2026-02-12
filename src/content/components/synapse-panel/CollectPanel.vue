@@ -90,7 +90,7 @@ import { getCurrentPlatformInfo } from '@/collect'
 import { getPlatformConfig } from '@/utils/chatPlatform'
 import { MSG } from '@/utils/messaging'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const emit = defineEmits<{
   'sync-status-change': [status: 'idle' | 'syncing' | 'success' | 'error']
@@ -170,7 +170,7 @@ const lastSyncTime = computed(() => {
   const diff = Date.now() - syncState.value.lastSyncAt
   if (diff < 60000) return t('content.collect.justNow')
   if (diff < 3600000) return `${Math.floor(diff / 60000)}${t('content.collect.minutesAgo')}`
-  return new Date(syncState.value.lastSyncAt).toLocaleTimeString('zh-CN', {
+  return new Date(syncState.value.lastSyncAt).toLocaleTimeString(locale.value, {
     hour: '2-digit',
     minute: '2-digit',
   })

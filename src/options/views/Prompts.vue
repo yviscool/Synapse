@@ -570,7 +570,7 @@ const DeleteCategoryModal = defineAsyncComponent(
     () => import("@/options/components/prompt/DeleteCategoryModal.vue"),
 );
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { showToast, askConfirm } = useUI();
 const route = useRoute();
 
@@ -597,7 +597,6 @@ const {
     toggleTag,
     changeSortBy: setSortBy,
 } = usePromptQuery({
-    categories,
     tags,
     onLoadError: () => showToast(t("common.toast.loadPromptsFailed"), "error"),
 });
@@ -1018,7 +1017,7 @@ async function handleVersionDeleted(versionId: string) {
 }
 
 function formatDate(timestamp: number): string {
-    return new Intl.DateTimeFormat("zh-CN", {
+    return new Intl.DateTimeFormat(locale.value, {
         month: "short",
         day: "numeric",
         hour: "2-digit",

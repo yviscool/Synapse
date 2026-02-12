@@ -10,7 +10,8 @@
     "pack:zip": "rimraf extension.zip && jszip-cli add dist/* -o dist/dist.zip",
     "pack:crx": "crx pack dist -o dist/dist.crx",
     "version": "node scripts/bump-version.js && git add manifest.json",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "i18n:check": "bun scripts/check-i18n.ts"
   },
   "dependencies": {
     "@milkdown/crepe": "^7.15.5",

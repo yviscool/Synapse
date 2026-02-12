@@ -2,14 +2,14 @@ export default {
   title: "Settings",
   language: {
     title: "Language",
-    chinese: "中文",
-    english: "English",
+    localeNames: {
+      zhCN: "中文",
+      en: "English",
+      jaJP: "日本語",
+      ruRU: "Русский",
+    },
     followSystem: "Follow System",
     currentSystem: "Current system language is {lang}",
-    systemLang: {
-      chinese: "Chinese",
-      english: "English",
-    },
   },
   sort: {
     label: "Sort By",

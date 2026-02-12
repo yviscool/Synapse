@@ -81,6 +81,7 @@ export default {
   export: {
     title: "导出对话",
     format: "格式",
+    preview: "预览",
     formats: {
       json: "JSON",
       markdown: "Markdown",

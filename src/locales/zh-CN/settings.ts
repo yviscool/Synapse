@@ -8,14 +8,14 @@ export default {
   },
   language: {
     title: "语言",
-    chinese: "中文",
-    english: "English",
+    localeNames: {
+      zhCN: "中文",
+      en: "English",
+      jaJP: "日本語",
+      ruRU: "Русский",
+    },
     followSystem: "跟随系统",
     currentSystem: "当前系统语言为 {lang}",
-    systemLang: {
-      chinese: "中文",
-      english: "英文",
-    },
   },
   sync: {
     title: "云同步",

@@ -81,6 +81,7 @@ export default {
   export: {
     title: "Export Conversation",
     format: "Format",
+    preview: "Preview",
     formats: {
       json: "JSON",
       markdown: "Markdown",

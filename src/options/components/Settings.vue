@@ -44,7 +44,7 @@
               </label>
             </div>
             <p v-if="settings && settings.locale === 'system'" class="text-sm text-gray-500 mt-2 ml-7">
-              {{ t('settings.language.currentSystem', { lang: systemLanguage }) }}
+              {{ t('settings.language.currentSystem', { lang: systemLanguageLabel }) }}
             </p>
           </div>
         </div>
@@ -210,9 +210,11 @@ import { useUI } from '@/stores/ui'
 import { db, getSettings } from '@/stores/db'
 import { repository } from '@/stores/repository'
 import { syncManager, type SyncRunResult } from '@/stores/sync'
+import { SUPPORTED_LOCALES, type LocalePreference, type SupportedLocale } from '@/types/i18n'
 import type { Settings } from '@/types/prompt'
+import { resolveLocalePreference, resolveSystemLocale } from '@/utils/locale'
 
-type LocaleOption = 'zh-CN' | 'en' | 'system';
+type LocaleOption = LocalePreference;
 
 interface DriveFile {
   id: string;
@@ -238,16 +240,27 @@ const showAdvancedSyncMenu = ref(false)
 const showResetConfirmation = ref(false)
 const resetConfirmationText = ref('')
 
+const LOCALE_NAME_KEY_MAP: Record<SupportedLocale, string> = {
+  'zh-CN': 'zhCN',
+  en: 'en',
+  'ja-JP': 'jaJP',
+  'ru-RU': 'ruRU',
+}
+
+function getLocaleLabel(value: SupportedLocale): string {
+  return t(`settings.language.localeNames.${LOCALE_NAME_KEY_MAP[value]}`)
+}
+
 const languageOptions = computed<Array<{ value: LocaleOption; label: string }>>(() => [
-  { value: 'zh-CN', label: t('settings.language.chinese') },
-  { value: 'en', label: t('settings.language.english') },
-  { value: 'system', label: t('settings.language.followSystem') }
+  ...SUPPORTED_LOCALES.map((value) => ({
+    value,
+    label: getLocaleLabel(value),
+  })),
+  { value: 'system', label: t('settings.language.followSystem') },
 ]);
 
-const systemLanguage = computed(() => {
-  const lang = navigator.language.toLowerCase();
-  return lang.startsWith('zh') ? t('settings.language.systemLang.chinese') : t('settings.language.systemLang.english');
-});
+const systemLocale = computed<SupportedLocale>(() => resolveSystemLocale())
+const systemLanguageLabel = computed(() => getLocaleLabel(systemLocale.value))
 
 onMounted(async () => {
   await refreshSettings()
@@ -262,11 +275,7 @@ async function refreshSettings() {
   // 确保设置对象是纯 JavaScript 对象
   const nextSettings = JSON.parse(JSON.stringify(currentSettings)) as Settings
   settings.value = nextSettings
-  if (nextSettings.locale === 'system') {
-    locale.value = systemLanguage.value === '中文' ? 'zh-CN' : 'en'
-  } else {
-    locale.value = nextSettings.locale
-  }
+  locale.value = resolveLocalePreference(nextSettings.locale)
 }
 
 async function handleLocaleChange(newLocale: LocaleOption) {
@@ -303,7 +312,7 @@ const syncStatusText = computed(() => {
 
 function formatTimestamp(timestamp?: number): string {
   if (!timestamp) return t('settings.sync.status.never')
-  return new Date(timestamp).toLocaleString()
+  return new Date(timestamp).toLocaleString(locale.value)
 }
 
 const BACKUP_FILE_PREFIX = 'synapse-backup-';
@@ -327,11 +336,11 @@ function parseDateFromBackupName(fileName: string): Date | null {
   return isNaN(fallback.getTime()) ? null : fallback;
 }
 
-function formatCNDate(date: Date, withTime = true): string {
+function formatLocalizedDate(date: Date, withTime = true): string {
   const optsDate: Intl.DateTimeFormatOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
   const optsTime: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
   const opts: Intl.DateTimeFormatOptions = withTime ? { ...optsDate, ...optsTime } : optsDate;
-  return new Intl.DateTimeFormat('zh-CN', opts).format(date);
+  return new Intl.DateTimeFormat(locale.value, opts).format(date);
 }
 
 function resolveBackupDate(file: DriveFile): Date | null {
@@ -346,7 +355,7 @@ function resolveBackupDate(file: DriveFile): Date | null {
 
 function formatBackupName(file: DriveFile): string {
   const date = resolveBackupDate(file);
-  return date ? formatCNDate(date, true) : file.name;
+  return date ? formatLocalizedDate(date, true) : file.name;
 }
 
 function formatRelativeTime(file: DriveFile): string {
@@ -367,7 +376,7 @@ function formatRelativeTime(file: DriveFile): string {
   const diffDays = Math.round(diffHours / 24);
   if (diffDays <= 7) return t('settings.sync.status.daysAgo', { days: diffDays })
   
-  return formatCNDate(date, false);
+  return formatLocalizedDate(date, false);
 }
 
 function getSyncResultMessage(result: SyncRunResult): string {

@@ -183,7 +183,7 @@ import { onClickOutside } from '@vueuse/core'
 import { getPlatformConfig } from '@/utils/chatPlatform'
 import type { ChatConversation } from '@/types/chat'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 type SortBy = 'updatedAt' | 'createdAt' | 'collectedAt' | 'title' | 'messageCount'
 
@@ -244,13 +244,14 @@ function formatTime(timestamp: number): string {
   const minute = 60 * 1000
   const hour = 60 * minute
   const day = 24 * hour
+  const rtf = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
 
-  if (diff < minute) return '刚刚'
-  if (diff < hour) return `${Math.floor(diff / minute)} 分钟前`
-  if (diff < day) return `${Math.floor(diff / hour)} 小时前`
-  if (diff < 7 * day) return `${Math.floor(diff / day)} 天前`
+  if (diff < minute) return rtf.format(0, 'minute')
+  if (diff < hour) return rtf.format(-Math.floor(diff / minute), 'minute')
+  if (diff < day) return rtf.format(-Math.floor(diff / hour), 'hour')
+  if (diff < 7 * day) return rtf.format(-Math.floor(diff / day), 'day')
 
-  return new Date(timestamp).toLocaleDateString('zh-CN', {
+  return new Date(timestamp).toLocaleDateString(locale.value, {
     month: 'short',
     day: 'numeric',
   })

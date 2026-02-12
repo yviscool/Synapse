@@ -88,7 +88,7 @@
         <!-- 预览 -->
         <div class="bg-gray-50 rounded-xl p-4">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-500">预览</span>
+            <span class="text-xs font-medium text-gray-500">{{ t('chat.export.preview') }}</span>
             <button
               @click="copyContent"
               class="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
@@ -128,7 +128,7 @@ import { useUI } from '@/stores/ui'
 import { exportConversation, downloadExport } from '@/utils/chatExport'
 import type { ChatConversation, ExportFormat } from '@/types/chat'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { showToast } = useUI()
 
 const props = defineProps<{
@@ -159,13 +159,13 @@ const exportOptions = computed(() => ({
 }))
 
 const previewContent = computed(() => {
-  const content = exportConversation(props.conversation, exportOptions.value)
+  const content = exportConversation(props.conversation, exportOptions.value, locale.value)
   return content.slice(0, 500) + (content.length > 500 ? '\n...' : '')
 })
 
 async function copyContent() {
   try {
-    const content = exportConversation(props.conversation, exportOptions.value)
+    const content = exportConversation(props.conversation, exportOptions.value, locale.value)
     await navigator.clipboard.writeText(content)
     showToast(t('chat.toast.copySuccess'), 'success')
   } catch {
@@ -175,7 +175,7 @@ async function copyContent() {
 
 function handleDownload() {
   try {
-    downloadExport(props.conversation, exportOptions.value)
+    downloadExport(props.conversation, exportOptions.value, locale.value)
     showToast(t('chat.toast.exportSuccess'), 'success')
     emit('close')
   } catch {

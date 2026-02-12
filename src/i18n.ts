@@ -19,6 +19,27 @@ import zhContent from "./locales/zh-CN/content";
 import zhTags from "./locales/zh-CN/tags";
 import zhTools from "./locales/zh-CN/tools";
 import zhChat from "./locales/zh-CN/chat";
+import jaCommon from "./locales/ja-JP/common";
+import jaMenu from "./locales/ja-JP/menu";
+import jaSettings from "./locales/ja-JP/settings";
+import jaPrompts from "./locales/ja-JP/prompts";
+import jaCategories from "./locales/ja-JP/categories";
+import jaPopup from "./locales/ja-JP/popup";
+import jaContent from "./locales/ja-JP/content";
+import jaTags from "./locales/ja-JP/tags";
+import jaTools from "./locales/ja-JP/tools";
+import jaChat from "./locales/ja-JP/chat";
+import ruCommon from "./locales/ru-RU/common";
+import ruMenu from "./locales/ru-RU/menu";
+import ruSettings from "./locales/ru-RU/settings";
+import ruPrompts from "./locales/ru-RU/prompts";
+import ruCategories from "./locales/ru-RU/categories";
+import ruPopup from "./locales/ru-RU/popup";
+import ruContent from "./locales/ru-RU/content";
+import ruTags from "./locales/ru-RU/tags";
+import ruTools from "./locales/ru-RU/tools";
+import ruChat from "./locales/ru-RU/chat";
+import { resolveSystemLocale } from "./utils/locale";
 
 // Combine messages
 const messages = {
@@ -46,11 +67,37 @@ const messages = {
     tools: zhTools,
     chat: zhChat,
   },
+  "ja-JP": {
+    common: jaCommon,
+    menu: jaMenu,
+    settings: jaSettings,
+    prompts: jaPrompts,
+    categories: jaCategories,
+    popup: jaPopup,
+    content: jaContent,
+    tags: jaTags,
+    tools: jaTools,
+    chat: jaChat,
+  },
+  "ru-RU": {
+    common: ruCommon,
+    menu: ruMenu,
+    settings: ruSettings,
+    prompts: ruPrompts,
+    categories: ruCategories,
+    popup: ruPopup,
+    content: ruContent,
+    tags: ruTags,
+    tools: ruTools,
+    chat: ruChat,
+  },
 };
+
+const defaultLocale = resolveSystemLocale();
 
 const i18n = createI18n({
   legacy: false, // Use Composition API
-  locale: "zh-CN", // Default locale
+  locale: defaultLocale,
   fallbackLocale: "en",
   messages,
 });

@@ -2,7 +2,7 @@ import { computed, ref, watch, type Ref } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { db } from "@/stores/db";
 import { queryPrompts, type PromptWithMatches } from "@/stores/promptSearch";
-import type { Category, Tag } from "@/types/prompt";
+import type { Tag } from "@/types/prompt";
 import { parseQuery } from "@/utils/queryParser";
 
 type SortBy = "updatedAt" | "createdAt" | "title";
@@ -10,13 +10,11 @@ type SortBy = "updatedAt" | "createdAt" | "title";
 const PAGE_SIZE = 20;
 
 interface UsePromptQueryOptions {
-  categories: Ref<Category[]>;
   tags: Ref<Tag[]>;
   onLoadError: () => void;
 }
 
 export function usePromptQuery({
-  categories,
   tags,
   onLoadError,
 }: UsePromptQueryOptions) {
@@ -37,29 +35,26 @@ export function usePromptQuery({
   const hasMore = computed(() => prompts.value.length < totalPrompts.value);
   let hasPendingRefetch = false;
 
-  function resolveActiveFilterNames() {
-    const categoryNames = parsedCategoryNames.value.length
-      ? parsedCategoryNames.value
-      : (selectedCategories.value
-          .map((id) => categories.value.find((item) => item.id === id)?.name)
-          .filter(Boolean) as string[]);
-
+  function resolveActiveFilters() {
+    const categoryIds = [...selectedCategories.value];
+    const categoryNames = [...parsedCategoryNames.value];
     const tagNames = parsedTagNames.value.length
       ? parsedTagNames.value
       : (selectedTags.value
           .map((id) => tags.value.find((item) => item.id === id)?.name)
           .filter(Boolean) as string[]);
 
-    return { categoryNames, tagNames };
+    return { categoryIds, categoryNames, tagNames };
   }
 
   function buildFetchStateKey() {
-    const { categoryNames, tagNames } = resolveActiveFilterNames();
+    const { categoryIds, categoryNames, tagNames } = resolveActiveFilters();
     return JSON.stringify({
       page: currentPage.value,
       sortBy: sortBy.value,
       favoriteOnly: showFavoriteOnly.value,
       searchQuery: plainSearchQuery.value,
+      categoryIds,
       categoryNames,
       tagNames,
     });
@@ -73,7 +68,7 @@ export function usePromptQuery({
 
     isLoading.value = true;
     const fetchStateKey = buildFetchStateKey();
-    const { categoryNames, tagNames } = resolveActiveFilterNames();
+    const { categoryIds, categoryNames, tagNames } = resolveActiveFilters();
 
     try {
       const { prompts: newPrompts, total } = await queryPrompts({
@@ -82,6 +77,7 @@ export function usePromptQuery({
         sortBy: sortBy.value,
         favoriteOnly: showFavoriteOnly.value,
         searchQuery: plainSearchQuery.value,
+        categoryIds,
         categoryNames,
         tagNames,
       });

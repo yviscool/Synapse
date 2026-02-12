@@ -301,7 +301,7 @@ import { getPlatformConfig } from '@/utils/chatPlatform'
 import MilkdownEditor from '@/components/Milkdown.vue'
 import type { ChatConversation, ChatMessage } from '@/types/chat'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const props = defineProps<{
   conversation: ChatConversation
@@ -517,11 +517,11 @@ function handleDeleteMessage(index: number) {
 
 // 格式化时间
 function formatMessageTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  return new Date(timestamp).toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
 }
 
 function formatFullTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleString('zh-CN', {
+  return new Date(timestamp).toLocaleString(locale.value, {
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
   })
 }
