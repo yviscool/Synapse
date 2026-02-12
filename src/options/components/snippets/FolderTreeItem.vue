@@ -1,14 +1,22 @@
 <template>
   <div class="folder-tree-item">
+    <!-- Drop indicator: before -->
+    <div v-if="dropPosition === 'before'" class="drop-indicator-before" :style="{ marginLeft: `${depth * 12 + 8}px` }"></div>
+
     <!-- Folder row -->
     <div
       :class="[
-        'flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm cursor-pointer transition-colors group',
-        isSelected ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+        'folder-row flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm cursor-pointer transition-colors group',
+        isSelected ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100',
+        isDraggingSelf && 'opacity-40',
+        dropPosition === 'inside' && 'bg-blue-50 ring-1 ring-blue-300'
       ]"
       :style="{ paddingLeft: `${depth * 12 + 8}px` }"
+      draggable="true"
       @click="$emit('select', folder.id)"
       @contextmenu.prevent="showContextMenu"
+      @dragstart="onDragStart"
+      @dragend="onDragEnd"
       @dragover.prevent="onDragOver"
       @dragleave="onDragLeave"
       @drop="onDrop"
@@ -59,8 +67,12 @@
         @delete="$emit('delete', $event)"
         @new-subfolder="$emit('new-subfolder', $event)"
         @drop-snippet="$emit('drop-snippet', $event.snippetId, $event.folderId)"
+        @reorder-folder="(a, b, c) => $emit('reorder-folder', a, b, c)"
       />
     </div>
+
+    <!-- Drop indicator: after -->
+    <div v-if="dropPosition === 'after'" class="drop-indicator-after" :style="{ marginLeft: `${depth * 12 + 8}px` }"></div>
 
     <!-- Context menu -->
     <div
@@ -118,6 +130,7 @@ const emit = defineEmits<{
   (e: 'delete', folderId: string): void
   (e: 'new-subfolder', parentId: string): void
   (e: 'drop-snippet', payload: { snippetId: string; folderId: string }): void
+  (e: 'reorder-folder', folderId: string, targetFolderId: string, position: 'before' | 'after' | 'inside'): void
 }>()
 
 const { t } = useI18n()
@@ -130,6 +143,8 @@ const contextMenuVisible = ref(false)
 const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const isDragOver = ref(false)
+const isDraggingSelf = ref(false)
+const dropPosition = ref<'before' | 'after' | 'inside' | null>(null)
 
 // Computed
 const isSelected = computed(() => props.selectedFolderId === props.folder.id)
@@ -163,18 +178,73 @@ function handleNewSubfolder() {
 }
 
 // Drag and drop
+function isDescendant(folderId: string, ancestorId: string): boolean {
+  // Check if ancestorId is an ancestor of folderId by walking up the tree
+  const check = (id: string): boolean => {
+    const children = props.getChildFolders(id)
+    for (const child of children) {
+      if (child.id === folderId) return true
+      if (check(child.id)) return true
+    }
+    return false
+  }
+  return check(ancestorId)
+}
+
+function onDragStart(e: DragEvent) {
+  isDraggingSelf.value = true
+  e.dataTransfer!.effectAllowed = 'move'
+  e.dataTransfer!.setData('text/folder-id', props.folder.id)
+}
+
+function onDragEnd() {
+  isDraggingSelf.value = false
+  dropPosition.value = null
+}
+
 function onDragOver(e: DragEvent) {
-  isDragOver.value = true
+  const hasFolderId = e.dataTransfer?.types.includes('text/folder-id')
+  const hasSnippetId = e.dataTransfer?.types.includes('text/snippet-id')
+
+  if (hasFolderId) {
+    // Compute drop zone: top 25% = before, bottom 25% = after, middle 50% = inside
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const y = e.clientY - rect.top
+    const ratio = y / rect.height
+
+    if (ratio < 0.25) {
+      dropPosition.value = 'before'
+    } else if (ratio > 0.75) {
+      dropPosition.value = 'after'
+    } else {
+      dropPosition.value = 'inside'
+    }
+    e.dataTransfer!.dropEffect = 'move'
+  } else if (hasSnippetId) {
+    isDragOver.value = true
+  }
 }
 
 function onDragLeave() {
   isDragOver.value = false
+  dropPosition.value = null
 }
 
 function onDrop(e: DragEvent) {
-  isDragOver.value = false
+  const folderId = e.dataTransfer?.getData('text/folder-id')
   const snippetId = e.dataTransfer?.getData('text/snippet-id')
-  if (snippetId) {
+
+  isDragOver.value = false
+  const pos = dropPosition.value
+  dropPosition.value = null
+
+  if (folderId && pos) {
+    // Don't drop on self
+    if (folderId === props.folder.id) return
+    // Don't drop into own descendant
+    if (pos === 'inside' && isDescendant(props.folder.id, folderId)) return
+    emit('reorder-folder', folderId, props.folder.id, pos)
+  } else if (snippetId) {
     emit('drop-snippet', { snippetId, folderId: props.folder.id })
   }
 }
@@ -198,5 +268,14 @@ onUnmounted(() => {
 <style scoped>
 .folder-tree-item {
   user-select: none;
+  position: relative;
+}
+
+.drop-indicator-before,
+.drop-indicator-after {
+  height: 2px;
+  background-color: #3b82f6;
+  border-radius: 1px;
+  pointer-events: none;
 }
 </style>

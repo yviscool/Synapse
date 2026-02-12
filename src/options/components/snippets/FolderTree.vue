@@ -77,6 +77,7 @@
           @delete="deleteFolder"
           @new-subfolder="startNewSubfolder"
           @drop-snippet="handleDropSnippet"
+          @reorder-folder="handleReorderFolder"
         />
       </div>
 
@@ -196,6 +197,7 @@ const emit = defineEmits<{
   (e: 'delete-folder', id: string): void
   (e: 'move-snippet', snippetId: string, folderId: string | null): void
   (e: 'new-snippet'): void
+  (e: 'reorder-folder', folderId: string, targetFolderId: string, position: 'before' | 'after' | 'inside'): void
 }>()
 
 const { t } = useI18n()
@@ -330,6 +332,10 @@ function deleteFolder(folderId: string) {
 
 function handleDropSnippet(snippetId: string, folderId: string | null) {
   emit('move-snippet', snippetId, folderId)
+}
+
+function handleReorderFolder(folderId: string, targetFolderId: string, position: 'before' | 'after' | 'inside') {
+  emit('reorder-folder', folderId, targetFolderId, position)
 }
 
 // Watch for new folder input

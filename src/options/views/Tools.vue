@@ -23,6 +23,7 @@
             @delete-folder="handleDeleteFolder"
             @move-snippet="handleMoveSnippet"
             @new-snippet="handleNewSnippet"
+            @reorder-folder="handleReorderFolder"
           />
         </div>
 
@@ -205,6 +206,52 @@ async function handleMoveSnippet(snippetId: string, folderId: string | null) {
   if (result.ok) {
     showToast(t('tools.toast.movedToFolder'), 'success')
   } else {
+    showToast(t('tools.toast.saveFailed'), 'error')
+  }
+}
+
+async function handleReorderFolder(folderId: string, targetFolderId: string, position: 'before' | 'after' | 'inside') {
+  if (position === 'inside') {
+    // Move folder into target as a child
+    const result = await snippetRepository.moveFolder(folderId, targetFolderId)
+    if (!result.ok) {
+      showToast(t('tools.toast.saveFailed'), 'error')
+    }
+    return
+  }
+
+  // Same-level or cross-level reorder: before/after
+  const targetFolder = folders.value.find(f => f.id === targetFolderId)
+  const draggedFolder = folders.value.find(f => f.id === folderId)
+  if (!targetFolder || !draggedFolder) return
+
+  const targetParentId = targetFolder.parentId
+
+  // If dragged folder is moving to a different parent, update parentId first
+  if (draggedFolder.parentId !== targetParentId) {
+    const moveResult = await snippetRepository.moveFolder(folderId, targetParentId)
+    if (!moveResult.ok) {
+      showToast(t('tools.toast.saveFailed'), 'error')
+      return
+    }
+    // After moveFolder, refresh to get updated folder list
+    await refreshAll()
+  }
+
+  // Get siblings at the target level (excluding the dragged folder)
+  const siblings = folders.value
+    .filter(f => f.parentId === targetParentId && f.id !== folderId)
+    .sort((a, b) => a.order - b.order)
+
+  // Insert the dragged folder at the correct position
+  const targetIndex = siblings.findIndex(f => f.id === targetFolderId)
+  const insertIndex = position === 'before' ? targetIndex : targetIndex + 1
+  siblings.splice(insertIndex, 0, draggedFolder)
+
+  // Reassign order values
+  const reorderList = siblings.map((f, i) => ({ id: f.id, order: i }))
+  const result = await snippetRepository.reorderFolders(reorderList)
+  if (!result.ok) {
     showToast(t('tools.toast.saveFailed'), 'error')
   }
 }
