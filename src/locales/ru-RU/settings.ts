@@ -3,6 +3,12 @@ import enSettings from "../en/settings";
 export default {
   ...enSettings,
   title: "Настройки",
+  sort: {
+    label: "Сортировка",
+    updatedAt: "Последнее обновление",
+    createdAt: "Дата создания",
+    byTitle: "По заголовку",
+  },
   language: {
     title: "Язык",
     localeNames: {

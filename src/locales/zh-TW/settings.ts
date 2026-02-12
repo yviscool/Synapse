@@ -19,7 +19,9 @@ export default {
     currentSystem: "目前系統語言為 {lang}",
   },
   sort: {
-    ...zhCNSettings.sort,
     label: "排序方式",
+    updatedAt: "最近更新",
+    createdAt: "建立時間",
+    byTitle: "標題排序",
   },
 };

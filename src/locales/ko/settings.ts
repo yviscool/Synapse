@@ -3,6 +3,12 @@ import enSettings from "../en/settings";
 export default {
   ...enSettings,
   title: "설정",
+  sort: {
+    label: "정렬",
+    updatedAt: "최근 업데이트",
+    createdAt: "생성 날짜",
+    byTitle: "제목순",
+  },
   language: {
     ...enSettings.language,
     title: "언어",

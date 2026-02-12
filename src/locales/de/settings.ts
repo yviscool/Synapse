@@ -3,6 +3,12 @@ import enSettings from "../en/settings";
 export default {
   ...enSettings,
   title: "Einstellungen",
+  sort: {
+    label: "Sortieren nach",
+    updatedAt: "Zuletzt aktualisiert",
+    createdAt: "Erstellungsdatum",
+    byTitle: "Titel",
+  },
   language: {
     ...enSettings.language,
     title: "Sprache",

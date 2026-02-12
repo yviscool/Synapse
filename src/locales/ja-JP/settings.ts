@@ -3,6 +3,12 @@ import enSettings from "../en/settings";
 export default {
   ...enSettings,
   title: "設定",
+  sort: {
+    label: "並び替え",
+    updatedAt: "最近更新",
+    createdAt: "作成日時",
+    byTitle: "タイトル順",
+  },
   language: {
     title: "言語",
     localeNames: {
