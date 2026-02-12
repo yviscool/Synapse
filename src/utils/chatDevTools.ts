@@ -6,6 +6,15 @@
 import { chatRepository } from '@/stores/chatRepository'
 import type { ChatConversation, ChatMessage, ChatPlatform } from '@/types/chat'
 
+declare global {
+  interface Window {
+    __chatDevTools?: {
+      generateTestConversations: typeof generateTestConversations
+      clearAllConversations: typeof clearAllConversations
+    }
+  }
+}
+
 const SAMPLE_MESSAGES: Array<{ role: 'user' | 'assistant'; content: string }> = [
   { role: 'user', content: '你好，请帮我解释一下什么是 TypeScript？' },
   { role: 'assistant', content: 'TypeScript 是 JavaScript 的超集，它添加了可选的静态类型和基于类的面向对象编程。\n\n主要特点：\n1. 静态类型检查\n2. 更好的 IDE 支持\n3. 面向对象特性\n4. 编译时错误检测\n\n它最终会被编译成纯 JavaScript 代码运行。' },
@@ -88,7 +97,7 @@ export async function clearAllConversations(): Promise<void> {
 
 // 仅在开发模式下暴露到全局
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as any).__chatDevTools = {
+  window.__chatDevTools = {
     generateTestConversations,
     clearAllConversations,
   }

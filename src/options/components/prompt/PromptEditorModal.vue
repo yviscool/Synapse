@@ -258,7 +258,7 @@ const emit = defineEmits<{
   // 从预览模式切换到编辑模式
   (e: 'edit-from-preview'): void
   // 版本恢复事件
-  (e: 'version-restored', payload: any): void
+  (e: 'version-restored', payload: PromptVersion): void
   // 版本删除事件
   (e: 'version-deleted', id: string): void
   // 预览版本事件

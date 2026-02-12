@@ -66,7 +66,7 @@ export const PLATFORM_CONFIGS: Record<ChatPlatform, PlatformConfig> = {
     name: "Grok",
     icon: "i-simple-icons-x",
     color: "#000000",
-    urlPatterns: [/grok\.x\.ai/, /x\.com\/i\/grok/],
+    urlPatterns: [/grok\.com/, /grok\.x\.ai/, /x\.com\/i\/grok/],
   },
   copilot: {
     id: "copilot",

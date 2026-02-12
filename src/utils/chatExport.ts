@@ -27,11 +27,34 @@ function exportToJson(
   conversation: ChatConversation,
   options: ExportOptions
 ): string {
-  const data: any = {
+  type ExportedMessage = {
+    role: ChatConversation["messages"][number]["role"];
+    content: ChatConversation["messages"][number]["content"];
+    timestamp?: number;
+    thinking?: string;
+  };
+
+  type ExportedMetadata = {
+    id: string;
+    externalId?: string;
+    link?: string;
+    createdAt: number;
+    collectedAt?: number;
+    messageCount: number;
+  };
+
+  type ExportedConversation = {
+    title: string;
+    platform: ChatConversation["platform"];
+    messages: ExportedMessage[];
+    metadata?: ExportedMetadata;
+  };
+
+  const data: ExportedConversation = {
     title: conversation.title,
     platform: conversation.platform,
     messages: conversation.messages.map((m) => {
-      const msg: any = {
+      const msg: ExportedMessage = {
         role: m.role,
         content: m.content,
       };

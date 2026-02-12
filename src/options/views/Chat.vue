@@ -419,11 +419,10 @@ function getPlatformCount(platform: ChatPlatform): number {
 }
 
 function handlePlatformClick(platform: ChatPlatform) {
-  // 单选模式
-  if (selectedPlatforms.value.includes(platform)) {
-    clearPlatformSelection()
-  } else {
-    clearPlatformSelection()
+  // 单选模式：点击已选中项=清空；点击其他项=切换为该项
+  const isSelected = selectedPlatforms.value.includes(platform)
+  clearPlatformSelection()
+  if (!isSelected) {
     togglePlatform(platform)
   }
 }

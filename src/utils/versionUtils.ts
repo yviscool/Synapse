@@ -11,6 +11,7 @@ marked.setOptions({
 })
 
 const dmp = new DiffMatchPatch()
+type TextDiff = [number, string]
 
 /**
  * 获取 Prompt 的所有版本历史
@@ -29,7 +30,7 @@ export async function getVersionHistory(promptId: string): Promise<PromptVersion
  * 比较两个版本的差异
  */
 export async function compareVersions(oldContent: string, newContent: string) {
-  const diffs = dmp.diff_main(oldContent, newContent)
+  const diffs = dmp.diff_main(oldContent, newContent) as TextDiff[]
   dmp.diff_cleanupSemantic(diffs)
 
   const htmlDiff = dmp.diff_prettyHtml(diffs)
@@ -50,7 +51,7 @@ export async function compareVersions(oldContent: string, newContent: string) {
 /**
  * 将差异渲染为 Markdown HTML
  */
-async function renderDiffAsMarkdown(diffs: any[]): Promise<string> {
+async function renderDiffAsMarkdown(diffs: TextDiff[]): Promise<string> {
   let html = ''
 
   for (const [op, text] of diffs) {

@@ -153,11 +153,13 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Snippet, SnippetLanguage } from '@/types/snippet'
 
+type SortBy = "updatedAt" | "createdAt" | "title" | "usedAt" | "useCount"
+
 const props = defineProps<{
   snippets: Snippet[]
   selectedSnippetId: string | null
   searchQuery: string
-  sortBy: string
+  sortBy: SortBy
   selectedLanguages: SnippetLanguage[]
   isLoading: boolean
   hasMore: boolean
@@ -169,7 +171,7 @@ const emit = defineEmits<{
   (e: 'edit', snippet: Snippet): void
   (e: 'toggle-star', snippet: Snippet): void
   (e: 'update:searchQuery', value: string): void
-  (e: 'update:sortBy', value: string): void
+  (e: 'update:sortBy', value: SortBy): void
   (e: 'toggle-language', language: SnippetLanguage): void
   (e: 'load-more'): void
 }>()
@@ -192,7 +194,7 @@ const localSearchQuery = computed({
 
 const localSortBy = computed({
   get: () => props.sortBy,
-  set: (value) => emit('update:sortBy', value),
+  set: (value: SortBy) => emit('update:sortBy', value),
 })
 
 // Language options

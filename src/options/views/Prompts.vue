@@ -1002,7 +1002,7 @@ async function reloadAndReEditCurrentPrompt() {
     }
 }
 
-async function handleVersionRestored(version: any) {
+async function handleVersionRestored() {
     showToast(t("common.toast.versionRestored"), "success");
     await reloadAndReEditCurrentPrompt();
 }

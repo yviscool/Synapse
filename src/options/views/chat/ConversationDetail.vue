@@ -161,8 +161,8 @@
                   <div class="flex items-center gap-2 text-xs text-purple-700">
                     <span>💭</span>
                     <span class="font-medium">{{ t('chat.detail.thinkingLabel') }}</span>
-                    <span v-if="message.metadata?.thinkingDuration" class="text-purple-400">
-                      ({{ t('chat.detail.thinkingTime', { seconds: Math.round(message.metadata.thinkingDuration / 1000) }) }})
+                    <span v-if="getThinkingDurationSeconds(message) !== null" class="text-purple-400">
+                      ({{ t('chat.detail.thinkingTime', { seconds: getThinkingDurationSeconds(message) }) }})
                     </span>
                   </div>
                   <div
@@ -346,6 +346,14 @@ const visibleMessages = computed(() => {
 function getMessageContent(message: ChatMessage): string {
   if (typeof message.content === 'string') return message.content
   return message.content.edited || message.content.original
+}
+
+function getThinkingDurationSeconds(message: ChatMessage): number | null {
+  const rawDuration = message.metadata?.thinkingDuration
+  if (typeof rawDuration !== 'number' || Number.isNaN(rawDuration)) {
+    return null
+  }
+  return Math.round(rawDuration / 1000)
 }
 
 // 渲染 Markdown

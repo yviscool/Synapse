@@ -15,6 +15,7 @@ import type {
   PromptVersion,
   Category,
   Settings,
+  Tag,
 } from "@/types/prompt";
 import { createSafePrompt } from "@/utils/promptUtils";
 
@@ -37,6 +38,21 @@ function toDataScope(eventType: EventType): "prompts" | "categories" | "tags" | 
 
 const withCommitNotification = createCommitNotifier("[Repository]", events, toDataScope);
 
+type BackupImportData = {
+  prompts?: unknown;
+  prompt_versions?: unknown;
+  categories?: unknown;
+  tags?: unknown;
+  settings?: Partial<Settings>;
+};
+
+function toError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error(typeof error === "string" ? error : "Unknown repository error");
+}
+
 function isSearchRelevantPatch(patch: Partial<Prompt>): boolean {
   return (
     Object.prototype.hasOwnProperty.call(patch, "title") ||
@@ -54,7 +70,7 @@ export const repository = {
   async initializeDefaultCategories(): Promise<{
     ok: boolean;
     initialized: boolean;
-    error?: any;
+    error?: Error;
   }> {
     try {
       const initialized = await ensureDefaultCategories();
@@ -64,7 +80,7 @@ export const repository = {
         "[Repository] Failed to initialize default categories:",
         error,
       );
-      return { ok: false, initialized: false, error };
+      return { ok: false, initialized: false, error: toError(error) };
     }
   },
 
@@ -72,7 +88,7 @@ export const repository = {
   async updatePrompt(
     id: string,
     patch: Partial<Prompt>,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     if (!patch.updatedAt) {
       patch.updatedAt = Date.now();
     }
@@ -95,7 +111,7 @@ export const repository = {
     promptData: Partial<Prompt>,
     tagNames: string[],
     changeNote?: string,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["prompts", "tags", "prompt_versions", "prompt_search_index"],
       async () => {
@@ -183,7 +199,7 @@ export const repository = {
     );
   },
 
-  async deletePrompt(id: string): Promise<{ ok: boolean; error?: any }> {
+  async deletePrompt(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["prompts", "prompt_versions", "prompt_search_index"],
       async () => {
@@ -202,7 +218,7 @@ export const repository = {
   ): Promise<{
     ok: boolean;
     data?: { importedCount: number; skippedCount: number };
-    error?: any;
+    error?: Error;
   }> {
     return withCommitNotification(
       ["prompts", "tags", "prompt_search_index"],
@@ -278,7 +294,7 @@ export const repository = {
   // == Categories ==
   async addCategory(
     category: Pick<Category, "name" | "icon">,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     const newCategory: Category = {
       ...category,
       id: crypto.randomUUID(),
@@ -294,7 +310,7 @@ export const repository = {
   async updateCategory(
     id: string,
     patch: Partial<Category>,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["categories"],
       () => db.categories.update(id, patch),
@@ -302,7 +318,7 @@ export const repository = {
     );
   },
 
-  async deleteCategory(id: string): Promise<{ ok: boolean; error?: any }> {
+  async deleteCategory(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["categories", "prompts"],
       async () => {
@@ -328,7 +344,7 @@ export const repository = {
 
   async deletePromptsByCategory(
     categoryId: string,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["prompts", "prompt_versions", "prompt_search_index"],
       async () => {
@@ -349,7 +365,7 @@ export const repository = {
 
   async deleteCategoryAndPrompts(
     categoryId: string,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["categories", "prompts", "prompt_versions", "prompt_search_index"],
       async () => {
@@ -374,7 +390,7 @@ export const repository = {
   async deletePromptsByTagsInCategory(
     categoryId: string,
     tagIds: string[],
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["prompts", "prompt_versions", "prompt_search_index"],
       async () => {
@@ -401,7 +417,7 @@ export const repository = {
 
   async updateCategoryOrder(
     categories: Category[],
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["categories"],
       () => db.categories.bulkPut(categories),
@@ -420,7 +436,7 @@ export const repository = {
   async applyVersion(
     promptId: string,
     versionId: string,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["prompts", "prompt_versions", "prompt_search_index"],
       async () => {
@@ -481,7 +497,7 @@ export const repository = {
 
   async deleteVersion(
     versionId: string,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["prompt_versions"],
       async () => {
@@ -501,7 +517,7 @@ export const repository = {
   },
 
   // == Settings ==
-  async setSettings(settings: Settings): Promise<{ ok: boolean; error?: any }> {
+  async setSettings(settings: Settings): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["settings"],
       () => db.settings.put(settings),
@@ -511,8 +527,8 @@ export const repository = {
 
   // == Data Management ==
   async importDataFromBackup(
-    importedData: any,
-  ): Promise<{ ok: boolean; error?: any }> {
+    importedData: BackupImportData,
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       [
         db.prompts,
@@ -529,15 +545,22 @@ export const repository = {
         await db.categories.clear();
         await db.tags.clear();
         await db.prompt_search_index.clear();
-        if (importedData.prompts)
-          await db.prompts.bulkPut(importedData.prompts);
-        if (importedData.prompt_versions)
-          await db.prompt_versions.bulkPut(importedData.prompt_versions);
-        if (importedData.categories)
-          await db.categories.bulkPut(importedData.categories);
-        if (importedData.tags) await db.tags.bulkPut(importedData.tags);
-        const settingsToApply = importedData.settings || {
+        if (Array.isArray(importedData.prompts)) {
+          await db.prompts.bulkPut(importedData.prompts as Prompt[]);
+        }
+        if (Array.isArray(importedData.prompt_versions)) {
+          await db.prompt_versions.bulkPut(importedData.prompt_versions as PromptVersion[]);
+        }
+        if (Array.isArray(importedData.categories)) {
+          await db.categories.bulkPut(importedData.categories as Category[]);
+        }
+        if (Array.isArray(importedData.tags)) {
+          await db.tags.bulkPut(importedData.tags as Tag[]);
+        }
+        const settingsToApply: Settings = {
           ...DEFAULT_SETTINGS,
+          ...(importedData.settings || {}),
+          id: "global",
         };
         if (currentSettings) {
           settingsToApply.syncEnabled = currentSettings.syncEnabled;
@@ -552,7 +575,7 @@ export const repository = {
     );
   },
 
-  async resetAllData(): Promise<{ ok: boolean; error?: any }> {
+  async resetAllData(): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       [
         db.prompts,

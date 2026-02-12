@@ -13,6 +13,38 @@ interface AppendAtEndOptions {
   trace?: InsertTraceFn
 }
 
+type ProseMirrorTransaction = {
+  insertText: (text: string, from: number, to: number) => {
+    scrollIntoView?: () => unknown
+  }
+}
+
+type ProseMirrorDoc = {
+  textContent?: string
+  content?: { size?: number }
+}
+
+type ProseMirrorView = {
+  state: {
+    doc?: ProseMirrorDoc
+    tr: ProseMirrorTransaction
+  }
+  dispatch: (transaction: unknown) => void
+  focus?: () => void
+}
+
+function isProseMirrorView(value: unknown): value is ProseMirrorView {
+  if (!value || typeof value !== 'object') return false
+  const maybeView = value as Partial<ProseMirrorView>
+  return (
+    typeof maybeView.dispatch === 'function'
+    && !!maybeView.state
+    && typeof maybeView.state === 'object'
+    && !!maybeView.state.tr
+    && typeof maybeView.state.tr.insertText === 'function'
+  )
+}
+
 const COMMON_SELECTORS = [
   'textarea',
   '[contenteditable="true"]',
@@ -92,10 +124,13 @@ function tryAppendWithProseMirrorView(
   }
 
   const maybeView = candidates
-    .map((node) => (node as HTMLElement & { pmViewDesc?: { view?: any } }).pmViewDesc?.view)
-    .find((view) => !!view?.state?.tr && typeof view.dispatch === 'function')
+    .map((node) => {
+      const pmViewDesc = (node as HTMLElement & { pmViewDesc?: { view?: unknown } }).pmViewDesc
+      return pmViewDesc?.view
+    })
+    .find((view): view is ProseMirrorView => isProseMirrorView(view))
 
-  if (!maybeView?.state?.tr || typeof maybeView.dispatch !== 'function') {
+  if (!maybeView) {
     trace?.('append.pm.lookup.miss')
     return false
   }

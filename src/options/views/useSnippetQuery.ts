@@ -1,4 +1,4 @@
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, onScopeDispose, ref, watch, type Ref } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { snippetRepository } from "@/stores/snippetRepository";
 import type {
@@ -251,20 +251,29 @@ export function useSnippetQuery(options: UseSnippetQueryOptions = {}) {
   );
 
   // Listen for data changes
-  snippetRepository.events.on("allSnippetDataChanged", () => {
-    refreshAll();
-  });
+  const handleAllSnippetDataChanged = () => {
+    void refreshAll();
+  };
+  const handleSnippetsChanged = () => {
+    void refetchFromFirstPage();
+  };
+  const handleFoldersChanged = () => {
+    void refreshFolders();
+  };
+  const handleSnippetTagsChanged = () => {
+    void refreshTags();
+  };
 
-  snippetRepository.events.on("snippetsChanged", () => {
-    refetchFromFirstPage();
-  });
+  snippetRepository.events.on("allSnippetDataChanged", handleAllSnippetDataChanged);
+  snippetRepository.events.on("snippetsChanged", handleSnippetsChanged);
+  snippetRepository.events.on("foldersChanged", handleFoldersChanged);
+  snippetRepository.events.on("snippetTagsChanged", handleSnippetTagsChanged);
 
-  snippetRepository.events.on("foldersChanged", () => {
-    refreshFolders();
-  });
-
-  snippetRepository.events.on("snippetTagsChanged", () => {
-    refreshTags();
+  onScopeDispose(() => {
+    snippetRepository.events.off("allSnippetDataChanged", handleAllSnippetDataChanged);
+    snippetRepository.events.off("snippetsChanged", handleSnippetsChanged);
+    snippetRepository.events.off("foldersChanged", handleFoldersChanged);
+    snippetRepository.events.off("snippetTagsChanged", handleSnippetTagsChanged);
   });
 
   return {

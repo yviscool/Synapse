@@ -103,7 +103,7 @@ export const chatRepository = {
   async saveConversation(
     data: Partial<ChatConversation>,
     tagNames: string[] = []
-  ): Promise<{ ok: boolean; data?: ChatConversation; error?: any }> {
+  ): Promise<{ ok: boolean; data?: ChatConversation; error?: Error }> {
     return withCommitNotification(
       ["chat_conversations", "chat_tags", "chat_search_index"],
       async () => {
@@ -149,7 +149,7 @@ export const chatRepository = {
   async updateConversation(
     id: string,
     patch: Partial<ChatConversation>
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     if (!patch.updatedAt) {
       patch.updatedAt = Date.now();
     }
@@ -171,7 +171,7 @@ export const chatRepository = {
     );
   },
 
-  async deleteConversation(id: string): Promise<{ ok: boolean; error?: any }> {
+  async deleteConversation(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["chat_conversations", "chat_search_index"],
       async () => {
@@ -182,7 +182,7 @@ export const chatRepository = {
     );
   },
 
-  async deleteConversations(ids: string[]): Promise<{ ok: boolean; error?: any }> {
+  async deleteConversations(ids: string[]): Promise<{ ok: boolean; error?: Error }> {
     if (ids.length === 0) return { ok: true };
     return withCommitNotification(
       ["chat_conversations", "chat_search_index"],
@@ -194,7 +194,7 @@ export const chatRepository = {
     );
   },
 
-  async toggleStarred(id: string): Promise<{ ok: boolean; error?: any }> {
+  async toggleStarred(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["chat_conversations"],
       async () => {
@@ -211,7 +211,7 @@ export const chatRepository = {
   },
 
   // == Tags ==
-  async createTag(name: string, color?: string): Promise<{ ok: boolean; data?: ChatTag; error?: any }> {
+  async createTag(name: string, color?: string): Promise<{ ok: boolean; data?: ChatTag; error?: Error }> {
     return withCommitNotification(
       ["chat_tags"],
       async () => {
@@ -225,7 +225,7 @@ export const chatRepository = {
     );
   },
 
-  async deleteTag(id: string): Promise<{ ok: boolean; error?: any }> {
+  async deleteTag(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["chat_tags", "chat_conversations", "chat_search_index"],
       async () => {
@@ -362,7 +362,7 @@ export const chatRepository = {
   }> {
     const [total, starred, platforms] = await Promise.all([
       db.chat_conversations.count(),
-      db.chat_conversations.where("starred").equals(1).count(),
+      db.chat_conversations.filter((conversation) => conversation.starred).count(),
       this.getPlatformCounts(),
     ]);
     return { total, starred, platforms };

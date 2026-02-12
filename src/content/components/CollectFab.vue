@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { collect, getCurrentPlatformInfo } from '@/collect'
 import { MSG } from '@/utils/messaging'
 import { getPlatformConfig } from '@/utils/chatPlatform'
@@ -13,6 +13,13 @@ const containerRef = ref<HTMLElement | null>(null)
 let shadowRoot: ShadowRoot | null = null
 let fabElement: HTMLElement | null = null
 let toastElement: HTMLElement | null = null
+let pageObserver: MutationObserver | null = null
+let pageCheckInterval: ReturnType<typeof setInterval> | null = null
+let pageCheckTimer: ReturnType<typeof setTimeout> | null = null
+let hoverCollapseTimer: ReturnType<typeof setTimeout> | null = null
+let toastHideTimer: ReturnType<typeof setTimeout> | null = null
+let dragMoveHandler: ((e: MouseEvent) => void) | null = null
+let dragUpHandler: (() => void) | null = null
 
 // 状态
 const canCollect = ref(false)
@@ -211,19 +218,26 @@ function createElements() {
 
   // 绑定事件
   fabElement.addEventListener('mousedown', handleMouseDown)
-  fabElement.addEventListener('mouseenter', () => {
-    if (!isDragging) {
-      isExpanded.value = true
-      updateFabState()
-    }
-  })
-  fabElement.addEventListener('mouseleave', () => {
-    setTimeout(() => {
-      isExpanded.value = false
-      updateFabState()
-    }, 200)
-  })
+  fabElement.addEventListener('mouseenter', handleMouseEnter)
+  fabElement.addEventListener('mouseleave', handleMouseLeave)
   fabElement.addEventListener('click', handleClick)
+}
+
+function handleMouseEnter() {
+  if (isDragging) return
+  isExpanded.value = true
+  updateFabState()
+}
+
+function handleMouseLeave() {
+  if (hoverCollapseTimer) {
+    clearTimeout(hoverCollapseTimer)
+  }
+  hoverCollapseTimer = setTimeout(() => {
+    hoverCollapseTimer = null
+    isExpanded.value = false
+    updateFabState()
+  }, 200)
 }
 
 function updateFabState() {
@@ -262,7 +276,7 @@ function handleMouseDown(e: MouseEvent) {
   hasMoved = false
   dragStart = { x: e.clientX + position.x, y: e.clientY + position.y }
 
-  const onMouseMove = (e: MouseEvent) => {
+  dragMoveHandler = (e: MouseEvent) => {
     const dx = Math.abs(e.clientX - (dragStart.x - position.x))
     const dy = Math.abs(e.clientY - (dragStart.y - position.y))
     if (dx > 5 || dy > 5) hasMoved = true
@@ -274,14 +288,20 @@ function handleMouseDown(e: MouseEvent) {
     updateFabState()
   }
 
-  const onMouseUp = () => {
+  dragUpHandler = () => {
     isDragging = false
-    document.removeEventListener('mousemove', onMouseMove)
-    document.removeEventListener('mouseup', onMouseUp)
+    if (dragMoveHandler) {
+      document.removeEventListener('mousemove', dragMoveHandler)
+      dragMoveHandler = null
+    }
+    if (dragUpHandler) {
+      document.removeEventListener('mouseup', dragUpHandler)
+      dragUpHandler = null
+    }
   }
 
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
+  document.addEventListener('mousemove', dragMoveHandler)
+  document.addEventListener('mouseup', dragUpHandler)
 }
 
 async function handleClick() {
@@ -329,9 +349,61 @@ function showToast(message: string, success: boolean) {
   if (textEl) textEl.textContent = message
 
   toastElement.classList.add('visible')
-  setTimeout(() => {
+  if (toastHideTimer) {
+    clearTimeout(toastHideTimer)
+  }
+  toastHideTimer = setTimeout(() => {
+    toastHideTimer = null
     toastElement?.classList.remove('visible')
   }, 3000)
+}
+
+function scheduleCheckPage() {
+  if (pageCheckTimer) {
+    clearTimeout(pageCheckTimer)
+  }
+  pageCheckTimer = setTimeout(() => {
+    pageCheckTimer = null
+    checkPage()
+  }, 500)
+}
+
+function cleanupRuntimeResources() {
+  if (pageObserver) {
+    pageObserver.disconnect()
+    pageObserver = null
+  }
+  if (pageCheckInterval) {
+    clearInterval(pageCheckInterval)
+    pageCheckInterval = null
+  }
+  if (pageCheckTimer) {
+    clearTimeout(pageCheckTimer)
+    pageCheckTimer = null
+  }
+  if (hoverCollapseTimer) {
+    clearTimeout(hoverCollapseTimer)
+    hoverCollapseTimer = null
+  }
+  if (toastHideTimer) {
+    clearTimeout(toastHideTimer)
+    toastHideTimer = null
+  }
+  if (fabElement) {
+    fabElement.removeEventListener('mousedown', handleMouseDown)
+    fabElement.removeEventListener('mouseenter', handleMouseEnter)
+    fabElement.removeEventListener('mouseleave', handleMouseLeave)
+    fabElement.removeEventListener('click', handleClick)
+  }
+  window.removeEventListener('popstate', checkPage)
+  if (dragMoveHandler) {
+    document.removeEventListener('mousemove', dragMoveHandler)
+    dragMoveHandler = null
+  }
+  if (dragUpHandler) {
+    document.removeEventListener('mouseup', dragUpHandler)
+    dragUpHandler = null
+  }
 }
 
 function checkPage() {
@@ -362,16 +434,14 @@ onMounted(() => {
   checkPage()
 
   // 监听变化
-  const observer = new MutationObserver(() => setTimeout(checkPage, 500))
-  observer.observe(document.body, { childList: true, subtree: true })
+  pageObserver = new MutationObserver(() => scheduleCheckPage())
+  pageObserver.observe(document.body, { childList: true, subtree: true })
 
   window.addEventListener('popstate', checkPage)
-  const interval = setInterval(checkPage, 3000)
+  pageCheckInterval = setInterval(checkPage, 3000)
+})
 
-  onUnmounted(() => {
-    observer.disconnect()
-    window.removeEventListener('popstate', checkPage)
-    clearInterval(interval)
-  })
+onUnmounted(() => {
+  cleanupRuntimeResources()
 })
 </script>

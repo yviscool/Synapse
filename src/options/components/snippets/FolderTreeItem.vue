@@ -66,7 +66,7 @@
         @rename="$emit('rename', $event)"
         @delete="$emit('delete', $event)"
         @new-subfolder="$emit('new-subfolder', $event)"
-        @drop-snippet="$emit('drop-snippet', $event.snippetId, $event.folderId)"
+        @drop-snippet="$emit('drop-snippet', $event)"
         @reorder-folder="(a, b, c) => $emit('reorder-folder', a, b, c)"
       />
     </div>

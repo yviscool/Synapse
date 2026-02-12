@@ -52,7 +52,7 @@ export interface ChatMessage {
   timestamp?: number
   thinking?: string           // AI 思考过程
   attachments?: ChatAttachment[]
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 
   // 编辑状态
   isEdited?: boolean          // 是否被编辑过

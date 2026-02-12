@@ -5,12 +5,19 @@ import type { Dexie, Transaction } from "dexie";
 // ============================================
 // Generic Event Bus Factory
 // ============================================
-type Handler = (data?: any) => void;
+type Handler = (data?: unknown) => void;
+
+function normalizeError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error(typeof error === "string" ? error : "Unknown repository error");
+}
 
 export interface EventBus<T extends string> {
   on(type: T, handler: Handler): void;
   off(type: T, handler: Handler): void;
-  emit(type: T, evt?: any): void;
+  emit(type: T, evt?: unknown): void;
 }
 
 export function createEventBus<T extends string>(allEventName: T): EventBus<T> {
@@ -31,7 +38,7 @@ export function createEventBus<T extends string>(allEventName: T): EventBus<T> {
         handlers.splice(handlers.indexOf(handler) >>> 0, 1);
       }
     },
-    emit(type: T, evt?: any) {
+    emit(type: T, evt?: unknown) {
       (allEvents.get(type) || []).forEach((handler) => handler(evt));
       if (type !== allEventName) {
         (allEvents.get(allEventName) || []).forEach((handler) => handler(evt));
@@ -48,11 +55,11 @@ export function createCommitNotifier<T extends string>(
   eventBus: EventBus<T>,
   scopeMapper: (eventType: T) => string,
 ) {
-  return async function withCommitNotification(
+  return async function withCommitNotification<TResult = void>(
     tables: (keyof typeof db | Dexie.Table)[],
-    operation: (trans: Transaction) => Promise<any>,
+    operation: (trans: Transaction) => Promise<TResult>,
     eventType: T,
-    eventData?: any,
+    eventData?: unknown,
   ) {
     try {
       const result = await db.transaction(
@@ -84,11 +91,12 @@ export function createCommitNotifier<T extends string>(
       );
       return { ok: true, data: result };
     } catch (error) {
+      const normalizedError = normalizeError(error);
       console.error(
         `[${logTag}] Error during transaction for event '${eventType}':`,
-        error,
+        normalizedError,
       );
-      return { ok: false, error };
+      return { ok: false, error: normalizedError };
     }
   };
 }

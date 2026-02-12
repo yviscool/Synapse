@@ -97,10 +97,11 @@ const { t } = useI18n()
 
 const stats = ref({ lines: 1, words: 0, characters: 0 })
 const hasMountedEditor = ref(false)
+type ComposerStats = { lines: number; words: number; characters: number }
 
 watch(() => props.visible, (v) => { if (v) hasMountedEditor.value = true }, { immediate: true })
 
-function handleStatsUpdate(nextStats: any) {
+function handleStatsUpdate(nextStats: ComposerStats) {
   stats.value = nextStats
 }
 </script>

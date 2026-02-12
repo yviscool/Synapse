@@ -188,6 +188,7 @@ const emit = defineEmits<Emits>()
 
 const { t, locale } = useI18n()
 const { showToast, askConfirm } = useUI()
+type VersionDiffResult = Awaited<ReturnType<typeof compareVersions>>
 
 // Reactive data
 const versions = ref<PromptVersion[]>([])
@@ -197,7 +198,7 @@ const showComparison = ref(false)
 const comparisonData = ref<{
   oldVersion: PromptVersion
   newContent: string
-  diff: any
+  diff: VersionDiffResult
 } | null>(null)
 
 // Watchers

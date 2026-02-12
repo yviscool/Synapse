@@ -27,6 +27,14 @@ interface SyncPayload {
   settings: Settings
 }
 
+type BackupImportData = {
+  prompts?: Prompt[]
+  prompt_versions?: PromptVersion[]
+  categories?: Category[]
+  tags?: Tag[]
+  settings?: Partial<Settings>
+}
+
 class SyncManager {
   private isSyncing = false
 
@@ -221,7 +229,7 @@ class SyncManager {
    * Downloads remote data and replaces local data.
    */
   private async downloadRemoteData(fileId: string): Promise<void> {
-    const importedData = await gdrive.downloadBackupFile(fileId)
+    const importedData = await gdrive.downloadBackupFile<BackupImportData>(fileId)
     if (!importedData || typeof importedData !== 'object') {
       throw new Error('Invalid backup payload from cloud.')
     }
@@ -298,7 +306,7 @@ class SyncManager {
   }
 
   async downloadCloudBackup(fileId: string) {
-    return gdrive.downloadBackupFile(fileId);
+    return gdrive.downloadBackupFile<BackupImportData>(fileId);
   }
 
   async deleteCloudBackup(fileId: string) {

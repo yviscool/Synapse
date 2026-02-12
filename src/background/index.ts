@@ -10,6 +10,7 @@ import {
   type PromptDTO,
   type DataUpdatedPayload,
   type ChatSavePayload,
+  type OpenOptionsPayload,
 } from '@/utils/messaging'
 
 // --- Initialize Background ---
@@ -44,7 +45,7 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
   const { type, data } = msg
 
   if (type === MSG.GET_PROMPTS) {
-    handleGetPrompts(data)
+    handleGetPrompts(data as GetPromptsPayload | undefined)
       .then(res => sendResponse({ ok: true, ...res }))
       .catch(e => sendResponse({ ok: false, error: e.message }))
     return true // Keep the message channel open for async response
@@ -64,18 +65,29 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
     return true
   }
 
+  if (type === MSG.OPEN_OPTIONS) {
+    openOptionsPage(data as OpenOptionsPayload | undefined)
+      .then(() => sendResponse({ ok: true }))
+      .catch(e => sendResponse({ ok: false, error: e.message }))
+    return true
+  }
+
   if (type === MSG.DATA_UPDATED) {
-    const payload = msg.data as DataUpdatedPayload | undefined
+    const payload = data as DataUpdatedPayload | undefined
     if (!payload || payload.scope === 'all' || payload.scope === 'categories' || payload.scope === 'tags') {
       promptLookupCache = null
     }
     // This is a generic update message; broadcast to open tabs.
-    broadcastToTabs(msg)
+    broadcastToTabs(msg as RequestMessage<DataUpdatedPayload>)
     return false // No response needed
   }
 
   if (type === MSG.UPDATE_PROMPT_LAST_USED) {
-    db.prompts.update(data.promptId, { lastUsedAt: Date.now() })
+    const payload = data as { promptId?: string } | undefined
+    if (!payload?.promptId) {
+      return false
+    }
+    db.prompts.update(payload.promptId, { lastUsedAt: Date.now() })
       .catch(e => console.error('Failed to update lastUsedAt:', e))
     return false // No need to wait
   }
@@ -134,6 +146,15 @@ async function broadcastToTabs(msg: RequestMessage<DataUpdatedPayload>) {
       }
     }
   }
+}
+
+async function openOptionsPage(payload?: OpenOptionsPayload): Promise<void> {
+  const view = payload?.view
+  const allowedViews = new Set(['prompts', 'chat', 'tools'])
+  const path = view && allowedViews.has(view)
+    ? `options.html#/${view}`
+    : 'options.html'
+  await chrome.tabs.create({ url: chrome.runtime.getURL(path) })
 }
 
 // --- Chat Collection ---
@@ -250,7 +271,7 @@ chrome.contextMenus.onClicked.addListener((info) => {
 
 // Handle keyboard shortcut
 chrome.commands.onCommand.addListener((command, tab) => {
-  if (command === 'save_selection' && tab.id) {
+  if (command === 'save_selection' && tab?.id) {
     chrome.scripting.executeScript(
       {
         target: { tabId: tab.id, allFrames: true },

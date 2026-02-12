@@ -35,6 +35,11 @@ import type { SiteConfig } from './site-configs';
 import type { OutlineItem } from './types';
 import { smartTruncate, getIntelligentIcon } from './utils';
 
+type NavigationApi = {
+  addEventListener: (type: 'navigatesuccess', listener: () => void) => void;
+  removeEventListener: (type: 'navigatesuccess', listener: () => void) => void;
+};
+
 /**
  * useOutline - 驱动大纲功能的核心 Vue Composition API 钩子
  * @param config - 当前网站的“适配器”配置对象，来自 `site-configs.ts`
@@ -61,6 +66,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   let lastUrl = window.location.href;
   // 防闪烁计时器：防止在页面刷新中途，大纲列表短暂变空导致的 UI 闪烁
   let emptyStateTimeout: number | null = null;
+  let navigationSuccessHandler: (() => void) | null = null;
 
   /**
    * --------------------------------------------------------------------------
@@ -313,8 +319,13 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     // 2. 【SPA 路由切换的“终极”监听方案】
     //    使用现代浏览器的 `Navigation API` 来监听“软导航”（即 SPA 内部的页面跳转）。
     if ('navigation' in window) {
-      // `Mapssuccess` 事件在 SPA 路由成功切换后触发
-      (window as any).navigation.addEventListener('navigatesuccess', () => {
+      const navigation = (window as Window & { navigation?: NavigationApi }).navigation;
+      if (!navigation) {
+        return;
+      }
+
+      // `navigatesuccess` 事件在 SPA 路由成功切换后触发
+      navigationSuccessHandler = () => {
         // 给 SPA 框架一点时间（200ms）来销毁旧 DOM、创建新 DOM
         setTimeout(() => {
           // 确认 URL 真的变了（防止误触）
@@ -324,7 +335,8 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
             init(); // 触发“重启程序”
           }
         }, 200);
-      });
+      };
+      navigation.addEventListener('navigatesuccess', navigationSuccessHandler);
     } else {
       // 如果浏览器太老（不太可能），此功能将在 SPA 切换时失效
       console.warn('Navigation API not supported. SPA navigation may not trigger outline updates.');
@@ -335,8 +347,11 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   onUnmounted(() => {
     stopObservers();
     if (emptyStateTimeout) clearTimeout(emptyStateTimeout);
-    // TODO: 理论上还应移除 navigation 的监听器，但在油猴脚本场景下，
-    // 脚本/组件的生命周期通常与页面绑定，所以问题不大。
+    const navigation = (window as Window & { navigation?: NavigationApi }).navigation;
+    if (navigation && navigationSuccessHandler) {
+      navigation.removeEventListener('navigatesuccess', navigationSuccessHandler);
+      navigationSuccessHandler = null;
+    }
   });
 
   // =================================================================================

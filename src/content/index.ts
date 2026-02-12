@@ -73,13 +73,6 @@ import "@/styles"
 
   enableRuntimeStyleSync()
 
-  window.addEventListener('beforeunload', () => {
-    if (styleObserver) {
-      styleObserver.disconnect()
-      styleObserver = null
-    }
-  }, { once: true })
-
   shadowRoot.appendChild(appContainer)
 
   // =================================================================
@@ -351,6 +344,9 @@ import "@/styles"
 
   // 使用 requestAnimationFrame 合并同一帧内的多次主题同步请求，避免高频属性变化导致卡顿
   let pendingThemeSyncRaf = 0
+  let themeObserver: MutationObserver | null = null
+  let domReadyThemeHandler: (() => void) | null = null
+
   function scheduleThemeSync(reason = 'unknown') {
     pendingThemeReason = reason
     if (pendingThemeSyncRaf) return
@@ -367,13 +363,17 @@ import "@/styles"
   scheduleThemeSync('init')
 
   // 2. 监听系统颜色方案的变化 (作为回退方案)
-  darkModeMediaQuery.addEventListener('change', () => scheduleThemeSync('media-change'))
-  window.addEventListener('focus', () => scheduleThemeSync('window-focus'), true)
-  document.addEventListener('visibilitychange', () => scheduleThemeSync('visibility-change'))
+  const handleMediaChange = () => scheduleThemeSync('media-change')
+  const handleWindowFocus = () => scheduleThemeSync('window-focus')
+  const handleVisibilityChange = () => scheduleThemeSync('visibility-change')
+
+  darkModeMediaQuery.addEventListener('change', handleMediaChange)
+  window.addEventListener('focus', handleWindowFocus, true)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 
   // 3. 使用 MutationObserver 监听宿主页面 <html> 和 <body> 的属性变化
   // 这是实现对网站自身主题切换进行响应的关键
-  const observer = new MutationObserver((mutations) => {
+  themeObserver = new MutationObserver((mutations) => {
     const relevantMutations = mutations.filter((mutation) => {
       const attr = (mutation.attributeName || '').toLowerCase()
       if (!attr) return true
@@ -398,15 +398,41 @@ import "@/styles"
   const observerConfig = { attributes: true }
 
   if (document.body) {
-    observer.observe(document.documentElement, observerConfig)
-    observer.observe(document.body, observerConfig)
+    themeObserver.observe(document.documentElement, observerConfig)
+    themeObserver.observe(document.body, observerConfig)
   } else {
-    document.addEventListener('DOMContentLoaded', () => {
-      observer.observe(document.documentElement, observerConfig)
-      observer.observe(document.body, observerConfig)
+    domReadyThemeHandler = () => {
+      if (!themeObserver || !document.body) return
+      themeObserver.observe(document.documentElement, observerConfig)
+      themeObserver.observe(document.body, observerConfig)
       scheduleThemeSync('dom-content-loaded')
-    })
+    }
+    document.addEventListener('DOMContentLoaded', domReadyThemeHandler, { once: true })
   }
+
+  function cleanupRuntimeResources() {
+    if (styleObserver) {
+      styleObserver.disconnect()
+      styleObserver = null
+    }
+    if (themeObserver) {
+      themeObserver.disconnect()
+      themeObserver = null
+    }
+    if (domReadyThemeHandler) {
+      document.removeEventListener('DOMContentLoaded', domReadyThemeHandler)
+      domReadyThemeHandler = null
+    }
+    if (pendingThemeSyncRaf) {
+      cancelAnimationFrame(pendingThemeSyncRaf)
+      pendingThemeSyncRaf = 0
+    }
+    darkModeMediaQuery.removeEventListener('change', handleMediaChange)
+    window.removeEventListener('focus', handleWindowFocus, true)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
+
+  window.addEventListener('beforeunload', cleanupRuntimeResources, { once: true })
 
   // =================================================================
   // End of Theme Logic

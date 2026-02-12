@@ -1,4 +1,4 @@
-import { computed, ref, watch } from "vue";
+import { computed, onScopeDispose, ref, watch } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { chatRepository } from "@/stores/chatRepository";
 import type {
@@ -188,17 +188,25 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
   );
 
   // Listen for data changes
-  chatRepository.events.on("allChatDataChanged", () => {
-    refreshAll();
-  });
+  const handleAllChatDataChanged = () => {
+    void refreshAll();
+  };
+  const handleChatsChanged = () => {
+    void refetchFromFirstPage();
+    void refreshPlatformCounts();
+  };
+  const handleChatTagsChanged = () => {
+    void refreshTags();
+  };
 
-  chatRepository.events.on("chatsChanged", () => {
-    refetchFromFirstPage();
-    refreshPlatformCounts();
-  });
+  chatRepository.events.on("allChatDataChanged", handleAllChatDataChanged);
+  chatRepository.events.on("chatsChanged", handleChatsChanged);
+  chatRepository.events.on("chatTagsChanged", handleChatTagsChanged);
 
-  chatRepository.events.on("chatTagsChanged", () => {
-    refreshTags();
+  onScopeDispose(() => {
+    chatRepository.events.off("allChatDataChanged", handleAllChatDataChanged);
+    chatRepository.events.off("chatsChanged", handleChatsChanged);
+    chatRepository.events.off("chatTagsChanged", handleChatTagsChanged);
   });
 
   return {

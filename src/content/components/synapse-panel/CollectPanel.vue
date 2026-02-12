@@ -88,6 +88,7 @@ import { useI18n } from 'vue-i18n'
 import { useSyncEngine } from './useSyncEngine'
 import { getCurrentPlatformInfo } from '@/collect'
 import { getPlatformConfig } from '@/utils/chatPlatform'
+import { MSG } from '@/utils/messaging'
 
 const { t } = useI18n()
 
@@ -185,7 +186,7 @@ async function handleManualCollect() {
 }
 
 function handleViewDetail() {
-  chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS', data: { view: 'chat' } })
+  chrome.runtime.sendMessage({ type: MSG.OPEN_OPTIONS, data: { view: 'chat' } })
   emit('viewDetail')
 }
 

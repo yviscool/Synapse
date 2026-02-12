@@ -5,6 +5,7 @@ import type { ChatConversation, ChatPlatform } from '@/types/chat'
 export const MSG = {
   // Panel/UI
   OPEN_PANEL: 'APM/OPEN_PANEL',
+  OPEN_OPTIONS: 'APM/OPEN_OPTIONS',
 
   // Data Sync
   GET_PROMPTS: 'APM/GET_PROMPTS',
@@ -22,12 +23,12 @@ export const MSG = {
 
 export type MessageType = typeof MSG[keyof typeof MSG]
 
-export interface RequestMessage<T = any> {
+export interface RequestMessage<T = unknown> {
   type: MessageType
   data?: T
 }
 
-export interface ResponseMessage<T = any> {
+export interface ResponseMessage<T = unknown> {
   ok: boolean
   data?: T
   error?: string
@@ -54,12 +55,26 @@ export interface GetPromptsPayload {
 }
 
 export interface DataUpdatedPayload {
-  scope: 'prompts' | 'categories' | 'tags' | 'settings'
+  scope:
+    | 'all'
+    | 'prompts'
+    | 'categories'
+    | 'tags'
+    | 'settings'
+    | 'snippets'
+    | 'snippet_folders'
+    | 'snippet_tags'
+    | 'chat_conversations'
+    | 'chat_tags'
   version: string
 }
 
 export interface UpdatePromptLastUsedPayload {
   promptId: string
+}
+
+export interface OpenOptionsPayload {
+  view?: 'prompts' | 'chat' | 'tools'
 }
 
 // Chat Collection Payloads
@@ -81,4 +96,4 @@ export interface ChatSavePayload {
 }
 
 // A generic message type for use in listeners
-export type RuntimeMessage<T = any> = RequestMessage<T>
+export type RuntimeMessage<T = unknown> = RequestMessage<T>

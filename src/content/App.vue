@@ -50,7 +50,7 @@
 <script setup lang="ts">
 // === 导入依赖 ===
 import { ui, useUI } from "@/stores/ui";
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     refDebounced,
@@ -59,7 +59,6 @@ import {
     useScrollLock,
 } from "@vueuse/core";
 
-import Outline from "@/outline/Outline.vue"; // <-- Import new component
 import { siteConfigs } from "@/outline/site-configs"; // <-- Import configs
 import { SynapsePanel } from "./components/synapse-panel";
 import PromptSelector from "./components/PromptSelector.vue";
@@ -72,6 +71,8 @@ import {
     type RequestMessage,
     type ResponseMessage,
     type PromptDTO,
+    type GetPromptsPayload,
+    type DataUpdatedPayload,
 } from "@/utils/messaging";
 import type { FuseResultMatch } from "fuse.js";
 import { getCategoryNameById, isDefaultCategory } from "@/utils/categoryUtils";
@@ -88,6 +89,18 @@ const INPUT_SELECTOR_HINTS = [
 const TRACE_PREFIX = "[SynapseTrace]";
 
 type InsertTraceFn = (step: string, payload?: Record<string, unknown>) => void;
+type ContentSettingsPayload = {
+    locale: "zh-CN" | "en" | "system";
+    theme?: "light" | "dark" | "system";
+};
+
+type NavigationApi = {
+    addEventListener: (type: "navigatesuccess", listener: () => void) => void;
+    removeEventListener: (
+        type: "navigatesuccess",
+        listener: () => void,
+    ) => void;
+};
 
 function createInsertTrace(meta: Record<string, unknown>): InsertTraceFn {
     const traceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -134,12 +147,15 @@ const { t, locale } = useI18n();
 
 // --- SPA Navigation Handling ---
 const outlineKey = ref(window.location.href);
+const navigationApi = (window as Window & { navigation?: NavigationApi }).navigation;
+const handleNavigateSuccess = () => {
+    outlineKey.value = window.location.href;
+};
 onMounted(() => {
-    if (window.navigation) {
-        window.navigation.addEventListener("navigatesuccess", () => {
-            outlineKey.value = window.location.href;
-        });
-    }
+    navigationApi?.addEventListener("navigatesuccess", handleNavigateSuccess);
+});
+onUnmounted(() => {
+    navigationApi?.removeEventListener("navigatesuccess", handleNavigateSuccess);
 });
 
 // === i18n & Theme & Real-time Sync ---
@@ -159,7 +175,7 @@ const isDark = computed(() => {
 
 async function initSettings() {
     try {
-        const res: ResponseMessage<any> = await chrome.runtime.sendMessage({
+        const res: ResponseMessage<ContentSettingsPayload> = await chrome.runtime.sendMessage({
             type: MSG.GET_SETTINGS,
         });
         const settings = res?.data;
@@ -251,7 +267,7 @@ async function fetchData() {
 
     try {
         // 构建请求参数
-        const payload: any = {
+        const payload: GetPromptsPayload = {
             q: searchQueryDebounced.value, // 搜索关键词
             page: currentPage.value, // 当前页码
             limit: 50, // 每页数量
@@ -574,7 +590,8 @@ function isUsableTarget(target: ReturnType<typeof findActiveInput> | null): targ
     const el = target.el;
     if (!el || !el.isConnected) return false;
     if (target.kind === "textarea") {
-        if (el.disabled || el.readOnly) return false;
+        const textarea = el as HTMLTextAreaElement;
+        if (textarea.disabled || textarea.readOnly) return false;
     } else if (!el.isContentEditable) {
         return false;
     }
@@ -617,8 +634,9 @@ function resolveInsertTarget(trace?: InsertTraceFn) {
 
         // 验证候选人
         if (candidate) {
-             const kind = candidate.tagName === 'TEXTAREA' ? 'textarea' : 'contenteditable';
-             const newTarget = { kind, el: candidate } as any; // Cast as InputTarget
+             const newTarget = candidate.tagName === 'TEXTAREA'
+                ? { kind: 'textarea' as const, el: candidate as HTMLTextAreaElement }
+                : { kind: 'contenteditable' as const, el: candidate };
              if (isUsableTarget(newTarget)) {
                  trace?.("target.resolve.reconnected", { id: candidate.id });
                  newTarget.el.focus();
@@ -725,27 +743,33 @@ whenever(keys.alt_k, () => {
 onMounted(() => {
     initSettings();
     // 监听来自后台脚本的消息
-    chrome.runtime.onMessage.addListener(
-        (msg: RequestMessage & { data: any }) => {
-            // 处理打开面板的消息
-            if (msg?.type === MSG.OPEN_PANEL) {
-                openPanel();
-            }
+    chrome.runtime.onMessage.addListener(handleRuntimeMessage);
+});
 
-            // 处理数据更新的消息
-            if (msg?.type === MSG.DATA_UPDATED) {
-                const { scope, version } = msg.data;
-                if (scope === "settings") {
-                    initSettings();
-                }
-                // 如果面板正在显示且数据版本不同，则刷新数据
-                if (visible.value && version !== dataVersion) {
-                    fetchCategories().then(() => {
-                        resetAndFetch();
-                    });
-                }
-            }
-        },
-    );
+function handleRuntimeMessage(msg: RequestMessage<unknown>) {
+    // 处理打开面板的消息
+    if (msg?.type === MSG.OPEN_PANEL) {
+        openPanel();
+    }
+
+    // 处理数据更新的消息
+    if (msg?.type === MSG.DATA_UPDATED) {
+        const payload = msg.data as DataUpdatedPayload | undefined;
+        if (!payload) return;
+        const { scope, version } = payload;
+        if (scope === "settings") {
+            initSettings();
+        }
+        // 如果面板正在显示且数据版本不同，则刷新数据
+        if (visible.value && version !== dataVersion) {
+            fetchCategories().then(() => {
+                resetAndFetch();
+            });
+        }
+    }
+}
+
+onUnmounted(() => {
+    chrome.runtime.onMessage.removeListener(handleRuntimeMessage);
 });
 </script>

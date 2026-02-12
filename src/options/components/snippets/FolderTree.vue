@@ -330,8 +330,8 @@ function deleteFolder(folderId: string) {
   emit('delete-folder', folderId)
 }
 
-function handleDropSnippet(snippetId: string, folderId: string | null) {
-  emit('move-snippet', snippetId, folderId)
+function handleDropSnippet(payload: { snippetId: string; folderId: string }) {
+  emit('move-snippet', payload.snippetId, payload.folderId)
 }
 
 function handleReorderFolder(folderId: string, targetFolderId: string, position: 'before' | 'after' | 'inside') {

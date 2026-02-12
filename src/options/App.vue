@@ -204,7 +204,7 @@ import { useI18n } from "vue-i18n";
 import { useRouter } from 'vue-router';
 import { ui, useUI } from "@/stores/ui";
 import { getSettings } from "@/stores/db";
-import { MSG, type DataUpdatedPayload } from "@/utils/messaging";
+import { MSG, type DataUpdatedPayload, type RequestMessage } from "@/utils/messaging";
 import { useModal } from "@/composables/useModal";
 
 const Settings = defineAsyncComponent(() => import("./components/Settings.vue"));
@@ -234,9 +234,11 @@ async function setLocale() {
     }
 }
 
-const handleMessage = (message: { type: string; data: any }) => {
+const handleMessage = (message: RequestMessage<unknown>) => {
     if (message.type === MSG.DATA_UPDATED) {
-        const { scope } = message.data as DataUpdatedPayload;
+        const payload = message.data as DataUpdatedPayload | undefined;
+        if (!payload) return;
+        const { scope } = payload;
         if (scope === "settings") {
             console.log("Settings updated, updating locale...");
             setLocale();

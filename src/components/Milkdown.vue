@@ -31,6 +31,15 @@ const isUpdatingFromEditor = ref(false)
 let statsEmitTimer: ReturnType<typeof setTimeout> | null = null
 let pendingStatsMarkdown = props.modelValue
 
+type MarkdownListener = {
+  markdownUpdated: (callback: (...args: unknown[]) => void) => void
+}
+
+function isMarkdownListener(value: unknown): value is MarkdownListener {
+  if (!value || typeof value !== 'object') return false
+  return typeof (value as MarkdownListener).markdownUpdated === 'function'
+}
+
 function emitStats(markdown: string) {
   emit('update:stats', {
     lines: markdown.split('\n').length,
@@ -143,7 +152,8 @@ onMounted(async () => {
     },
   })
 
-  crepe.on((listener: any) => {
+  crepe.on((listener: unknown) => {
+    if (!isMarkdownListener(listener)) return
     listener.markdownUpdated((...args: unknown[]) => {
       const markdown = extractMarkdownFromListenerArgs(args)
       if (markdown == null) return

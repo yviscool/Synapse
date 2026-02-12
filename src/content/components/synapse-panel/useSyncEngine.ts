@@ -6,7 +6,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { collect, getAdapter, canCollect } from '@/collect'
 import { MSG } from '@/utils/messaging'
-import type { SyncState, ChatConversation } from '@/types/chat'
+import type { SyncState, ChatConversation, ChatMessage } from '@/types/chat'
 
 export interface UseSyncEngineOptions {
   /** 防抖延迟 (ms) */
@@ -43,6 +43,8 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   let observer: MutationObserver | null = null
   let debounceTimer: number | null = null
   let checkTimer: number | null = null
+  let statusResetTimer: number | null = null
+  let retryTimer: number | null = null
   let lastMessagesHash = ''
   let retryCount = 0
 
@@ -54,8 +56,15 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   /**
    * 生成消息内容的简单哈希，用于检测变化
    */
-  function hashMessages(messages: any[]): string {
-    const content = messages.map(m => `${m.role}:${m.content?.slice(0, 100)}`).join('|')
+  function hashMessages(messages: ChatMessage[]): string {
+    const content = messages
+      .map((m) => {
+        const text = typeof m.content === 'string'
+          ? m.content
+          : (m.content.edited || m.content.original || '')
+        return `${m.role}:${text.slice(0, 100)}`
+      })
+      .join('|')
     let hash = 0
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i)
@@ -110,7 +119,11 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         opts.onSyncSuccess(result.conversation)
 
         // 短暂显示成功状态后恢复
-        setTimeout(() => {
+        if (statusResetTimer) {
+          clearTimeout(statusResetTimer)
+        }
+        statusResetTimer = window.setTimeout(() => {
+          statusResetTimer = null
           if (syncState.value.status === 'success') {
             syncState.value.status = 'idle'
           }
@@ -126,7 +139,15 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       retryCount++
       if (retryCount < opts.maxRetries) {
         // 自动重试
-        setTimeout(doSync, opts.debounceDelay * retryCount)
+        if (retryTimer) {
+          clearTimeout(retryTimer)
+        }
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null
+          if (syncState.value.enabled) {
+            void doSync()
+          }
+        }, opts.debounceDelay * retryCount)
       } else {
         opts.onSyncError(errorMsg)
         retryCount = 0
@@ -217,6 +238,14 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     if (observer) {
       observer.disconnect()
       observer = null
+    }
+    if (statusResetTimer) {
+      clearTimeout(statusResetTimer)
+      statusResetTimer = null
+    }
+    if (retryTimer) {
+      clearTimeout(retryTimer)
+      retryTimer = null
     }
     if (debounceTimer) {
       clearTimeout(debounceTimer)

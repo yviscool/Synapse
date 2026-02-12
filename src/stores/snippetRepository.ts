@@ -56,6 +56,13 @@ function createSafeSnippet(data: Partial<Snippet>): Snippet {
   };
 }
 
+async function listSiblingFolders(parentId: string | null): Promise<SnippetFolder[]> {
+  if (parentId === null) {
+    return db.snippet_folders.filter((folder) => folder.parentId === null).toArray();
+  }
+  return db.snippet_folders.where("parentId").equals(parentId).toArray();
+}
+
 // ============================================
 // Public Repository API
 // ============================================
@@ -67,7 +74,7 @@ export const snippetRepository = {
   async saveSnippet(
     snippetData: Partial<Snippet>,
     tagNames: string[],
-  ): Promise<{ ok: boolean; data?: Snippet; error?: any }> {
+  ): Promise<{ ok: boolean; data?: Snippet; error?: Error }> {
     return withCommitNotification(
       ["snippets", "snippet_tags", "snippet_search_index"],
       async () => {
@@ -118,7 +125,7 @@ export const snippetRepository = {
   async updateSnippet(
     id: string,
     patch: Partial<Snippet>,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     if (!patch.updatedAt) {
       patch.updatedAt = Date.now();
     }
@@ -137,7 +144,7 @@ export const snippetRepository = {
     );
   },
 
-  async deleteSnippet(id: string): Promise<{ ok: boolean; error?: any }> {
+  async deleteSnippet(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["snippets", "snippet_search_index"],
       async () => {
@@ -148,7 +155,7 @@ export const snippetRepository = {
     );
   },
 
-  async deleteSnippets(ids: string[]): Promise<{ ok: boolean; error?: any }> {
+  async deleteSnippets(ids: string[]): Promise<{ ok: boolean; error?: Error }> {
     if (ids.length === 0) return { ok: true };
     return withCommitNotification(
       ["snippets", "snippet_search_index"],
@@ -160,7 +167,7 @@ export const snippetRepository = {
     );
   },
 
-  async toggleStarred(id: string): Promise<{ ok: boolean; error?: any }> {
+  async toggleStarred(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["snippets"],
       async () => {
@@ -176,7 +183,7 @@ export const snippetRepository = {
     );
   },
 
-  async recordUsage(id: string): Promise<{ ok: boolean; error?: any }> {
+  async recordUsage(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["snippets"],
       async () => {
@@ -195,7 +202,7 @@ export const snippetRepository = {
   async moveSnippetToFolder(
     snippetId: string,
     folderId: string | null,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["snippets"],
       async () => {
@@ -211,7 +218,7 @@ export const snippetRepository = {
   // == Folders ==
   async createFolder(
     data: Pick<SnippetFolder, "name" | "parentId">,
-  ): Promise<{ ok: boolean; data?: SnippetFolder; error?: any }> {
+  ): Promise<{ ok: boolean; data?: SnippetFolder; error?: Error }> {
     // Validate max depth (3 levels)
     if (data.parentId) {
       const parent = await db.snippet_folders.get(data.parentId);
@@ -227,10 +234,7 @@ export const snippetRepository = {
       ["snippet_folders"],
       async () => {
         // Get max order for siblings
-        const siblings = await db.snippet_folders
-          .where("parentId")
-          .equals(data.parentId ?? "")
-          .toArray();
+        const siblings = await listSiblingFolders(data.parentId ?? null);
         const maxOrder = siblings.reduce((max, f) => Math.max(max, f.order), -1);
 
         const folder: SnippetFolder = {
@@ -250,7 +254,7 @@ export const snippetRepository = {
   async updateFolder(
     id: string,
     patch: Partial<SnippetFolder>,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["snippet_folders"],
       async () => {
@@ -260,7 +264,7 @@ export const snippetRepository = {
     );
   },
 
-  async deleteFolder(id: string): Promise<{ ok: boolean; error?: any }> {
+  async deleteFolder(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["snippet_folders", "snippets"],
       async () => {
@@ -297,7 +301,7 @@ export const snippetRepository = {
   async moveFolder(
     id: string,
     newParentId: string | null,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     // Validate: can't move to self or descendant
     if (newParentId === id) {
       return { ok: false, error: new Error("Cannot move folder to itself") };
@@ -346,10 +350,7 @@ export const snippetRepository = {
       ["snippet_folders"],
       async () => {
         // Get max order for new siblings
-        const siblings = await db.snippet_folders
-          .where("parentId")
-          .equals(newParentId ?? "")
-          .toArray();
+        const siblings = await listSiblingFolders(newParentId ?? null);
         const maxOrder = siblings.reduce((max, f) => Math.max(max, f.order), -1);
 
         await db.snippet_folders.update(id, {
@@ -363,7 +364,7 @@ export const snippetRepository = {
 
   async reorderFolders(
     folders: Array<{ id: string; order: number }>,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["snippet_folders"],
       async () => {
@@ -376,7 +377,7 @@ export const snippetRepository = {
   },
 
   // == Tags ==
-  async createTag(name: string, color?: string): Promise<{ ok: boolean; data?: SnippetTag; error?: any }> {
+  async createTag(name: string, color?: string): Promise<{ ok: boolean; data?: SnippetTag; error?: Error }> {
     return withCommitNotification(
       ["snippet_tags"],
       async () => {
@@ -399,7 +400,7 @@ export const snippetRepository = {
   async updateTag(
     id: string,
     patch: Partial<SnippetTag>,
-  ): Promise<{ ok: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["snippet_tags"],
       async () => {
@@ -409,7 +410,7 @@ export const snippetRepository = {
     );
   },
 
-  async deleteTag(id: string): Promise<{ ok: boolean; error?: any }> {
+  async deleteTag(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
       ["snippet_tags", "snippets", "snippet_search_index"],
       async () => {

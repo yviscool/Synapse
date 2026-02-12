@@ -1,4 +1,4 @@
-import type Fuse from 'fuse.js'
+import type { FuseResultMatch } from 'fuse.js'
 
 /**
  * Generates an HTML string with <mark> tags highlighting the matched segments of a string.
@@ -11,7 +11,7 @@ import type Fuse from 'fuse.js'
  */
 export function generateHighlightedHtml(
   text: string,
-  matches: readonly Fuse.FuseResultMatch[] | undefined,
+  matches: readonly FuseResultMatch[] | undefined,
   key: string,
 ): string {
   if (!matches || matches.length === 0) {
@@ -32,7 +32,7 @@ export function generateHighlightedHtml(
  */
 export function generateHighlightedPreviewHtml(
   text: string,
-  matches: readonly Fuse.FuseResultMatch[] | undefined,
+  matches: readonly FuseResultMatch[] | undefined,
   key: string,
   maxLength = 240,
 ): string {
@@ -46,7 +46,7 @@ export function generateHighlightedPreviewHtml(
     return escapeHtml(truncateText(text, maxLength))
   }
 
-  const indices = keyMatches!.indices
+  const indices = (keyMatches!.indices || []) as ReadonlyArray<readonly [number, number]>
   const firstMatch = indices[0]
   const leadContext = Math.floor(maxLength * 0.35)
   let start = Math.max(0, firstMatch[0] - leadContext)

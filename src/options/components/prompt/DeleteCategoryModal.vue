@@ -328,7 +328,7 @@ async function handleDelete() {
 
     const promptCount = affectedPrompts.value.length;
     let confirmMessage = "";
-    let result: { ok: boolean; error?: any };
+    let result: { ok: boolean; error?: Error };
 
     if (deletionMode.value === "all") {
         confirmMessage = t("categories.batchDeleteModal.confirmMessageAll", {

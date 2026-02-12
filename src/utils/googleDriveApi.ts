@@ -13,7 +13,47 @@ interface FileMetadata {
   id: string
   name: string
   modifiedTime: string
-  [key: string]: any
+  createdTime?: string
+  size?: string
+}
+
+export interface GoogleUserProfile {
+  name: string
+  email: string
+  picture?: string
+}
+
+type JsonObject = Record<string, unknown>
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null
+}
+
+function toFileMetadata(value: unknown): FileMetadata | null {
+  if (!isJsonObject(value)) return null
+  const id = typeof value.id === 'string' ? value.id : ''
+  const name = typeof value.name === 'string' ? value.name : ''
+  const modifiedTime = typeof value.modifiedTime === 'string' ? value.modifiedTime : ''
+  if (!id || !name || !modifiedTime) return null
+
+  const metadata: FileMetadata = { id, name, modifiedTime }
+  if (typeof value.createdTime === 'string') {
+    metadata.createdTime = value.createdTime
+  }
+  if (typeof value.size === 'string') {
+    metadata.size = value.size
+  }
+  return metadata
+}
+
+function readFileList(payload: unknown): FileMetadata[] {
+  if (!isJsonObject(payload) || !Array.isArray(payload.files)) {
+    return []
+  }
+
+  return payload.files
+    .map((file) => toFileMetadata(file))
+    .filter((file): file is FileMetadata => file !== null)
 }
 
 /**
@@ -30,8 +70,8 @@ export async function listBackupFiles(): Promise<FileMetadata[]> {
   if (!response.ok) {
     throw new Error('Failed to list backup files.');
   }
-  const data = await response.json();
-  return data.files || [];
+  const data: unknown = await response.json();
+  return readFileList(data);
 }
 
 /**
@@ -52,7 +92,8 @@ export async function deleteFile(fileId: string): Promise<void> {
  */
 async function getAuthToken(): Promise<string> {
   return new Promise((resolve, reject) => {
-    chrome.identity.getAuthToken({ interactive: true }, (token) => {
+    chrome.identity.getAuthToken({ interactive: true }, (result) => {
+      const token = typeof result === 'string' ? result : result?.token
       if (chrome.runtime.lastError || !token) {
         reject(new Error(chrome.runtime.lastError?.message || 'Failed to get auth token.'))
       } else {
@@ -66,7 +107,7 @@ async function getAuthToken(): Promise<string> {
  * Fetches user profile information.
  * @returns User's profile info.
  */
-export async function getUserProfile() {
+export async function getUserProfile(): Promise<GoogleUserProfile> {
   const token = await getAuthToken()
   const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
     headers: { 'Authorization': `Bearer ${token}` },
@@ -74,7 +115,16 @@ export async function getUserProfile() {
   if (!response.ok) {
     throw new Error('Failed to fetch user profile.')
   }
-  return response.json()
+  const payload: unknown = await response.json()
+  if (!isJsonObject(payload) || typeof payload.name !== 'string' || typeof payload.email !== 'string') {
+    throw new Error('Invalid user profile payload.')
+  }
+
+  return {
+    name: payload.name,
+    email: payload.email,
+    picture: typeof payload.picture === 'string' ? payload.picture : undefined,
+  }
 }
 
 /**
@@ -87,10 +137,16 @@ export async function findOrCreateAppFolder(): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/files?q=${encodeURIComponent(query)}`, {
     headers: { 'Authorization': `Bearer ${token}` },
   })
+  if (!response.ok) {
+    throw new Error('Failed to query app folder.')
+  }
 
-  const data = await response.json()
-  if (data.files && data.files.length > 0) {
-    return data.files[0].id
+  const data: unknown = await response.json()
+  if (isJsonObject(data) && Array.isArray(data.files) && data.files.length > 0) {
+    const folder = data.files[0]
+    if (isJsonObject(folder) && typeof folder.id === 'string' && folder.id) {
+      return folder.id
+    }
   }
 
   // If not found, create it
@@ -107,6 +163,9 @@ export async function findOrCreateAppFolder(): Promise<string> {
     body: JSON.stringify(folderMetadata),
   })
   const createData = await createResponse.json()
+  if (!isJsonObject(createData) || typeof createData.id !== 'string' || !createData.id) {
+    throw new Error('Invalid app folder creation response.')
+  }
   return createData.id
 }
 
@@ -122,16 +181,20 @@ export async function getBackupFileMetadata(appFolderId: string, fileName: strin
   const response = await fetch(`${API_BASE_URL}/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`, {
     headers: { 'Authorization': `Bearer ${token}` },
   })
-  const data = await response.json()
-  return (data.files && data.files.length > 0) ? data.files[0] : null
+  if (!response.ok) {
+    throw new Error('Failed to fetch backup file metadata.')
+  }
+  const data: unknown = await response.json()
+  const files = readFileList(data)
+  return files.length > 0 ? files[0] : null
 }
 
 /**
  * Downloads the backup file content.
  * @param {string} fileId The ID of the backup file.
- * @returns {Promise<any>} The JSON content of the backup file.
+ * @returns {Promise<T>} The JSON content of the backup file.
  */
-export async function downloadBackupFile(fileId: string): Promise<any> {
+export async function downloadBackupFile<T = unknown>(fileId: string): Promise<T> {
   const token = await getAuthToken()
   const response = await fetch(`${API_BASE_URL}/files/${fileId}?alt=media`, {
     headers: { 'Authorization': `Bearer ${token}` },
@@ -139,7 +202,7 @@ export async function downloadBackupFile(fileId: string): Promise<any> {
   if (!response.ok) {
     throw new Error('Failed to download backup file.')
   }
-  return response.json()
+  return await response.json() as T
 }
 
 /**

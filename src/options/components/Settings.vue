@@ -219,7 +219,6 @@ interface DriveFile {
   name: string;
   size?: string;
   modifiedTime?: string;
-  [key: string]: any;
 }
 
 const { t, locale } = useI18n()
@@ -239,7 +238,7 @@ const showAdvancedSyncMenu = ref(false)
 const showResetConfirmation = ref(false)
 const resetConfirmationText = ref('')
 
-const languageOptions = computed(() => [
+const languageOptions = computed<Array<{ value: LocaleOption; label: string }>>(() => [
   { value: 'zh-CN', label: t('settings.language.chinese') },
   { value: 'en', label: t('settings.language.english') },
   { value: 'system', label: t('settings.language.followSystem') }
@@ -261,11 +260,12 @@ onMounted(async () => {
 async function refreshSettings() {
   const currentSettings = await getSettings()
   // 确保设置对象是纯 JavaScript 对象
-  settings.value = JSON.parse(JSON.stringify(currentSettings))
-  if (settings.value.locale === 'system') {
+  const nextSettings = JSON.parse(JSON.stringify(currentSettings)) as Settings
+  settings.value = nextSettings
+  if (nextSettings.locale === 'system') {
     locale.value = systemLanguage.value === '中文' ? 'zh-CN' : 'en'
   } else {
-    locale.value = settings.value.locale
+    locale.value = nextSettings.locale
   }
 }
 

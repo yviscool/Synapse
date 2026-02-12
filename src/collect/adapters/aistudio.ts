@@ -131,7 +131,7 @@ export class AIStudioAdapter extends BaseAdapter {
 
         // 响应耗时
         const timePill = modelContainer.querySelector('.model-run-time-pill')
-        const metadata: Record<string, any> = {}
+        const metadata: Record<string, unknown> = {}
         if (timePill?.textContent) {
           const timeMatch = timePill.textContent.match(/([\d.]+)s/)
           if (timeMatch) {

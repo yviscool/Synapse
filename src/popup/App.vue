@@ -85,7 +85,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { db, getSettings } from '@/stores/db'
 import { getPlatformConfig } from '@/utils/chatPlatform'
-import { MSG, type DataUpdatedPayload } from '@/utils/messaging'
+import { MSG, type DataUpdatedPayload, type RequestMessage } from '@/utils/messaging'
 import type { ChatPlatform } from '@/types/chat'
 
 const { t, locale } = useI18n()
@@ -194,9 +194,11 @@ function openRoute(route: string) {
 }
 
 // --- Message handler ---
-function handleMessage(msg: { type: string; data: any }) {
+function handleMessage(msg: RequestMessage<unknown>) {
   if (msg?.type === MSG.DATA_UPDATED) {
-    const { scope } = msg.data as DataUpdatedPayload
+    const payload = msg.data as DataUpdatedPayload | undefined
+    if (!payload) return
+    const { scope } = payload
     if (scope === 'settings') {
       setLocale()
     } else {
