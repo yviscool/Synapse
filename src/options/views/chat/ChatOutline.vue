@@ -1,6 +1,6 @@
 <template>
-  <div class="outline-nav fixed right-0 top-1/2 -translate-y-1/2 z-30 w-52 max-h-[60vh] flex flex-col">
-    <div class="bg-white rounded-l-xl shadow-lg border border-r-0 border-gray-200/80 overflow-hidden flex flex-col">
+  <div class="outline-nav fixed right-14 top-1/2 -translate-y-1/2 z-30 w-52 max-h-[80vh] flex flex-col">
+    <div class="bg-white rounded-xl shadow-lg border border-gray-200/80 overflow-hidden flex flex-col">
       <!-- 标题栏 -->
       <div class="px-4 py-3 border-b border-gray-100/80 flex items-center gap-2">
         <div class="i-carbon-list-boxes text-sm text-gray-400"></div>

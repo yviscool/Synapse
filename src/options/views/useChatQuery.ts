@@ -9,7 +9,7 @@ import type {
 
 type SortBy = "updatedAt" | "createdAt" | "collectedAt" | "title" | "messageCount";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10
 
 interface UseChatQueryOptions {
   onLoadError?: () => void;

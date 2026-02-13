@@ -202,16 +202,19 @@
 
             <!-- 对话项 -->
             <div
-              v-for="conv in conversations"
+              v-for="(conv, idx) in conversations"
               :key="conv.id"
               @click="selectConversation(conv)"
-              class="flex gap-3 p-3 rounded-lg cursor-pointer transition-all mb-1"
+              class="relative flex gap-3 p-3 rounded-lg cursor-pointer transition-all mb-1"
               :class="[
                 selectedId === conv.id
                   ? 'bg-blue-50 border border-blue-200'
                   : 'hover:bg-gray-50 border border-transparent'
               ]"
             >
+              <!-- 编号 -->
+              <span class="absolute top-1.5 right-2 text-[10px] text-gray-300 font-mono">{{ idx + 1 }}</span>
+
               <!-- 平台标识 -->
               <div
                 class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -272,6 +275,7 @@
             @delete="handleDeleteConversation"
             @toggle-star="handleToggleStar"
             @export="handleExport"
+            @active-index-change="handleActiveIndexChange"
           />
           <EmptyDetail v-else />
         </section>
@@ -290,7 +294,7 @@
       <ChatOutline
         v-if="selectedConversation && showOutline"
         :messages="selectedConversation.messages"
-        :active-index="activeMessageIndex"
+        :active-index="outlineActiveIndex"
         @jump="handleOutlineJump"
       />
     </transition>
@@ -384,6 +388,8 @@ const detailRef = ref<InstanceType<typeof ConversationDetail> | null>(null)
 const activeMessageIndex = ref(0)
 const showOutline = ref(true)
 
+const outlineActiveIndex = computed(() => activeMessageIndex.value)
+
 // Platform scroll state
 const platformViewportRef = ref<HTMLElement | null>(null)
 const platformContentRef = ref<HTMLElement | null>(null)
@@ -445,6 +451,12 @@ function handleSortChange(value: typeof sortBy.value) {
 
 function selectConversation(conv: ChatConversation) {
   selectedId.value = conv.id
+  activeMessageIndex.value = getFirstUserMessageIndex(conv)
+}
+
+function getFirstUserMessageIndex(conv: ChatConversation): number {
+  const firstUserIndex = conv.messages.findIndex(m => m.role === 'user' && !m.isDeleted)
+  return firstUserIndex >= 0 ? firstUserIndex : 0
 }
 
 function getLastMessageText(conv: ChatConversation): string {
@@ -533,6 +545,10 @@ function handleOutlineJump(index: number) {
   detailRef.value?.scrollToMessage(index)
 }
 
+function handleActiveIndexChange(index: number) {
+  activeMessageIndex.value = index
+}
+
 // Platform scroll methods
 function updatePlatformDimensions() {
   if (platformViewportRef.value && platformContentRef.value) {
@@ -569,7 +585,7 @@ watch(visiblePlatforms, async () => {
   updatePlatformDimensions()
 })
 
-// Infinite scroll
+// Observers
 let observer: IntersectionObserver | null = null
 let platformObserver: ResizeObserver | null = null
 

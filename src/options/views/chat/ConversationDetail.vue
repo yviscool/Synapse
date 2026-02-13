@@ -82,33 +82,62 @@
       </div>
     </div>
 
+    <!-- 角色筛选标签 -->
+    <div class="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-gray-50/30">
+      <button
+        @click="roleFilter = 'all'"
+        class="px-3 py-1 text-xs rounded-full transition-colors"
+        :class="roleFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+      >
+        {{ t('chat.sidebar.all') }}
+      </button>
+      <button
+        @click="roleFilter = 'user'"
+        class="px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1"
+        :class="roleFilter === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+      >
+        <div class="i-carbon-user text-xs"></div>
+        {{ t('chat.detail.user') }}
+      </button>
+      <button
+        @click="roleFilter = 'assistant'"
+        class="px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1"
+        :class="roleFilter === 'assistant' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+      >
+        <div class="i-carbon-bot text-xs"></div>
+        AI
+      </button>
+    </div>
+
     <!-- 消息列表 -->
-    <div ref="messageListRef" class="flex-1 overflow-y-auto p-4 space-y-1 bg-gradient-to-b from-gray-50/50 to-white">
-      <template v-for="(message, index) in visibleMessages" :key="message.id || index">
+    <div ref="messageListRef" @scroll="handleMessageScroll" class="relative flex-1 overflow-y-auto p-4 space-y-1 bg-gradient-to-b from-gray-50/50 to-white">
+      <template v-for="(item, index) in visibleMessages" :key="item.message.id || item.originalIndex">
         <!-- 轮次分隔线 -->
         <hr
-          v-if="message.role === 'user' && index > 0"
+          v-if="item.message.role === 'user' && index > 0"
           class="my-4 border-gray-200/60"
         />
 
         <!-- 消息项 -->
         <div
-          :id="'msg-' + index"
+          :id="'msg-' + item.originalIndex"
+          :data-original-index="item.originalIndex"
+          :data-role="item.message.role"
           class="message-item group"
-          :class="message.role === 'user' ? 'flex-row-reverse' : ''"
+          :class="item.message.role === 'user' ? 'flex-row-reverse' : ''"
         >
           <!-- 头像 -->
           <div
-            class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
             :class="[
-              message.role === 'user'
+              item.message.role === 'user'
                 ? 'bg-gradient-to-br from-blue-500 to-indigo-500'
                 : 'bg-gradient-to-br from-emerald-500 to-teal-500'
             ]"
           >
             <div
-              :class="message.role === 'user' ? 'i-carbon-user' : 'i-carbon-bot'"
-              class="text-white text-sm"
+              :class="item.message.role === 'user' ? 'i-carbon-user' : 'i-carbon-bot'"
+              class="text-white text-lg"
             ></div>
           </div>
 
@@ -117,31 +146,31 @@
             <div
               class="message-bubble relative"
               :class="[
-                message.role === 'user'
+                item.message.role === 'user'
                   ? 'user-bubble rounded-tr-md ml-auto'
                   : 'bg-white border border-gray-100 text-gray-800 rounded-tl-md'
               ]"
             >
               <!-- 操作按钮（悬停显示） -->
               <div
-                class="message-actions absolute -top-8 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white rounded-lg shadow-md px-1 py-0.5"
+                class="message-actions absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-md px-1 py-0.5 z-10"
               >
                 <button
-                  @click="handleEditMessage(index)"
+                  @click="handleEditMessage(item.originalIndex)"
                   class="p-1.5 text-gray-400 hover:text-blue-500 rounded"
                   :title="t('chat.detail.edit')"
                 >
                   <div class="i-carbon-edit text-sm"></div>
                 </button>
                 <button
-                  @click="handleCopyMessage(index)"
+                  @click="handleCopyMessage(item.originalIndex)"
                   class="p-1.5 text-gray-400 hover:text-green-500 rounded"
                   :title="t('chat.detail.copy')"
                 >
                   <div class="i-carbon-copy text-sm"></div>
                 </button>
                 <button
-                  @click="handleDeleteMessage(index)"
+                  @click="handleDeleteMessage(item.originalIndex)"
                   class="p-1.5 text-gray-400 hover:text-red-500 rounded"
                   :title="t('chat.detail.deleteMessage')"
                 >
@@ -151,51 +180,70 @@
 
               <!-- Thinking 卡片（AI 气泡内部顶部） -->
               <div
-                v-if="message.role === 'assistant' && message.thinking"
+                v-if="item.message.role === 'assistant' && item.message.thinking"
                 class="thinking-card mb-3 rounded-lg border border-purple-100 bg-purple-50/50 overflow-hidden -mx-1"
               >
                 <div
-                  @click="toggleThinking(index)"
+                  @click="toggleThinking(item.originalIndex)"
                   class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-purple-100/50 transition-colors"
                 >
                   <div class="flex items-center gap-2 text-xs text-purple-700">
                     <span>💭</span>
                     <span class="font-medium">{{ t('chat.detail.thinkingLabel') }}</span>
-                    <span v-if="getThinkingDurationSeconds(message) !== null" class="text-purple-400">
-                      ({{ t('chat.detail.thinkingTime', { seconds: getThinkingDurationSeconds(message) }) }})
+                    <span v-if="getThinkingDurationSeconds(item.message) !== null" class="text-purple-400">
+                      ({{ t('chat.detail.thinkingTime', { seconds: getThinkingDurationSeconds(item.message) }) }})
                     </span>
                   </div>
                   <div
                     class="i-carbon-chevron-down text-purple-400 text-xs transition-transform duration-200"
-                    :class="{ 'rotate-180': thinkingExpanded.has(index) }"
+                    :class="{ 'rotate-180': thinkingExpanded.has(item.originalIndex) }"
                   ></div>
                 </div>
                 <div
                   class="thinking-content overflow-hidden transition-all duration-300 ease-in-out"
-                  :style="{ maxHeight: thinkingExpanded.has(index) ? '500px' : '0px' }"
+                  :style="{ maxHeight: thinkingExpanded.has(item.originalIndex) ? '500px' : '0px' }"
                 >
                   <div
                     class="px-3 pb-2 text-xs text-purple-800/70 leading-relaxed prose prose-xs max-w-none"
-                    v-html="renderMarkdown(message.thinking)"
+                    v-html="renderMarkdown(item.message.thinking)"
                   ></div>
                 </div>
               </div>
 
               <!-- 编辑标记 -->
-              <div v-if="message.isEdited" class="text-xs opacity-50 mb-1 flex items-center gap-1">
+              <div v-if="item.message.isEdited" class="text-xs opacity-50 mb-1 flex items-center gap-1">
                 <div class="i-carbon-edit text-xs"></div>
                 {{ t('chat.detail.edited') }}
               </div>
 
               <!-- 消息文本 - Markdown 渲染 -->
               <div
-                v-if="editingIndex !== index"
+                v-if="editingIndex !== item.originalIndex"
                 class="message-text prose prose-sm max-w-none"
-                v-html="renderMarkdown(getMessageContent(message))"
+                v-html="renderMarkdown(getMessageContent(item.message))"
               ></div>
 
+              <!-- 图片附件（外链打开） -->
+              <div
+                v-if="editingIndex !== item.originalIndex && item.message.attachments?.length"
+                class="mt-2 flex flex-wrap gap-2"
+              >
+                <a
+                  v-for="att in item.message.attachments.filter(a => a.type === 'image')"
+                  :key="att.id"
+                  :href="att.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <div class="i-carbon-image text-sm"></div>
+                  {{ att.name || 'image' }}
+                  <div class="i-carbon-launch text-xs text-gray-400"></div>
+                </a>
+              </div>
+
               <!-- 编辑模式 -->
-              <div v-else class="edit-mode">
+              <div v-if="editingIndex === item.originalIndex" class="edit-mode">
                 <div class="border border-gray-200 rounded-lg overflow-hidden bg-white edit-milkdown-wrapper">
                   <MilkdownEditor
                     v-model="editContent"
@@ -210,7 +258,7 @@
                     {{ t('common.cancel') }}
                   </button>
                   <button
-                    @click="saveEdit(index)"
+                    @click="saveEdit(item.originalIndex)"
                     class="px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                   >
                     {{ t('common.save') }}
@@ -220,10 +268,10 @@
 
               <!-- 时间戳 -->
               <div
-                v-if="message.timestamp && editingIndex !== index"
+                v-if="item.message.timestamp && editingIndex !== item.originalIndex"
                 class="mt-2 text-xs opacity-50"
               >
-                {{ formatMessageTime(message.timestamp) }}
+                {{ formatMessageTime(item.message.timestamp) }}
               </div>
             </div>
           </div>
@@ -294,7 +342,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, reactive } from 'vue'
+import { ref, watch, nextTick, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
 import { getPlatformConfig } from '@/utils/chatPlatform'
@@ -313,6 +361,7 @@ const emit = defineEmits<{
   'delete': [id: string]
   'toggle-star': [conversation: ChatConversation]
   'export': [conversation: ChatConversation]
+  'active-index-change': [index: number]
 }>()
 
 // 状态
@@ -334,12 +383,21 @@ const thinkingExpanded = reactive(new Set<number>())
 const editingIndex = ref<number | null>(null)
 const editContent = ref('')
 
+// 角色筛选
+const roleFilter = ref<'all' | 'user' | 'assistant'>('all')
+
 // 配置 marked
 marked.setOptions({ breaks: true, gfm: true })
 
-// 过滤已删除的消息
+// 过滤已删除的消息 + 角色筛选（保留原始索引）
 const visibleMessages = computed(() => {
-  return props.conversation.messages.filter(m => !m.isDeleted)
+  return props.conversation.messages
+    .map((m, i) => ({ message: m, originalIndex: i }))
+    .filter(({ message: m }) => {
+      if (m.isDeleted) return false
+      if (roleFilter.value !== 'all' && m.role !== roleFilter.value) return false
+      return true
+    })
 })
 
 // 获取消息内容（兼容新旧格式）
@@ -397,9 +455,61 @@ function toggleThinking(index: number) {
 
 // 滚动到指定消息
 function scrollToMessage(index: number) {
-  const el = document.getElementById('msg-' + index)
+  const container = messageListRef.value
+  if (!container) return
+  const el = container.querySelector<HTMLElement>(`[data-original-index="${index}"]`)
   if (el) {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+// 当前激活的消息索引（供父组件读取）
+const currentActiveIndex = ref(0)
+
+// 滚动时检测当前可见的 user 消息，同步大纲高亮
+function handleMessageScroll() {
+  const container = messageListRef.value
+  if (!container) return
+
+  const userEls = Array
+    .from(container.querySelectorAll<HTMLElement>('.message-item[data-role="user"][data-original-index]'))
+  if (userEls.length === 0) return
+
+  let nextActiveIndex = Number(userEls[0].dataset.originalIndex || 0)
+  const hasInnerScroll = container.scrollHeight > container.clientHeight + 1
+
+  if (hasInnerScroll) {
+    const anchorScrollTop = container.scrollTop + Math.min(container.clientHeight * 0.35, 180)
+    for (const el of userEls) {
+      const rawIndex = el.dataset.originalIndex
+      if (!rawIndex) continue
+      const index = Number(rawIndex)
+      if (Number.isNaN(index)) continue
+      if (el.offsetTop <= anchorScrollTop) {
+        nextActiveIndex = index
+        continue
+      }
+      break
+    }
+  } else {
+    const anchorY = Math.min(window.innerHeight * 0.35, 260)
+    let nearestDistance = Number.POSITIVE_INFINITY
+    for (const el of userEls) {
+      const rawIndex = el.dataset.originalIndex
+      if (!rawIndex) continue
+      const index = Number(rawIndex)
+      if (Number.isNaN(index)) continue
+      const distance = Math.abs(el.getBoundingClientRect().top - anchorY)
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nextActiveIndex = index
+      }
+    }
+  }
+
+  if (nextActiveIndex !== currentActiveIndex.value) {
+    currentActiveIndex.value = nextActiveIndex
+    emit('active-index-change', nextActiveIndex)
   }
 }
 
@@ -412,6 +522,7 @@ watch(() => props.conversation, (newConv) => {
   editingIndex.value = null
   isEditingTitle.value = false
   thinkingExpanded.clear()
+  roleFilter.value = 'all'
 }, { immediate: true })
 
 watch(showTagInput, async (show) => {
@@ -419,6 +530,23 @@ watch(showTagInput, async (show) => {
     await nextTick()
     tagInputRef.value?.focus()
   }
+})
+
+watch([() => props.conversation.id, visibleMessages], async () => {
+  await nextTick()
+  handleMessageScroll()
+}, { immediate: true })
+
+function handleWindowScroll() {
+  handleMessageScroll()
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', handleWindowScroll, true)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleWindowScroll, true)
 })
 
 // 标签相关
@@ -452,9 +580,9 @@ function openLink() {
   }
 }
 
-// 消息操作
+// 消息操作（index 为原始 messages 数组索引）
 async function handleEditMessage(index: number) {
-  const message = visibleMessages.value[index]
+  const message = props.conversation.messages[index]
   editingIndex.value = index
   editContent.value = getMessageContent(message)
 }
@@ -465,12 +593,8 @@ function cancelEdit() {
 }
 
 function saveEdit(index: number) {
-  const message = visibleMessages.value[index]
-  const originalIndex = props.conversation.messages.findIndex(m => m.id === message.id)
-  if (originalIndex === -1) return
-
   const updatedMessages = [...props.conversation.messages]
-  const updatedMessage = { ...updatedMessages[originalIndex] }
+  const updatedMessage = { ...updatedMessages[index] }
 
   if (typeof updatedMessage.content === 'string') {
     updatedMessage.content = {
@@ -484,7 +608,7 @@ function saveEdit(index: number) {
 
   updatedMessage.isEdited = true
   updatedMessage.editedAt = Date.now()
-  updatedMessages[originalIndex] = updatedMessage
+  updatedMessages[index] = updatedMessage
 
   emit('update', props.conversation.id, { messages: updatedMessages })
   editingIndex.value = null
@@ -492,7 +616,7 @@ function saveEdit(index: number) {
 }
 
 async function handleCopyMessage(index: number) {
-  const message = visibleMessages.value[index]
+  const message = props.conversation.messages[index]
   const content = getMessageContent(message)
   try {
     await navigator.clipboard.writeText(content)
@@ -502,12 +626,8 @@ async function handleCopyMessage(index: number) {
 }
 
 function handleDeleteMessage(index: number) {
-  const message = visibleMessages.value[index]
-  const originalIndex = props.conversation.messages.findIndex(m => m.id === message.id)
-  if (originalIndex === -1) return
-
   const updatedMessages = [...props.conversation.messages]
-  updatedMessages[originalIndex] = { ...updatedMessages[originalIndex], isDeleted: true }
+  updatedMessages[index] = { ...updatedMessages[index], isDeleted: true }
 
   emit('update', props.conversation.id, {
     messages: updatedMessages,

@@ -20,6 +20,8 @@
  *                                               │     └── code-block
  *                                               │           ├── code-block-decoration (语言 + 复制按钮)
  *                                               │           └── pre > code.code-container
+ *                                               ├── generated-image     ← AI 生成图片
+ *                                               │     └── single-image > .image-container > img.image
  *                                               └── span.math-inline[data-math]  ← KaTeX 公式
  */
 
@@ -75,7 +77,19 @@ export class GeminiAdapter extends BaseAdapter {
       block.replaceWith(`\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`)
     })
 
-    // 3. 清理 response-element 空壳
+    // 3. Gemini 生成图片（generated-image / single-image 自定义元素）
+    clone.querySelectorAll('generated-image').forEach((genImg) => {
+      const img = genImg.querySelector('img')
+      if (img) {
+        const src = img.getAttribute('src') || ''
+        const alt = (img.getAttribute('alt') || 'image').replace(/^的图片$/, 'image')
+        genImg.replaceWith(`\n![${alt}](${src})\n`)
+      } else {
+        genImg.remove()
+      }
+    })
+
+    // 4. 清理 response-element 空壳
     clone.querySelectorAll('response-element').forEach((el) => {
       while (el.firstChild) el.parentNode?.insertBefore(el.firstChild, el)
       el.remove()
@@ -181,13 +195,28 @@ export class GeminiAdapter extends BaseAdapter {
           modelResponse.querySelector('message-content .markdown')
         const content = responseEl ? this.extractMarkdown(responseEl) : ''
 
-        if (content.trim()) {
+        // 提取图片附件
+        const attachments: import('@/types/chat').ChatAttachment[] = []
+        modelResponse.querySelectorAll('generated-image img.image, single-image img.image').forEach((img) => {
+          const src = img.getAttribute('src')
+          if (src) {
+            attachments.push({
+              id: this.generateMessageId(),
+              type: 'image',
+              url: src,
+              name: (img.getAttribute('alt') || 'image').replace(/^的图片$/, 'image'),
+            })
+          }
+        })
+
+        if (content.trim() || attachments.length) {
           messages.push({
             id: this.generateMessageId(),
             role: 'assistant',
             content: content.trim(),
             timestamp: Date.now(),
             ...(thinking ? { thinking } : {}),
+            ...(attachments.length ? { attachments } : {}),
           })
         }
       }

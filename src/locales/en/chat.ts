@@ -61,6 +61,7 @@ export default {
     copy: "Copy",
     deleteMessage: "Delete message",
     edited: "Edited",
+    user: "User",
   },
 
   // Actions

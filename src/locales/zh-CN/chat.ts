@@ -61,6 +61,7 @@ export default {
     copy: "复制",
     deleteMessage: "删除消息",
     edited: "已编辑",
+    user: "用户",
   },
 
   // 操作
