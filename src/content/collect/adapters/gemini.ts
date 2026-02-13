@@ -106,17 +106,13 @@ export class GeminiAdapter extends BaseAdapter {
 
   /**
    * 覆写 collect：
-   * - 手动采集：展开思考区域，等待 Angular 渲染后再采集，然后恢复折叠
-   * - 自动同步：跳过展开/折叠，避免 MutationObserver 死循环（展开→变更→同步→展开…）
+   * 展开折叠的思考区域，等待 Angular 渲染后再采集，然后恢复折叠
+   * 同步引擎在调用期间会抑制 MutationObserver，不会产生死循环
    */
-  override async collect(options?: CollectOptions): Promise<CollectResult> {
-    let expandedBtns: HTMLElement[] = []
-
-    if (!options?.isAutoSync) {
-      expandedBtns = this.expandThoughts()
-      if (expandedBtns.length) {
-        await new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 150)))
-      }
+  override async collect(_options?: CollectOptions): Promise<CollectResult> {
+    const expandedBtns = this.expandThoughts()
+    if (expandedBtns.length) {
+      await new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 150)))
     }
 
     const result = super.collect()
