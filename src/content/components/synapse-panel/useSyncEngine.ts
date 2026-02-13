@@ -1,13 +1,23 @@
 /**
  * 实时同步引擎
  * 基于 MutationObserver 监听 DOM 变化，自动采集对话内容
+ *
+ * 对话切换防腐策略（自包含在 doSync 内部，不依赖任何外部时序）：
+ * 1. URL 变化时，无条件跳过首次采集，将当前内容指纹记为"脏基线"
+ * 2. 后续采集中，只有内容指纹与脏基线不同（DOM 真正更新）才允许保存
+ * 3. Observer / checkTimer 会自然重试，直到 DOM 刷新为新对话内容
  */
 
-import { ref, computed, onUnmounted } from 'vue'
-import { collect, canCollect } from '@/content/collect'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { collect, canCollect, getCurrentPlatformInfo } from '@/content/collect'
 import { getSiteConfig } from '@/content/site-configs'
 import { MSG } from '@/utils/messaging'
 import type { SyncState, ChatConversation, ChatMessage } from '@/types/chat'
+
+type NavigationApi = {
+  addEventListener: (type: 'navigatesuccess', listener: () => void) => void
+  removeEventListener: (type: 'navigatesuccess', listener: () => void) => void
+}
 
 export interface UseSyncEngineOptions {
   /** 防抖延迟 (ms) */
@@ -32,6 +42,14 @@ const DEFAULT_OPTIONS: Required<UseSyncEngineOptions> = {
 
 export const STORAGE_KEY_SYNC_ENABLED = 'synapse-realtime-sync-enabled'
 
+// ── 模块级状态：跨组件重建存活 ──
+// SynapsePanel 使用 :key="url"，每次导航都会销毁重建，
+// 组件内部状态全部丢失。这些变量必须在模块作用域才能跨重建保持记忆。
+let lastCollectedUrl = ''
+let lastCollectedHash = ''
+let lastSavedKey = ''  // url + ':' + hash，已成功保存的内容标识，用于去重
+let lastConversationId: string | null = null
+
 export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options }
 
@@ -48,8 +66,12 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   let checkTimer: number | null = null
   let statusResetTimer: number | null = null
   let retryTimer: number | null = null
-  let lastMessagesHash = ''
+  let urlPollTimer: number | null = null
+  let navDelayTimer: number | null = null
   let retryCount = 0
+  let lastUrl = window.location.href
+  let navigationSuccessHandler: (() => void) | null = null
+  let unmounted = false
 
   // 计算属性
   const isEnabled = computed(() => syncState.value.enabled)
@@ -57,10 +79,11 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   const canSync = computed(() => canCollect())
 
   /**
-   * 生成消息内容的简单哈希，用于检测变化
+   * 生成内容指纹（标题 + 消息），用于检测变化
+   * 标题纳入哈希，确保标题更新也能触发重新同步
    */
-  function hashMessages(messages: ChatMessage[]): string {
-    const content = messages
+  function hashContent(title: string, messages: ChatMessage[]): string {
+    const content = title + '||' + messages
       .map((m) => {
         const text = typeof m.content === 'string'
           ? m.content
@@ -86,6 +109,12 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     syncState.value.status = 'syncing'
 
     try {
+      // 检测对话 ID 变化，强制全量同步
+      const platformInfo = getCurrentPlatformInfo()
+      if (platformInfo.conversationId && platformInfo.conversationId !== lastConversationId) {
+        lastConversationId = platformInfo.conversationId
+      }
+
       const result = collect()
 
       if (!result.success || !result.conversation) {
@@ -93,15 +122,45 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       }
 
       const messages = result.conversation.messages || []
-      const newHash = hashMessages(messages)
+      const currentTitle = result.conversation.title || ''
+      const contentHash = hashContent(currentTitle, messages)
+      const currentUrl = window.location.href
+      const saveKey = currentUrl + ':' + contentHash
 
-      // 检查是否有实际变化
-      if (newHash === lastMessagesHash) {
+      // ── 防腐 + 去重，两层检查 ──
+
+      if (lastCollectedUrl && currentUrl !== lastCollectedUrl) {
+        // URL 刚变化：记录脏基线，跳过本次
+        // SPA 切换瞬间 DOM 大概率还是旧内容
+        lastCollectedUrl = currentUrl
+        lastCollectedHash = contentHash
         syncState.value.status = 'idle'
         return
       }
 
-      lastMessagesHash = newHash
+      if (!lastCollectedUrl) {
+        lastCollectedUrl = currentUrl
+      }
+
+      if (contentHash === lastCollectedHash) {
+        // 内容与脏基线相同 → 可能 DOM 还没更新（Gemini），也可能本来就是正确内容（DeepSeek）
+        // 用 lastSavedKey 判断：如果这个 URL+内容 已经保存过就跳过，否则放行
+        if (saveKey === lastSavedKey) {
+          syncState.value.status = 'idle'
+          return
+        }
+        // 未保存过 → 放行（DeepSeek：DOM 更新快，脏基线就是正确内容）
+      }
+
+      // 内容已变化 或 未保存过 → 更新快照
+      lastCollectedHash = contentHash
+
+      // 自动同步时，externalId 缺失说明 URL 处于过渡态，跳过以避免创建孤立记录
+      if (!result.conversation.externalId) {
+        lastCollectedHash = '' // 回退，URL 稳定后仍能触发保存
+        syncState.value.status = 'idle'
+        return
+      }
 
       // 发送到 background 保存
       const response = await chrome.runtime.sendMessage({
@@ -114,6 +173,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       })
 
       if (response?.ok) {
+        lastSavedKey = saveKey
         syncState.value.status = 'success'
         syncState.value.messageCount = messages.length
         syncState.value.lastSyncAt = Date.now()
@@ -121,7 +181,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         retryCount = 0
         opts.onSyncSuccess(result.conversation)
 
-        // 短暂显示成功状态后恢复
         if (statusResetTimer) {
           clearTimeout(statusResetTimer)
         }
@@ -141,7 +200,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
 
       retryCount++
       if (retryCount < opts.maxRetries) {
-        // 自动重试
         if (retryTimer) {
           clearTimeout(retryTimer)
         }
@@ -158,9 +216,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     }
   }
 
-  /**
-   * 防抖同步
-   */
   function debouncedSync() {
     if (debounceTimer) {
       clearTimeout(debounceTimer)
@@ -170,10 +225,9 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
 
   /**
    * 启动 MutationObserver
-   * 精确监听 observeTarget 容器，不再监听 document.body
    */
   function startObserver() {
-    if (observer) return
+    stopObserver()
 
     const config = getSiteConfig()
     const targetSelector = config?.observeTarget
@@ -191,9 +245,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     })
   }
 
-  /**
-   * 停止 MutationObserver
-   */
   function stopObserver() {
     if (observer) {
       observer.disconnect()
@@ -214,11 +265,21 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   }
 
   /**
-   * 启动定时检查
+   * 对话切换：重挂 Observer
+   * 防腐逻辑完全由 doSync 内部处理
    */
+  function reinit() {
+    retryCount = 0
+
+    // 重挂 Observer 到新的 DOM 节点
+    stopObserver()
+    if (syncState.value.enabled) {
+      startObserver()
+    }
+  }
+
   function startCheckTimer() {
     if (checkTimer) return
-
     checkTimer = window.setInterval(() => {
       if (syncState.value.enabled && syncState.value.status !== 'syncing') {
         doSync()
@@ -226,9 +287,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     }, opts.checkInterval)
   }
 
-  /**
-   * 停止定时检查
-   */
   function stopCheckTimer() {
     if (checkTimer) {
       clearInterval(checkTimer)
@@ -236,24 +294,15 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     }
   }
 
-  /**
-   * 启用实时同步
-   */
   function enable() {
     if (!canSync.value) return
-
     syncState.value.enabled = true
     chrome.storage?.local?.set({ [STORAGE_KEY_SYNC_ENABLED]: true })
     startObserver()
     startCheckTimer()
-
-    // 立即执行一次同步
     doSync()
   }
 
-  /**
-   * 禁用实时同步
-   */
   function disable() {
     syncState.value.enabled = false
     chrome.storage?.local?.set({ [STORAGE_KEY_SYNC_ENABLED]: false })
@@ -261,9 +310,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     stopCheckTimer()
   }
 
-  /**
-   * 切换同步状态
-   */
   function toggle() {
     if (syncState.value.enabled) {
       disable()
@@ -272,27 +318,66 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     }
   }
 
-  /**
-   * 手动触发同步
-   */
   async function manualSync() {
     await doSync()
   }
 
-  // 清理
+  function checkUrlChange() {
+    if (unmounted) return
+    const currentUrl = window.location.href
+    if (currentUrl !== lastUrl) {
+      console.log('[SyncEngine] URL changed, reinitializing...')
+      lastUrl = currentUrl
+      reinit()
+    }
+  }
+
+  // 生命周期：启动对话切换检测
+  onMounted(() => {
+    if ('navigation' in window) {
+      const navigation = (window as Window & { navigation?: NavigationApi }).navigation
+      if (navigation) {
+        navigationSuccessHandler = () => {
+          if (navDelayTimer) clearTimeout(navDelayTimer)
+          navDelayTimer = window.setTimeout(() => {
+            navDelayTimer = null
+            checkUrlChange()
+          }, 200)
+        }
+        navigation.addEventListener('navigatesuccess', navigationSuccessHandler)
+      }
+    } else {
+      urlPollTimer = window.setInterval(checkUrlChange, 1000)
+    }
+  })
+
   onUnmounted(() => {
+    unmounted = true
     stopObserver()
     stopCheckTimer()
+
+    if (navDelayTimer) {
+      clearTimeout(navDelayTimer)
+      navDelayTimer = null
+    }
+
+    const navigation = (window as Window & { navigation?: NavigationApi }).navigation
+    if (navigation && navigationSuccessHandler) {
+      navigation.removeEventListener('navigatesuccess', navigationSuccessHandler)
+      navigationSuccessHandler = null
+    }
+
+    if (urlPollTimer) {
+      clearInterval(urlPollTimer)
+      urlPollTimer = null
+    }
   })
 
   return {
-    // 状态
     syncState,
     isEnabled,
     isSyncing,
     canSync,
-
-    // 方法
     enable,
     disable,
     toggle,
