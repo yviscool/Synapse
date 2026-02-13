@@ -27,6 +27,25 @@ export function generateHighlightedHtml(
 }
 
 /**
+ * Generates highlighted HTML by a plain search query string.
+ * This is useful for list UIs that only have raw query text but no Fuse matches.
+ */
+export function generateHighlightedHtmlByQuery(
+  text: string,
+  query: string | undefined | null,
+): string {
+  const normalizedQuery = query?.trim() || ''
+  if (!normalizedQuery)
+    return escapeHtml(text)
+
+  const indices = buildMatchIndicesByQuery(text, normalizedQuery)
+  if (indices.length === 0)
+    return escapeHtml(text)
+
+  return renderHighlightedByIndices(text, indices)
+}
+
+/**
  * Similar to `generateHighlightedHtml` but only renders a short snippet.
  * This reduces expensive full-text HTML generation for very long content.
  */
@@ -73,6 +92,45 @@ export function generateHighlightedPreviewHtml(
   return `${prefix}${renderHighlightedByIndices(snippet, shiftedIndices)}${suffix}`
 }
 
+/**
+ * Generates highlighted preview HTML by a plain search query string.
+ */
+export function generateHighlightedPreviewHtmlByQuery(
+  text: string,
+  query: string | undefined | null,
+  maxLength = 240,
+): string {
+  if (maxLength <= 0)
+    return ''
+
+  const normalizedQuery = query?.trim() || ''
+  if (!normalizedQuery) {
+    return escapeHtml(truncateText(text, maxLength))
+  }
+
+  const lowerText = text.toLowerCase()
+  const lowerQuery = normalizedQuery.toLowerCase()
+  const firstMatchIndex = lowerText.indexOf(lowerQuery)
+  if (firstMatchIndex < 0) {
+    return escapeHtml(truncateText(text, maxLength))
+  }
+
+  const leadContext = Math.floor(maxLength * 0.35)
+  let start = Math.max(0, firstMatchIndex - leadContext)
+  let end = Math.min(text.length, start + maxLength)
+
+  if (end - start < maxLength) {
+    start = Math.max(0, end - maxLength)
+  }
+
+  const snippet = text.slice(start, end)
+  const snippetIndices = buildMatchIndicesByQuery(snippet, normalizedQuery)
+
+  const prefix = start > 0 ? '...' : ''
+  const suffix = end < text.length ? '...' : ''
+  return `${prefix}${renderHighlightedByIndices(snippet, snippetIndices)}${suffix}`
+}
+
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength)
     return text
@@ -99,6 +157,31 @@ function renderHighlightedByIndices(
   }
 
   return parts.join('')
+}
+
+function buildMatchIndicesByQuery(
+  text: string,
+  query: string,
+): Array<[number, number]> {
+  const normalizedQuery = query.trim()
+  if (!normalizedQuery)
+    return []
+
+  const lowerText = text.toLowerCase()
+  const lowerQuery = normalizedQuery.toLowerCase()
+  const indices: Array<[number, number]> = []
+  let searchFrom = 0
+
+  while (searchFrom < lowerText.length) {
+    const start = lowerText.indexOf(lowerQuery, searchFrom)
+    if (start < 0)
+      break
+    const end = start + lowerQuery.length - 1
+    indices.push([start, end])
+    searchFrom = end + 1
+  }
+
+  return indices
 }
 
 /**

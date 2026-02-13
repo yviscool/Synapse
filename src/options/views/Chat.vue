@@ -223,7 +223,10 @@
               <!-- 内容 -->
               <div class="flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-2 mb-1">
-                  <h4 class="text-sm font-semibold text-gray-900 truncate">{{ conv.title }}</h4>
+                  <h4
+                    class="text-sm font-semibold text-gray-900 truncate"
+                    v-html="getHighlightedTitle(conv)"
+                  ></h4>
                   <button
                     @click.stop="handleToggleStar(conv)"
                     class="flex-shrink-0 p-1 rounded transition-colors"
@@ -239,7 +242,10 @@
                   <span>·</span>
                   <span>{{ formatRelativeTime(conv.collectedAt || conv.createdAt) }}</span>
                 </div>
-                <p class="text-xs text-gray-500 line-clamp-2">{{ getPreviewText(conv) }}</p>
+                <p
+                  class="text-xs text-gray-500 line-clamp-2"
+                  v-html="getHighlightedPreview(conv)"
+                ></p>
               </div>
             </div>
 
@@ -318,6 +324,10 @@ import { db } from '@/stores/db'
 import { chatRepository } from '@/stores/chatRepository'
 import { useChatQuery } from './useChatQuery'
 import {
+  generateHighlightedHtmlByQuery,
+  generateHighlightedPreviewHtmlByQuery,
+} from '@/utils/highlighter'
+import {
   getAllPlatforms,
   getPlatformConfig,
 } from '@/utils/chatPlatform'
@@ -343,6 +353,7 @@ const {
   tags,
   platformCounts,
   searchQuery,
+  searchQueryDebounced,
   selectedPlatforms,
   selectedTagIds,
   showStarredOnly,
@@ -436,11 +447,22 @@ function selectConversation(conv: ChatConversation) {
   selectedId.value = conv.id
 }
 
-function getPreviewText(conv: ChatConversation): string {
+function getLastMessageText(conv: ChatConversation): string {
   const lastMsg = conv.messages[conv.messages.length - 1]
   if (!lastMsg) return ''
-  const content = typeof lastMsg.content === 'string' ? lastMsg.content : lastMsg.content.original
-  return content.slice(0, 80) + (content.length > 80 ? '...' : '')
+  return typeof lastMsg.content === 'string' ? lastMsg.content : lastMsg.content.original
+}
+
+function getHighlightedTitle(conv: ChatConversation): string {
+  return generateHighlightedHtmlByQuery(conv.title, searchQueryDebounced.value)
+}
+
+function getHighlightedPreview(conv: ChatConversation): string {
+  return generateHighlightedPreviewHtmlByQuery(
+    getLastMessageText(conv),
+    searchQueryDebounced.value,
+    80,
+  )
 }
 
 function formatRelativeTime(timestamp: number): string {

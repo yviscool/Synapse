@@ -33,6 +33,7 @@
             :snippets="snippets"
             :selected-snippet-id="selectedSnippetId"
             :search-query="searchQuery"
+            :highlight-query="searchQueryDebounced"
             :sort-by="sortBy"
             :selected-languages="selectedLanguages"
             :is-loading="isLoading"
@@ -86,6 +87,7 @@ const {
   folders,
   tags,
   searchQuery,
+  searchQueryDebounced,
   selectedFolderId,
   specialFolder,
   selectedTagIds,

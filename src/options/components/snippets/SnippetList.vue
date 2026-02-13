@@ -105,9 +105,10 @@
         >
           <!-- Title row -->
           <div class="flex items-center gap-1.5">
-            <span class="flex-1 font-medium text-sm text-gray-800 truncate">
-              {{ snippet.title || t('tools.editor.titlePlaceholder') }}
-            </span>
+            <span
+              class="flex-1 font-medium text-sm text-gray-800 truncate"
+              v-html="getHighlightedTitle(snippet)"
+            ></span>
             <button
               v-if="snippet.starred"
               class="text-yellow-500 flex-shrink-0"
@@ -131,9 +132,10 @@
           </div>
 
           <!-- Preview -->
-          <div class="mt-1.5 text-xs text-gray-500 line-clamp-2 font-mono leading-relaxed">
-            {{ getPreview(snippet.content) }}
-          </div>
+          <div
+            class="mt-1.5 text-xs text-gray-500 line-clamp-2 font-mono leading-relaxed"
+            v-html="getHighlightedPreview(snippet.content)"
+          ></div>
         </div>
 
         <!-- Loading indicator -->
@@ -149,9 +151,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Snippet, SnippetLanguage } from '@/types/snippet'
+import {
+  generateHighlightedHtmlByQuery,
+  generateHighlightedPreviewHtmlByQuery,
+} from '@/utils/highlighter'
 
 type SortBy = "updatedAt" | "createdAt" | "title" | "usedAt" | "useCount"
 
@@ -159,6 +165,7 @@ const props = defineProps<{
   snippets: Snippet[]
   selectedSnippetId: string | null
   searchQuery: string
+  highlightQuery?: string
   sortBy: SortBy
   selectedLanguages: SnippetLanguage[]
   isLoading: boolean
@@ -281,9 +288,14 @@ function getLanguageColor(language: SnippetLanguage): string {
   return colors[language] || 'bg-gray-100 text-gray-600'
 }
 
-function getPreview(content: string): string {
-  if (!content) return ''
-  return content.slice(0, 100).replace(/\n/g, ' ')
+function getHighlightedTitle(snippet: Snippet): string {
+  const title = snippet.title || t('tools.editor.titlePlaceholder')
+  return generateHighlightedHtmlByQuery(title, props.highlightQuery)
+}
+
+function getHighlightedPreview(content: string): string {
+  const flattenedContent = content.replace(/\n/g, ' ')
+  return generateHighlightedPreviewHtmlByQuery(flattenedContent, props.highlightQuery, 100)
 }
 
 function formatTime(timestamp: number): string {
