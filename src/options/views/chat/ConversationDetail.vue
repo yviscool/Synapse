@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-full">
     <!-- 头部工具栏 -->
-    <div class="flex items-center justify-between p-4 border-b border-gray-100">
+    <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
       <div class="flex items-center gap-3 min-w-0 flex-1">
         <div
           class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -16,7 +16,7 @@
         <div class="min-w-0 flex-1">
           <!-- 标题：展示 / 编辑 -->
           <div v-if="!isEditingTitle" class="flex items-center gap-2 group">
-            <h2 class="font-semibold text-gray-900 line-clamp-1">{{ conversation.title }}</h2>
+            <h2 class="font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">{{ conversation.title }}</h2>
             <button
               @click="startEditTitle"
               class="p-1 rounded text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -32,10 +32,10 @@
               @keydown.enter="saveTitle"
               @keydown.escape="cancelEditTitle"
               @blur="saveTitle"
-              class="font-semibold text-gray-900 bg-white border border-blue-300 rounded-lg px-2 py-1 w-full focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+              class="font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 border border-blue-300 rounded-lg px-2 py-1 w-full focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
             />
           </div>
-          <div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+          <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             <span>{{ getPlatformConfig(conversation.platform).name }}</span>
             <span>·</span>
             <span>{{ t('chat.list.messages', { count: conversation.messageCount }) }}</span>
@@ -51,7 +51,7 @@
           :class="[
             conversation.starred
               ? 'text-amber-500 bg-amber-50'
-              : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
+              : 'text-gray-400 dark:text-gray-500 hover:text-amber-500 hover:bg-amber-50'
           ]"
           :title="conversation.starred ? t('chat.actions.unstar') : t('chat.actions.star')"
         >
@@ -59,7 +59,7 @@
         </button>
         <button
           @click="$emit('export', conversation)"
-          class="p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+          class="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-blue-500 hover:bg-blue-50 transition-colors"
           :title="t('chat.actions.export')"
         >
           <div class="i-carbon-download text-lg"></div>
@@ -67,14 +67,14 @@
         <button
           v-if="conversation.link"
           @click="openLink"
-          class="p-2 rounded-lg text-gray-400 hover:text-green-500 hover:bg-green-50 transition-colors"
+          class="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-green-500 hover:bg-green-50 transition-colors"
           :title="t('chat.detail.openLink')"
         >
           <div class="i-carbon-launch text-lg"></div>
         </button>
         <button
           @click="$emit('delete', conversation.id)"
-          class="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+          class="p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors"
           :title="t('chat.actions.delete')"
         >
           <div class="i-carbon-trash-can text-lg"></div>
@@ -83,18 +83,18 @@
     </div>
 
     <!-- 角色筛选标签 -->
-    <div class="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-gray-50/30">
+    <div class="flex items-center gap-2 px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30">
       <button
         @click="roleFilter = 'all'"
         class="px-3 py-1 text-xs rounded-full transition-colors"
-        :class="roleFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="roleFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
       >
         {{ t('chat.sidebar.all') }}
       </button>
       <button
         @click="roleFilter = 'user'"
         class="px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1"
-        :class="roleFilter === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="roleFilter === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
       >
         <div class="i-carbon-user text-xs"></div>
         {{ t('chat.detail.user') }}
@@ -102,7 +102,7 @@
       <button
         @click="roleFilter = 'assistant'"
         class="px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1"
-        :class="roleFilter === 'assistant' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="roleFilter === 'assistant' ? 'bg-indigo-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
       >
         <div class="i-carbon-bot text-xs"></div>
         AI
@@ -110,12 +110,12 @@
     </div>
 
     <!-- 消息列表 -->
-    <div ref="messageListRef" @scroll="handleMessageScroll" class="relative flex-1 overflow-y-auto p-4 space-y-1 bg-gradient-to-b from-gray-50/50 to-white">
+    <div ref="messageListRef" @scroll="handleMessageScroll" class="relative flex-1 overflow-y-auto p-4 space-y-1 bg-gradient-to-b from-white to-blue-50/40 dark:from-slate-950 dark:to-black">
       <template v-for="(item, index) in visibleMessages" :key="item.message.id || item.originalIndex">
         <!-- 轮次分隔线 -->
         <hr
           v-if="item.message.role === 'user' && index > 0"
-          class="my-4 border-gray-200/60"
+          class="my-4 border-gray-200 dark:border-gray-700/60"
         />
 
         <!-- 消息项 -->
@@ -148,30 +148,30 @@
               :class="[
                 item.message.role === 'user'
                   ? 'user-bubble rounded-tr-md ml-auto'
-                  : 'bg-white border border-gray-100 text-gray-800 rounded-tl-md'
+                  : 'bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-700/70 text-gray-800 dark:text-gray-200 rounded-tl-md'
               ]"
             >
               <!-- 操作按钮（悬停显示） -->
               <div
-                class="message-actions absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-md px-1 py-0.5 z-10"
+                class="message-actions absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white dark:bg-gray-900/90 backdrop-blur-sm rounded-lg shadow-md px-1 py-0.5 z-10"
               >
                 <button
                   @click="handleEditMessage(item.originalIndex)"
-                  class="p-1.5 text-gray-400 hover:text-blue-500 rounded"
+                  class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-500 rounded"
                   :title="t('chat.detail.edit')"
                 >
                   <div class="i-carbon-edit text-sm"></div>
                 </button>
                 <button
                   @click="handleCopyMessage(item.originalIndex)"
-                  class="p-1.5 text-gray-400 hover:text-green-500 rounded"
+                  class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-green-500 rounded"
                   :title="t('chat.detail.copy')"
                 >
                   <div class="i-carbon-copy text-sm"></div>
                 </button>
                 <button
                   @click="handleDeleteMessage(item.originalIndex)"
-                  class="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                  class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-500 rounded"
                   :title="t('chat.detail.deleteMessage')"
                 >
                   <div class="i-carbon-trash-can text-sm"></div>
@@ -181,21 +181,21 @@
               <!-- Thinking 卡片（AI 气泡内部顶部） -->
               <div
                 v-if="item.message.role === 'assistant' && item.message.thinking"
-                class="thinking-card mb-3 rounded-lg border border-purple-100 bg-purple-50/50 overflow-hidden -mx-1"
+                class="thinking-card mb-3 rounded-lg border border-slate-200 dark:border-slate-700/70 bg-slate-50/80 dark:bg-slate-900/55 overflow-hidden -mx-1"
               >
                 <div
                   @click="toggleThinking(item.originalIndex)"
-                  class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-purple-100/50 transition-colors"
+                  class="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-700/35 transition-colors"
                 >
-                  <div class="flex items-center gap-2 text-xs text-purple-700">
+                  <div class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
                     <span>💭</span>
                     <span class="font-medium">{{ t('chat.detail.thinkingLabel') }}</span>
-                    <span v-if="getThinkingDurationSeconds(item.message) !== null" class="text-purple-400">
+                    <span v-if="getThinkingDurationSeconds(item.message) !== null" class="text-slate-400 dark:text-slate-400">
                       ({{ t('chat.detail.thinkingTime', { seconds: getThinkingDurationSeconds(item.message) }) }})
                     </span>
                   </div>
                   <div
-                    class="i-carbon-chevron-down text-purple-400 text-xs transition-transform duration-200"
+                    class="i-carbon-chevron-down text-slate-400 dark:text-slate-400 text-xs transition-transform duration-200"
                     :class="{ 'rotate-180': thinkingExpanded.has(item.originalIndex) }"
                   ></div>
                 </div>
@@ -204,7 +204,7 @@
                   :style="{ maxHeight: thinkingExpanded.has(item.originalIndex) ? '500px' : '0px' }"
                 >
                   <div
-                    class="px-3 pb-2 text-xs text-purple-800/70 leading-relaxed prose prose-xs max-w-none"
+                    class="px-3 pb-2 text-xs text-slate-700 dark:text-slate-200 leading-relaxed prose prose-xs dark:prose-invert prose-headings:text-slate-900 dark:prose-headings:text-slate-100 max-w-none"
                     v-html="renderMarkdown(item.message.thinking)"
                   ></div>
                 </div>
@@ -219,7 +219,7 @@
               <!-- 消息文本 - Markdown 渲染 -->
               <div
                 v-if="editingIndex !== item.originalIndex"
-                class="message-text prose prose-sm max-w-none"
+                class="message-text prose prose-sm dark:prose-invert prose-headings:text-gray-900 dark:prose-headings:text-gray-100 max-w-none text-gray-800 dark:text-gray-100"
                 v-html="renderMarkdown(getMessageContent(item.message))"
               ></div>
 
@@ -234,17 +234,17 @@
                   :href="att.url"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
                 >
                   <div class="i-carbon-image text-sm"></div>
                   {{ att.name || 'image' }}
-                  <div class="i-carbon-launch text-xs text-gray-400"></div>
+                  <div class="i-carbon-launch text-xs text-gray-400 dark:text-gray-500"></div>
                 </a>
               </div>
 
               <!-- 编辑模式 -->
               <div v-if="editingIndex === item.originalIndex" class="edit-mode">
-                <div class="border border-gray-200 rounded-lg overflow-hidden bg-white edit-milkdown-wrapper">
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900 edit-milkdown-wrapper">
                   <MilkdownEditor
                     v-model="editContent"
                     placeholder="编辑消息..."
@@ -253,7 +253,7 @@
                 <div class="flex justify-end gap-2 mt-2">
                   <button
                     @click="cancelEdit"
-                    class="px-3 py-1.5 text-xs rounded-lg bg-gray-100 text-gray-600"
+                    class="px-3 py-1.5 text-xs rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                   >
                     {{ t('common.cancel') }}
                   </button>
@@ -280,10 +280,10 @@
     </div>
 
     <!-- 底部信息栏 -->
-    <div class="border-t border-gray-100 p-4 space-y-3 bg-gray-50/50">
+    <div class="border-t border-gray-100 dark:border-gray-800 p-4 space-y-3 bg-gray-50 dark:bg-gray-800/50">
       <!-- 标签 -->
       <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-500 flex-shrink-0">{{ t('chat.detail.tags') }}:</span>
+        <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{{ t('chat.detail.tags') }}:</span>
         <div class="flex flex-wrap gap-1.5 flex-1">
           <span
             v-for="tagId in conversation.tagIds"
@@ -294,7 +294,7 @@
           </span>
           <button
             @click="showTagInput = true"
-            class="px-2 py-0.5 text-xs rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
+            class="px-2 py-0.5 text-xs rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
           >
             + {{ t('common.add') }}
           </button>
@@ -309,7 +309,7 @@
           @keydown.escape="showTagInput = false"
           type="text"
           :placeholder="t('chat.detail.tagsPlaceholder')"
-          class="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          class="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
           ref="tagInputRef"
         />
         <button
@@ -322,18 +322,18 @@
 
       <!-- 备注 -->
       <div class="flex items-start gap-2">
-        <span class="text-xs text-gray-500 flex-shrink-0 mt-1.5">{{ t('chat.detail.note') }}:</span>
+        <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 mt-1.5">{{ t('chat.detail.note') }}:</span>
         <textarea
           v-model="localNote"
           @blur="saveNote"
           :placeholder="t('chat.detail.notePlaceholder')"
           rows="2"
-          class="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          class="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
         ></textarea>
       </div>
 
       <!-- 元信息 -->
-      <div class="flex items-center justify-between text-xs text-gray-400">
+      <div class="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
         <span>{{ t('chat.list.collected') }}: {{ formatFullTime(conversation.collectedAt || conversation.createdAt) }}</span>
         <span v-if="conversation.link" class="truncate max-w-[200px]">{{ conversation.link }}</span>
       </div>
@@ -664,8 +664,16 @@ function formatFullTime(timestamp: number): string {
 }
 
 .user-bubble {
-  background-color: #EBF5FF;
+  background-color: #edf3ff;
   color: #1e293b;
+  border: 1px solid rgba(100, 116, 139, 0.16);
+}
+
+:global(.dark .user-bubble),
+:global([data-theme='dark'] .user-bubble) {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  color: #dbeafe !important;
 }
 
 /* Thinking 卡片 */
@@ -676,8 +684,8 @@ function formatFullTime(timestamp: number): string {
 /* Markdown 样式（消息正文 + thinking 卡片共用） */
 .message-text :deep(pre),
 .thinking-content :deep(pre) {
-  background: #1e1e2e;
-  color: #cdd6f4;
+  background: #f3f4f6;
+  color: #111827;
   padding: 12px;
   border-radius: 8px;
   overflow-x: auto;
@@ -690,6 +698,13 @@ function formatFullTime(timestamp: number): string {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.875em;
+}
+
+:global(.dark .message-text code),
+:global(.dark .thinking-content code),
+:global([data-theme='dark'] .message-text code),
+:global([data-theme='dark'] .thinking-content code) {
+  background: rgba(255, 255, 255, 0.14) !important;
 }
 
 .message-text :deep(pre code),
@@ -721,6 +736,33 @@ function formatFullTime(timestamp: number): string {
   text-decoration: underline;
 }
 
+:global(.dark .message-text h1),
+:global(.dark .message-text h2),
+:global(.dark .message-text h3),
+:global(.dark .message-text h4),
+:global(.dark .message-text h5),
+:global(.dark .message-text h6),
+:global(.dark .thinking-content h1),
+:global(.dark .thinking-content h2),
+:global(.dark .thinking-content h3),
+:global(.dark .thinking-content h4),
+:global(.dark .thinking-content h5),
+:global(.dark .thinking-content h6),
+:global([data-theme='dark'] .message-text h1),
+:global([data-theme='dark'] .message-text h2),
+:global([data-theme='dark'] .message-text h3),
+:global([data-theme='dark'] .message-text h4),
+:global([data-theme='dark'] .message-text h5),
+:global([data-theme='dark'] .message-text h6),
+:global([data-theme='dark'] .thinking-content h1),
+:global([data-theme='dark'] .thinking-content h2),
+:global([data-theme='dark'] .thinking-content h3),
+:global([data-theme='dark'] .thinking-content h4),
+:global([data-theme='dark'] .thinking-content h5),
+:global([data-theme='dark'] .thinking-content h6) {
+  color: #f3f4f6 !important;
+}
+
 .message-text :deep(table),
 .thinking-content :deep(table) {
   border-collapse: collapse;
@@ -735,6 +777,33 @@ function formatFullTime(timestamp: number): string {
   border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 8px;
   text-align: left;
+}
+
+:global(.dark .message-text pre),
+:global(.dark .thinking-content pre),
+:global([data-theme='dark'] .message-text pre),
+:global([data-theme='dark'] .thinking-content pre) {
+  background: #0f172a !important;
+  color: #e5e7eb !important;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+:global(.dark .message-text table),
+:global(.dark .thinking-content table),
+:global([data-theme='dark'] .message-text table),
+:global([data-theme='dark'] .thinking-content table) {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+:global(.dark .message-text th),
+:global(.dark .message-text td),
+:global(.dark .thinking-content th),
+:global(.dark .thinking-content td),
+:global([data-theme='dark'] .message-text th),
+:global([data-theme='dark'] .message-text td),
+:global([data-theme='dark'] .thinking-content th),
+:global([data-theme='dark'] .thinking-content td) {
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 /* 编辑模式 - Milkdown 编辑器 */

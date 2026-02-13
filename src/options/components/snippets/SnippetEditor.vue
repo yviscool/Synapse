@@ -1,21 +1,21 @@
 <template>
-  <div class="snippet-editor h-full flex flex-col">
+  <div class="snippet-editor h-full flex flex-col bg-white dark:bg-slate-950">
     <!-- Empty state -->
-    <div v-if="!snippet" class="flex-1 flex flex-col items-center justify-center text-gray-400">
+    <div v-if="!snippet" class="flex-1 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
       <div class="i-carbon-code text-5xl mb-3 opacity-50"></div>
       <p class="text-base">{{ t('tools.list.empty') }}</p>
-      <p class="text-sm mt-1 text-gray-400">{{ t('tools.list.emptyHint') }}</p>
+      <p class="text-sm mt-1 text-gray-400 dark:text-gray-500">{{ t('tools.list.emptyHint') }}</p>
     </div>
 
     <!-- Editor content -->
     <template v-else>
       <!-- Header -->
-      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-700">
         <div class="flex-1 min-w-0">
           <input
             v-model="localTitle"
             type="text"
-            class="w-full text-base font-medium text-gray-800 bg-transparent border-0 focus:ring-0 focus:outline-none"
+            class="w-full text-base font-medium text-gray-800 dark:text-gray-200 bg-transparent border-0 focus:ring-0 focus:outline-none"
             :placeholder="t('tools.editor.titlePlaceholder')"
             :readonly="isPreviewMode"
           />
@@ -26,7 +26,7 @@
             @click="toggleStar"
             :class="[
               'p-1.5 rounded-lg transition-colors',
-              localStarred ? 'text-yellow-500 bg-yellow-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+              localStarred ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800'
             ]"
             :title="t('tools.editor.starred')"
           >
@@ -36,7 +36,7 @@
           <!-- Copy button -->
           <button
             @click="copyContent"
-            class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
             :title="t('tools.editor.copy')"
           >
             <div class="i-carbon-copy"></div>
@@ -45,7 +45,7 @@
           <!-- Download button -->
           <button
             @click="downloadFile"
-            class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
             :title="t('tools.editor.download')"
           >
             <div class="i-carbon-download"></div>
@@ -57,7 +57,7 @@
             @click="isPreviewMode = !isPreviewMode"
             :class="[
               'p-1.5 rounded-lg transition-colors',
-              isPreviewMode ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+              isPreviewMode ? 'text-blue-600 bg-blue-50 dark:bg-slate-800 dark:text-blue-200' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800'
             ]"
             :title="isPreviewMode ? t('tools.editor.edit') : t('tools.editor.preview')"
           >
@@ -67,7 +67,7 @@
           <!-- Delete button -->
           <button
             @click="confirmDelete"
-            class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             :title="t('tools.editor.delete')"
           >
             <div class="i-carbon-trash-can"></div>
@@ -81,7 +81,7 @@
               'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ml-1',
               hasChanges
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
             ]"
           >
             <div class="i-carbon-save text-sm"></div>
@@ -91,13 +91,13 @@
       </div>
 
       <!-- Metadata bar -->
-      <div class="flex items-center gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/50 text-sm">
+      <div class="flex items-center gap-3 px-4 py-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 text-sm">
         <!-- Language -->
         <div class="flex items-center gap-1.5">
-          <span class="text-xs text-gray-500">{{ t('tools.editor.language') }}</span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('tools.editor.language') }}</span>
           <select
             v-model="localLanguage"
-            class="text-xs px-1.5 py-0.5 border border-gray-200 rounded bg-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+            class="text-xs px-1.5 py-0.5 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
             :disabled="isPreviewMode"
           >
             <option v-for="lang in languageOptions" :key="lang.value" :value="lang.value">
@@ -108,10 +108,10 @@
 
         <!-- Folder -->
         <div class="flex items-center gap-1.5">
-          <span class="text-xs text-gray-500">{{ t('tools.editor.folder') }}</span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('tools.editor.folder') }}</span>
           <select
             v-model="localFolderId"
-            class="text-xs px-1.5 py-0.5 border border-gray-200 rounded bg-white focus:ring-1 focus:ring-blue-500 focus:border-transparent max-w-[120px]"
+            class="text-xs px-1.5 py-0.5 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-transparent max-w-[120px]"
             :disabled="isPreviewMode"
           >
             <option :value="null">{{ t('tools.editor.noFolder') }}</option>
@@ -123,7 +123,7 @@
 
         <!-- Tags -->
         <div class="flex-1 flex items-center gap-1.5 min-w-0">
-          <span class="text-xs text-gray-500 flex-shrink-0">{{ t('tools.editor.tags') }}</span>
+          <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{{ t('tools.editor.tags') }}</span>
           <div class="flex-1 flex flex-wrap items-center gap-1 min-w-0">
             <span
               v-for="tag in localTags"
@@ -153,7 +153,7 @@
         </div>
 
         <!-- Stats -->
-        <div class="flex items-center gap-2 text-xs text-gray-400 flex-shrink-0">
+        <div class="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
           <span>{{ formatLastUsed(snippet.usedAt) }}</span>
           <span>·</span>
           <span>{{ t('tools.editor.times', { count: snippet.useCount }) }}</span>
@@ -167,6 +167,7 @@
           <CodeEditor
             v-model="localContent"
             v-model:language="localLanguage"
+            :is-dark="isDark"
             :placeholder="t('tools.editor.contentPlaceholder')"
           />
         </div>
@@ -196,6 +197,7 @@ const props = defineProps<{
   folders: SnippetFolder[]
   availableTags: string[]
   tagIdToName?: Map<string, string>
+  isDark?: boolean
 }>()
 
 const emit = defineEmits<{

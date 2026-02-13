@@ -3,7 +3,7 @@
     <main class="max-w-7xl mx-auto px-6 py-8">
       <div class="flex gap-6 h-[calc(100vh-180px)] min-h-[500px]">
         <!-- Left sidebar: Folder tree -->
-        <div class="w-52 flex-shrink-0 bg-white rounded-xl border border-gray-200/60 overflow-hidden">
+        <div class="w-52 flex-shrink-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700/60 overflow-hidden">
           <FolderTree
             :folders="folders"
             :tags="tags"
@@ -28,7 +28,7 @@
         </div>
 
         <!-- Middle: Snippet list -->
-        <div class="w-64 flex-shrink-0 bg-white rounded-xl border border-gray-200/60 overflow-hidden">
+        <div class="w-64 flex-shrink-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700/60 overflow-hidden">
           <SnippetList
             :snippets="snippets"
             :selected-snippet-id="selectedSnippetId"
@@ -50,12 +50,13 @@
         </div>
 
         <!-- Right: Editor/Preview -->
-        <div class="flex-1 min-w-0 bg-white rounded-xl border border-gray-200/60 overflow-hidden">
+        <div class="flex-1 min-w-0 bg-white dark:bg-slate-950 rounded-xl border border-gray-200 dark:border-slate-700/60 overflow-hidden">
           <SnippetEditor
             :snippet="selectedSnippet"
             :folders="folders"
             :available-tags="availableTagNames"
             :tag-id-to-name="tagIdToName"
+            :is-dark="isDark"
             @save="handleSaveSnippet"
             @delete="handleDeleteSnippet"
             @toggle-star="handleToggleStar"
@@ -68,9 +69,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, inject, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUI } from '@/stores/ui'
+import { optionsThemeKey } from '@/options/composables/useOptionsTheme'
 import { snippetRepository } from '@/stores/snippetRepository'
 import { useSnippetQuery } from './useSnippetQuery'
 import FolderTree from '@/options/components/snippets/FolderTree.vue'
@@ -80,6 +82,8 @@ import type { Snippet, SnippetLanguage } from '@/types/snippet'
 
 const { t } = useI18n()
 const { showToast, askConfirm } = useUI()
+const optionsTheme = inject(optionsThemeKey, null)
+const isDark = computed(() => optionsTheme?.isDark.value ?? false)
 
 // Use the snippet query composable
 const {

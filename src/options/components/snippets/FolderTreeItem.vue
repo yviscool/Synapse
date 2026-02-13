@@ -7,9 +7,9 @@
     <div
       :class="[
         'folder-row flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm cursor-pointer transition-colors group',
-        isSelected ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100',
+        isSelected ? 'bg-blue-100 dark:bg-slate-800 text-blue-700 dark:text-blue-200' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700',
         isDraggingSelf && 'opacity-40',
-        dropPosition === 'inside' && 'bg-blue-50 ring-1 ring-blue-300'
+        dropPosition === 'inside' && 'bg-blue-50 dark:bg-slate-800 ring-1 ring-blue-300 dark:ring-blue-600'
       ]"
       :style="{ paddingLeft: `${depth * 12 + 8}px` }"
       draggable="true"
@@ -25,25 +25,25 @@
       <button
         v-if="hasChildren"
         @click.stop="$emit('toggle-expand', folder.id)"
-        class="p-0.5 text-gray-400 hover:text-gray-600 rounded transition-colors"
+        class="p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
       >
         <div :class="isExpanded ? 'i-carbon-chevron-down' : 'i-carbon-chevron-right'" class="text-xs"></div>
       </button>
       <div v-else class="w-4"></div>
 
       <!-- Folder icon -->
-      <div :class="isExpanded ? 'i-carbon-folder-open' : 'i-carbon-folder'" class="text-gray-400"></div>
+      <div :class="isExpanded ? 'i-carbon-folder-open' : 'i-carbon-folder'" class="text-gray-400 dark:text-gray-500"></div>
 
       <!-- Folder name -->
       <span class="flex-1 truncate">{{ folder.name }}</span>
 
       <!-- Count -->
-      <span class="text-xs text-gray-400">{{ snippetCounts.get(folder.id) || 0 }}</span>
+      <span class="text-xs text-gray-400 dark:text-gray-500">{{ snippetCounts.get(folder.id) || 0 }}</span>
 
       <!-- Context menu button -->
       <button
         @click.stop="showContextMenu"
-        class="p-0.5 text-gray-400 hover:text-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        class="p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 rounded opacity-0 group-hover:opacity-100 transition-opacity"
       >
         <div class="i-carbon-overflow-menu-vertical text-xs"></div>
       </button>
@@ -78,12 +78,12 @@
     <div
       v-if="contextMenuVisible"
       ref="contextMenuRef"
-      class="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[140px]"
+      class="fixed z-50 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[140px]"
       :style="{ left: `${contextMenuX}px`, top: `${contextMenuY}px` }"
     >
       <button
         @click="handleRename"
-        class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+        class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
       >
         <div class="i-carbon-edit"></div>
         {{ t('tools.folder.rename') }}
@@ -91,12 +91,12 @@
       <button
         v-if="depth < 2"
         @click="handleNewSubfolder"
-        class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+        class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
       >
         <div class="i-carbon-folder-add"></div>
         {{ t('tools.folder.newSubfolder') }}
       </button>
-      <div class="border-t border-gray-100 my-1"></div>
+      <div class="border-t border-gray-100 dark:border-gray-800 my-1"></div>
       <button
         @click="handleDelete"
         class="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"

@@ -20,6 +20,12 @@ export default {
     followSystem: "跟随系统",
     currentSystem: "当前系统语言为 {lang}",
   },
+  theme: {
+    title: "主题",
+    light: "浅色",
+    dark: "深色",
+    followSystem: "跟随系统",
+  },
   sync: {
     title: "云同步",
     status: {

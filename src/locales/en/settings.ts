@@ -14,6 +14,12 @@ export default {
     followSystem: "Follow System",
     currentSystem: "Current system language is {lang}",
   },
+  theme: {
+    title: "Theme",
+    light: "Light",
+    dark: "Dark",
+    followSystem: "Follow System",
+  },
   sort: {
     label: "Sort By",
     updatedAt: "Recently Updated",

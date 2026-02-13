@@ -4,23 +4,23 @@
     @click.self="$emit('close')"
   >
     <div
-      class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+      class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
       @click.stop
     >
       <!-- 头部 -->
-      <div class="flex items-center justify-between p-5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
             <div class="i-carbon-download text-white text-xl"></div>
           </div>
           <div>
-            <h3 class="font-semibold text-gray-900">{{ t('chat.export.title') }}</h3>
-            <p class="text-xs text-gray-500 truncate max-w-[280px]">{{ conversation.title }}</p>
+            <h3 class="font-semibold text-gray-900 dark:text-gray-100">{{ t('chat.export.title') }}</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[280px]">{{ conversation.title }}</p>
           </div>
         </div>
         <button
           @click="$emit('close')"
-          class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/50 transition-colors"
+          class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-white/50 dark:hover:bg-gray-700/60 transition-colors"
         >
           <div class="i-carbon-close text-lg"></div>
         </button>
@@ -30,7 +30,7 @@
       <div class="p-5 space-y-5">
         <!-- 格式选择 -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-3">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
             {{ t('chat.export.format') }}
           </label>
           <div class="grid grid-cols-4 gap-2">
@@ -42,7 +42,7 @@
               :class="[
                 selectedFormat === format.value
                   ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'
               ]"
             >
               <div :class="format.icon" class="text-2xl"></div>
@@ -57,9 +57,9 @@
             <input
               v-model="includeMetadata"
               type="checkbox"
-              class="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500/20"
+              class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-500 focus:ring-blue-500/20"
             />
-            <span class="text-sm text-gray-700 group-hover:text-gray-900">
+            <span class="text-sm text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:hover:text-gray-100">
               {{ t('chat.export.options.includeMetadata') }}
             </span>
           </label>
@@ -67,9 +67,9 @@
             <input
               v-model="includeTimestamps"
               type="checkbox"
-              class="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500/20"
+              class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-500 focus:ring-blue-500/20"
             />
-            <span class="text-sm text-gray-700 group-hover:text-gray-900">
+            <span class="text-sm text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:hover:text-gray-100">
               {{ t('chat.export.options.includeTimestamps') }}
             </span>
           </label>
@@ -77,18 +77,18 @@
             <input
               v-model="includeThinking"
               type="checkbox"
-              class="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500/20"
+              class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-500 focus:ring-blue-500/20"
             />
-            <span class="text-sm text-gray-700 group-hover:text-gray-900">
+            <span class="text-sm text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:hover:text-gray-100">
               {{ t('chat.export.options.includeThinking') }}
             </span>
           </label>
         </div>
 
         <!-- 预览 -->
-        <div class="bg-gray-50 rounded-xl p-4">
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-500">{{ t('chat.export.preview') }}</span>
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('chat.export.preview') }}</span>
             <button
               @click="copyContent"
               class="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
@@ -97,15 +97,15 @@
               {{ t('chat.export.copy') }}
             </button>
           </div>
-          <pre class="text-xs text-gray-600 max-h-32 overflow-auto whitespace-pre-wrap font-mono">{{ previewContent }}</pre>
+          <pre class="text-xs text-gray-600 dark:text-gray-300 max-h-32 overflow-auto whitespace-pre-wrap font-mono">{{ previewContent }}</pre>
         </div>
       </div>
 
       <!-- 底部 -->
-      <div class="flex items-center justify-end gap-3 p-5 border-t border-gray-100 bg-gray-50/50">
+      <div class="flex items-center justify-end gap-3 p-5 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
         <button
           @click="$emit('close')"
-          class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+          class="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
         >
           {{ t('common.cancel') }}
         </button>

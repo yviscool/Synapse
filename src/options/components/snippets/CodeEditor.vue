@@ -1,11 +1,11 @@
 <template>
   <div class="code-editor" :class="{ 'is-readonly': readonly }">
     <!-- Toolbar -->
-    <div class="flex items-center justify-between px-3 py-1.5 border-b border-gray-100 bg-gray-50/50">
+    <div class="flex items-center justify-between px-3 py-1.5 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/80">
       <div class="flex items-center gap-2">
         <select
           v-model="localLanguage"
-          class="text-xs px-1.5 py-0.5 border border-gray-200 rounded bg-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+          class="text-xs px-1.5 py-0.5 border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
           :disabled="readonly"
         >
           <option v-for="lang in supportedLanguages" :key="lang.value" :value="lang.value">
@@ -13,7 +13,7 @@
           </option>
         </select>
       </div>
-      <div class="flex items-center gap-2 text-xs text-gray-400">
+      <div class="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
         <span>{{ t('tools.editor.lineCount', { count: lineCount }) }}</span>
         <span class="text-gray-300">|</span>
         <span>{{ t('tools.editor.charCount', { count: charCount }) }}</span>
@@ -36,11 +36,13 @@ const props = withDefaults(defineProps<{
   language?: SnippetLanguage
   readonly?: boolean
   placeholder?: string
+  isDark?: boolean
 }>(), {
   modelValue: '',
   language: 'text',
   readonly: false,
   placeholder: '',
+  isDark: false,
 })
 
 const emit = defineEmits<{
@@ -100,6 +102,10 @@ const charCount = computed(() => {
   return editor.value?.getValue()?.length || 0
 })
 
+function getMonacoTheme(isDark: boolean): 'github-light' | 'github-dark' {
+  return isDark ? 'github-dark' : 'github-light'
+}
+
 // Initialize Monaco Editor
 onMounted(() => {
   if (!editorContainer.value) return
@@ -131,10 +137,37 @@ onMounted(() => {
     }
   })
 
+  // 定义 GitHub Dark 主题
+  monaco.editor.defineTheme('github-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '8b949e', fontStyle: 'italic' },
+      { token: 'keyword', foreground: 'ff7b72' },
+      { token: 'string', foreground: 'a5d6ff' },
+      { token: 'number', foreground: '79c0ff' },
+      { token: 'type', foreground: 'd2a8ff' },
+      { token: 'function', foreground: 'd2a8ff' },
+      { token: 'variable', foreground: 'ffa657' },
+      { token: 'tag', foreground: '8bbcff' },
+      { token: 'attribute.name', foreground: 'd2a8ff' },
+      { token: 'attribute.value', foreground: 'a5d6ff' },
+    ],
+    colors: {
+      'editor.background': '#0b1220',
+      'editor.foreground': '#c9d1d9',
+      'editor.lineHighlightBackground': '#101a2c',
+      'editorLineNumber.foreground': '#6e7681',
+      'editorLineNumber.activeForeground': '#c9d1d9',
+      'editor.selectionBackground': '#1f3b62',
+      'editor.inactiveSelectionBackground': '#1a2437',
+    }
+  })
+
   editor.value = monaco.editor.create(editorContainer.value, {
     value: props.modelValue,
     language: languageMap[localLanguage.value],
-    theme: 'github-light',
+    theme: getMonacoTheme(Boolean(props.isDark)),
     readOnly: props.readonly,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
@@ -186,6 +219,10 @@ watch(() => props.readonly, (newValue) => {
   editor.value?.updateOptions({ readOnly: newValue })
 })
 
+watch(() => props.isDark, (newValue) => {
+  monaco.editor.setTheme(getMonacoTheme(Boolean(newValue)))
+})
+
 // Watch for language changes
 watch(localLanguage, (newValue) => {
   emit('update:language', newValue)
@@ -208,12 +245,17 @@ defineExpose({
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: white;
+  background: #ffffff;
   overflow: hidden;
 }
 
 .editor-container {
   flex: 1;
   min-height: 150px;
+}
+
+:global(.dark .code-editor),
+:global([data-theme='dark'] .code-editor) {
+  background: #0b1220;
 }
 </style>

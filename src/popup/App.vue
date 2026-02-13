@@ -1,5 +1,8 @@
 <template>
-  <div class="w-[320px] flex flex-col overflow-hidden rounded-lg bg-white font-sans text-gray-800 shadow-2xl dark:bg-gray-900 dark:text-gray-200">
+  <div
+    class="w-[320px] flex flex-col overflow-hidden rounded-lg bg-white font-sans text-gray-800 shadow-2xl dark:bg-gray-900 dark:text-gray-200"
+    :class="{ dark: isDark }"
+  >
     <!-- Header: Brand -->
     <div class="flex items-center justify-center py-5">
       <h1
@@ -81,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { db, getSettings } from '@/stores/db'
 import { getPlatformConfig } from '@/utils/chatPlatform'
@@ -92,6 +95,10 @@ import { resolveLocalePreference } from '@/utils/locale'
 const { t, locale } = useI18n()
 
 const hotkeyOpen = ref('Alt+K')
+const themePreference = ref<'light' | 'dark' | 'auto'>('auto')
+const mediaDark = ref(false)
+let mediaQuery: MediaQueryList | null = null
+let mediaQueryListener: ((event: MediaQueryListEvent) => void) | null = null
 
 // --- Activity types ---
 interface ActivityItem {
@@ -118,11 +125,40 @@ function timeAgo(ts: number): string {
   return t('popup.timeAgo.daysAgo', { n: days })
 }
 
-async function setLocale() {
+const isDark = computed(() => {
+  if (themePreference.value === 'dark') return true
+  if (themePreference.value === 'light') return false
+  return mediaDark.value
+})
+
+function applyPopupTheme() {
+  const mode = isDark.value ? 'dark' : 'light'
+  document.documentElement.classList.toggle('dark', mode === 'dark')
+  document.documentElement.setAttribute('data-theme', mode)
+  document.documentElement.style.colorScheme = mode
+}
+
+async function setPreferences() {
   const settings = await getSettings()
   hotkeyOpen.value = settings.hotkeyOpen || 'Alt+K'
   locale.value = resolveLocalePreference(settings.locale)
+  themePreference.value = settings.theme === 'dark' || settings.theme === 'light' ? settings.theme : 'auto'
+  applyPopupTheme()
 }
+
+function setupMediaListener() {
+  mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  mediaDark.value = mediaQuery.matches
+  applyPopupTheme()
+  mediaQueryListener = (event: MediaQueryListEvent) => {
+    mediaDark.value = event.matches
+    if (themePreference.value === 'auto') {
+      applyPopupTheme()
+    }
+  }
+  mediaQuery.addEventListener('change', mediaQueryListener)
+}
+
 // --- Load activity feed ---
 async function loadActivities() {
   const [allPrompts, chats, snippets] = await Promise.all([
@@ -191,7 +227,7 @@ function handleMessage(msg: RequestMessage<unknown>) {
     if (!payload) return
     const { scope } = payload
     if (scope === 'settings') {
-      setLocale()
+      setPreferences()
     } else {
       loadActivities()
     }
@@ -201,12 +237,16 @@ function handleMessage(msg: RequestMessage<unknown>) {
 // --- Lifecycle ---
 onMounted(async () => {
   await db.open()
-  await setLocale()
+  setupMediaListener()
+  await setPreferences()
   await loadActivities()
   chrome.runtime.onMessage.addListener(handleMessage)
 })
 
 onUnmounted(() => {
+  if (mediaQuery && mediaQueryListener) {
+    mediaQuery.removeEventListener('change', mediaQueryListener)
+  }
   chrome.runtime.onMessage.removeListener(handleMessage)
 })
 </script>

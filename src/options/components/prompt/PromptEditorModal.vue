@@ -3,21 +3,21 @@
   <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" @click="handleModalClick">
     <!-- 模态框容器：白色背景，圆角设计，根据是否显示版本历史动态调整宽度 -->
     <div
-      class="bg-white rounded-2xl shadow-2xl max-h-[100vh] overflow-hidden w-full"
+      class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-h-[100vh] overflow-hidden w-full"
       :class="{ 'max-w-[80vw]': !showVersionHistoryLocal, 'max-w-[90vw]': showVersionHistoryLocal }"
       @click.stop
     >
       <!-- 模态框头部：包含标题和操作按钮 -->
-      <div class="flex items-center justify-between p-2 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+      <div class="prompt-editor-header flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
         <!-- 左侧标题区域 -->
         <div class="flex-1">
-          <h2 class="flex items-center gap-3 text-xl font-semibold text-gray-900">
+          <h2 class="flex items-center gap-3 text-xl font-semibold text-gray-900 dark:text-gray-100">
             <div class="i-carbon-edit"></div>
             <!-- 根据是否有ID显示不同的标题 -->
             {{ modelValue?.id ? t('prompts.editor.titleEdit') : t('prompts.editor.titleCreate') }}
           </h2>
           <!-- 显示当前编辑的提示词ID -->
-          <div class="text-sm text-gray-500 mt-1" v-if="modelValue?.id">
+          <div class="text-sm text-gray-500 dark:text-gray-400 mt-1" v-if="modelValue?.id">
             ID: {{ modelValue.id }}
           </div>
         </div>
@@ -28,13 +28,13 @@
           <button
             v-if="modelValue?.id"
             @click="showVersionHistoryLocal = !showVersionHistoryLocal"
-            :class="['p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/50 transition-colors', { 'text-blue-600 bg-blue-100': showVersionHistoryLocal }]"
+            :class="['p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-white/50 dark:hover:bg-gray-700/60 transition-colors', { 'text-blue-600 bg-blue-100': showVersionHistoryLocal }]"
             :title="t('prompts.editor.versionHistory')"
           >
             <div class="i-carbon-time"></div>
           </button>
           <!-- 关闭按钮 -->
-          <button @click="$emit('close')" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/50 transition-colors">
+          <button @click="$emit('close')" class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-white/50 dark:hover:bg-gray-700/60 transition-colors">
             <div class="i-carbon-close"></div>
           </button>
         </div>
@@ -43,7 +43,7 @@
       <!-- 模态框主体内容区域 -->
       <div class="flex h-[75vh] min-h-0">
         <!-- 左侧版本历史面板 -->
-        <div v-if="showVersionHistoryLocal && modelValue?.id" class="w-80 border-l border-gray-200 flex flex-col flex-shrink-0 min-w-0">
+        <div v-if="showVersionHistoryLocal && modelValue?.id" class="w-80 border-l border-gray-200 dark:border-gray-700 flex flex-col flex-shrink-0 min-w-0">
           <VersionHistory
             :prompt-id="modelValue.id"
             :current-content="contentProxy"
@@ -56,26 +56,26 @@
         <!-- 右侧编辑区域 -->
         <div class="flex-1 flex overflow-hidden min-h-0">
           <!-- 中间元数据面板：固定宽度，包含提示词的基本信息 -->
-          <div class="w-96 border-r border-gray-200 p-4 flex flex-col space-y-4 overflow-y-auto">
-            <h3 class="text-lg font-semibold text-gray-800 tracking-wide">{{ t('prompts.editor.metadata') }}</h3>
+          <div class="w-96 border-r border-gray-200 dark:border-gray-700 p-4 flex flex-col space-y-4 overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 tracking-wide">{{ t('prompts.editor.metadata') }}</h3>
 
             <!-- 元数据表单区域 -->
             <div class="space-y-5">
               <!-- 提示词标题输入 -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('prompts.editor.promptTitle') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">{{ t('prompts.editor.promptTitle') }}</label>
                 <input
                   v-model="titleProxy"
                   type="text"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   :placeholder="t('prompts.editor.titlePlaceholder')"
                 >
               </div>
 
               <!-- 分类选择区域 -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('prompts.editor.category') }}</label>
-                <div class="w-full p-2 border border-gray-200 rounded-lg flex flex-wrap gap-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">{{ t('prompts.editor.category') }}</label>
+                <div class="w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg flex flex-wrap gap-2">
                   <!-- 动态生成分类按钮 -->
                   <button
                     v-for="category in availableCategories"
@@ -85,7 +85,7 @@
                       'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border',
                       (Array.isArray(localModel.categoryIds) ? localModel.categoryIds : []).includes(category.id)
                         ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:border-gray-600'
                     ]"
                   >
                     {{ category.name }}
@@ -95,8 +95,8 @@
 
               <!-- 标签管理区域 -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('prompts.editor.tags') }}</label>
-                <div class="w-full px-3 py-2 border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent flex flex-wrap items-center gap-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">{{ t('prompts.editor.tags') }}</label>
+                <div class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent flex flex-wrap items-center gap-2">
                   <!-- 已添加的标签显示 -->
                   <span
                     v-for="tag in editingTags"
@@ -127,20 +127,20 @@
 
               <!-- 修改备注输入 -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('prompts.editor.changeNote') }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">{{ t('prompts.editor.changeNote') }}</label>
                 <input
                   v-model="changeNoteProxy"
                   type="text"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   :placeholder="t('prompts.editor.changeNotePlaceholder')"
                 >
               </div>
 
               <!-- 收藏标记 -->
               <div>
-                <label class="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                <label class="flex items-center gap-3 px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                   <input type="checkbox" v-model="favoriteProxy" class="rounded text-blue-600 focus:ring-blue-500">
-                  <span class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <span class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
                     <div class="i-carbon-favorite"></div>
                     {{ t('prompts.editor.markAsFavorite') }}
                   </span>
@@ -150,15 +150,15 @@
           </div>
 
           <!-- 右侧编辑器区域：占剩余空间 -->
-          <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50/50 min-w-0 min-h-0">
+          <div class="flex-1 flex flex-col p-4 space-y-2 bg-gray-50 dark:bg-gray-800/50 min-w-0 min-h-0">
             <div class="flex items-center justify-between">
-              <label class="block text-sm font-medium text-gray-700">{{ t('prompts.editor.promptContent') }}</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-200">{{ t('prompts.editor.promptContent') }}</label>
 
               <!-- 版本预览状态提示条 -->
               <!-- 预览历史版本时的提示 -->
               <div v-if="isReadonly && previewingVersion" class="px-2 py-1 rounded-md bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs flex items-center justify-between">
                 <span class="font-medium">{{ t('prompts.editor.previewing', { version: previewingVersion.versionNumber }) }}</span>
-                <button @click="$emit('edit-from-preview')" class="ml-2 px-2 py-0.5 bg-white border border-yellow-400 rounded-md hover:bg-yellow-50 transition-colors">{{ t('prompts.editor.editFromPreview') }}</button>
+                <button @click="$emit('edit-from-preview')" class="ml-2 px-2 py-0.5 bg-white dark:bg-gray-900 border border-yellow-400 rounded-md hover:bg-yellow-50 transition-colors">{{ t('prompts.editor.editFromPreview') }}</button>
               </div>
               <!-- 基于历史版本编辑时的提示 -->
               <div v-else-if="!isReadonly && baseVersionForEdit" class="px-2 py-1 rounded-md bg-blue-100 border border-blue-300 text-blue-800 text-xs flex items-center justify-between">
@@ -171,7 +171,7 @@
             </div>
 
             <!-- Markdown编辑器 -->
-            <div class="flex-1 relative border border-gray-200 rounded-lg overflow-hidden shadow-inner bg-white flex flex-col min-h-0">
+            <div class="flex-1 relative border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-inner bg-white dark:bg-gray-900 flex flex-col min-h-0">
               <MarkdownEditor
                 v-model="contentProxy"
                 :readonly="isReadonly"
@@ -184,9 +184,9 @@
       </div>
 
       <!-- 模态框底部操作栏 -->
-      <div class="flex items-center justify-between p-2 border-t border-gray-200 bg-gray-50">
+      <div class="flex items-center justify-between p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <!-- 字符统计 -->
-        <div class="text-sm text-gray-500">
+        <div class="text-sm text-gray-500 dark:text-gray-400">
           <span v-if="contentProxy">
             {{ t('prompts.editor.charCount', { count: contentProxy.length }) }}
           </span>
@@ -484,4 +484,9 @@ function handleSave() {
 /* 按钮悬停过渡 */
 /* 模态框出现/消失动画 */
 /* 标签添加/删除动画 */
+
+/* 兜底：仅设置 data-theme 时，头部仍保持暗色背景 */
+:global([data-theme='dark']) .prompt-editor-header {
+  background-image: linear-gradient(to right, rgb(17 24 39), rgb(31 41 55));
+}
 </style>

@@ -5,21 +5,21 @@
         @click="$emit('update:visible', false)"
     >
         <div
-            class="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden"
+            class="bg-white dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden"
             @click.stop
         >
             <div
-                class="flex items-center justify-between p-5 border-b border-gray-200/80"
+                class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700/80"
             >
                 <h2
-                    class="flex items-center gap-3 text-lg font-semibold text-gray-900"
+                    class="flex items-center gap-3 text-lg font-semibold text-gray-900 dark:text-gray-100"
                 >
                     <div class="i-carbon-data-enrichment text-xl"></div>
                     {{ t("categories.mergeImportModal.title") }}
                 </h2>
                 <button
                     @click="$emit('update:visible', false)"
-                    class="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-200/70 transition-colors"
+                    class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 >
                     <div class="i-carbon-close"></div>
                 </button>
@@ -32,7 +32,7 @@
                     :class="
                         promptsCount > 0
                             ? 'bg-green-50 border-green-200 border'
-                            : 'bg-gray-50'
+                            : 'bg-gray-50 dark:bg-gray-800'
                     "
                 >
                     <div class="flex items-center gap-3">
@@ -41,12 +41,12 @@
                             :class="
                                 promptsCount > 0
                                     ? 'bg-green-500 text-white'
-                                    : 'bg-gray-300 text-gray-600'
+                                    : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                             "
                         >
                             1
                         </div>
-                        <h3 class="text-lg font-semibold text-gray-800">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
                             {{ t("categories.mergeImportModal.step1Title") }}
                         </h3>
                         <div
@@ -63,17 +63,17 @@
                                 'flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors',
                                 isDragging
                                     ? 'border-blue-500 bg-blue-50'
-                                    : 'border-gray-300 hover:border-gray-400',
+                                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400',
                             ]"
                         >
                             <div class="space-y-1 text-center">
                                 <div
-                                    class="i-carbon-upload text-4xl mx-auto text-gray-400"
+                                    class="i-carbon-upload text-4xl mx-auto text-gray-400 dark:text-gray-500"
                                 ></div>
-                                <div class="flex text-sm text-gray-600">
+                                <div class="flex text-sm text-gray-600 dark:text-gray-300">
                                     <label
                                         for="file-upload"
-                                        class="relative cursor-pointer bg-white rounded-md font-semibold text-blue-600 hover:text-blue-700 focus-within:outline-none transition-colors"
+                                        class="relative cursor-pointer bg-white dark:bg-gray-900 rounded-md font-semibold text-blue-600 hover:text-blue-700 focus-within:outline-none transition-colors"
                                     >
                                         <span>{{
                                             t(
@@ -97,7 +97,7 @@
                                         }}
                                     </p>
                                 </div>
-                                <p class="text-xs text-gray-500">
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
                                     {{
                                         t(
                                             "categories.mergeImportModal.fileTypeHint",
@@ -107,14 +107,14 @@
                             </div>
                         </div>
                         <div class="flex justify-between items-center">
-                            <div class="text-sm text-gray-800 font-medium">
+                            <div class="text-sm text-gray-800 dark:text-gray-200 font-medium">
                                 <span v-if="fileName">{{
                                     t(
                                         "categories.mergeImportModal.fileSelected",
                                         { fileName, count: promptsCount },
                                     )
                                 }}</span>
-                                <span v-else class="text-gray-500">{{
+                                <span v-else class="text-gray-500 dark:text-gray-400">{{
                                     t(
                                         "categories.mergeImportModal.noFileSelected",
                                     )
@@ -145,12 +145,12 @@
                             :class="
                                 targetCategoryIds.length > 0
                                     ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-300 text-gray-600'
+                                    : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                             "
                         >
                             2
                         </div>
-                        <h3 class="text-lg font-semibold text-gray-800">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
                             {{ t("categories.mergeImportModal.step2Title") }}
                         </h3>
                         <div
@@ -159,7 +159,7 @@
                         ></div>
                     </div>
                     <div class="pl-11 mt-3 space-y-2">
-                        <p class="text-sm text-gray-500">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
                             {{
                                 t(
                                     "categories.mergeImportModal.step2Description",
@@ -174,7 +174,7 @@
                                     'flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all',
                                     targetCategoryIds.includes(category.id)
                                         ? 'bg-blue-50 border-blue-500 shadow-sm'
-                                        : 'bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-gray-400',
+                                        : 'bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-400',
                                 ]"
                             >
                                 <input
@@ -182,14 +182,14 @@
                                     :value="category.id"
                                     v-model="targetCategoryIds"
                                     :disabled="promptsCount === 0"
-                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                    class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500"
                                 />
                                 <div
                                     v-if="category.icon"
                                     :class="category.icon"
                                 ></div>
                                 <span
-                                    class="text-sm font-medium text-gray-900"
+                                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
                                     >{{ category.name }}</span
                                 >
                             </label>
@@ -204,16 +204,16 @@
                 >
                     <div class="flex items-center gap-3">
                         <div
-                            class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-lg bg-gray-300 text-gray-600"
+                            class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-lg bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
                         >
                             3
                         </div>
-                        <h3 class="text-lg font-semibold text-gray-800">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
                             {{ t("categories.mergeImportModal.step3Title") }}
                         </h3>
                     </div>
                     <div class="pl-11 mt-3 space-y-2">
-                        <p class="text-sm text-gray-500">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
                             {{
                                 t(
                                     "categories.mergeImportModal.step3Description",
@@ -221,7 +221,7 @@
                             }}
                         </p>
                         <div
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent flex flex-wrap items-center gap-2 bg-white transition-shadow"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent flex flex-wrap items-center gap-2 bg-white dark:bg-gray-900 transition-shadow"
                             :class="{ 'opacity-50': promptsCount === 0 }"
                         >
                             <span
@@ -241,7 +241,7 @@
                             <input
                                 v-model="tagInputLocal"
                                 type="text"
-                                class="flex-1 bg-transparent outline-none min-w-[120px] h-8 text-gray-900"
+                                class="flex-1 bg-transparent outline-none min-w-[120px] h-8 text-gray-900 dark:text-gray-100"
                                 :placeholder="
                                     t(
                                         'categories.mergeImportModal.tagInputPlaceholder',
@@ -257,11 +257,11 @@
             </div>
 
             <div
-                class="flex items-center justify-end gap-3 p-5 border-t border-gray-200/80"
+                class="flex items-center justify-end gap-3 p-5 border-t border-gray-200 dark:border-gray-700/80"
             >
                 <button
                     @click="$emit('update:visible', false)"
-                    class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium text-gray-700"
+                    class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium text-gray-700 dark:text-gray-200"
                 >
                     {{ t("categories.mergeImportModal.cancel") }}
                 </button>

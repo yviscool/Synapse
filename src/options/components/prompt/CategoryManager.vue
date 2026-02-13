@@ -1,15 +1,15 @@
 <template>
     <div v-if="visible" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4"
         @click="close">
-        <div class="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden max-w-xl w-full flex flex-col"
+        <div class="bg-white dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden max-w-xl w-full flex flex-col"
             @click.stop>
-            <div class="flex items-center justify-between p-5 border-b border-gray-200/80">
-                <h2 class="flex items-center gap-3 text-lg font-semibold text-gray-900">
+            <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700/80">
+                <h2 class="flex items-center gap-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
                     <div class="i-carbon-folder-details-reference text-xl"></div>
                     {{ t('categories.title') }}
                 </h2>
                 <button @click="close"
-                    class="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-200/70 transition-colors">
+                    class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <div class="i-carbon-close"></div>
                 </button>
             </div>
@@ -18,13 +18,13 @@
                 <div class="flex gap-3 items-center">
                     <div class="relative flex-1">
                         <div
-                            :class="[newCategoryIcon || 'i-carbon-add', 'absolute left-3 top-1/2 -translate-y-1/2 text-lg text-gray-400']">
+                            :class="[newCategoryIcon || 'i-carbon-add', 'absolute left-3 top-1/2 -translate-y-1/2 text-lg text-gray-400 dark:text-gray-500']">
                         </div>
                         <input v-model="newCategoryName" type="text" :placeholder="t('categories.createPlaceholder')" @keyup.enter="addCategory"
-                            class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                            class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
                     <button @click.prevent="toggleIconPicker($event, 'add')"
-                        class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 flex items-center justify-center gap-2 transition-colors"
+                        class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors"
                         :title="t('categories.iconTooltip')">
                         <div :class="[newCategoryIcon || 'i-carbon-image-search', 'text-lg']"></div>
                     </button>
@@ -39,7 +39,7 @@
                     <div v-for="category in orderedCategories" :key="category.id"
                         class="group flex items-center justify-between p-3 rounded-lg transition-all duration-300 relative"
                         :class="{
-                            'bg-gray-50 hover:bg-gray-100': editingCategoryId !== category.id,
+                            'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700': editingCategoryId !== category.id,
                             'opacity-30 scale-95': draggingCategoryId === category.id,
                         }" :draggable="editingCategoryId === null" :data-category-id="category.id"
                         @dragstart="handleCategoryDragStart($event, category)" @dragend="handleCategoryDragEnd"
@@ -52,11 +52,11 @@
                         <template v-if="editingCategoryId === category.id">
                             <div class="flex-1 w-0 flex gap-2 items-stretch">
                                 <button @click.prevent="toggleIconPicker($event, category.id)" :title="t('categories.changeIconTooltip')"
-                                    class="px-2 py-1 border border-blue-400 rounded-md hover:bg-blue-50 flex items-center gap-2 bg-white">
+                                    class="px-2 py-1 border border-blue-400 rounded-md hover:bg-blue-50 flex items-center gap-2 bg-white dark:bg-gray-900">
                                     <div :class="[editingCategoryIcon || 'i-carbon-image', 'text-lg']"></div>
                                 </button>
                                 <input v-model="editingCategoryName" type="text" ref="editInputRef"
-                                    class="flex-1 w-0 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                                    class="flex-1 w-0 px-2 py-1 border border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900"
                                     @keyup.enter="saveCategoryEdit" @keyup.esc.stop="cancelCategoryEdit" />
                             </div>
                             <div class="flex items-center gap-2 ml-4">
@@ -65,7 +65,7 @@
                                     <div class="i-carbon-checkmark"></div>
                                 </button>
                                 <button @click="cancelCategoryEdit" :title="t('categories.cancelTooltip')"
-                                    class="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
+                                    class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
                                     <div class="i-carbon-close"></div>
                                 </button>
                             </div>
@@ -76,20 +76,20 @@
                                 <div
                                     class="i-carbon-draggable text-gray-300 cursor-grab group-hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                 </div>
-                                <div v-if="category.icon" :class="[category.icon, 'text-xl text-gray-700']"></div>
+                                <div v-if="category.icon" :class="[category.icon, 'text-xl text-gray-700 dark:text-gray-200']"></div>
                                 <div class="flex-1 truncate">
-                                    <div class="font-medium text-gray-800 truncate">{{ category.name }}</div>
-                                    <div class="text-sm text-gray-500">{{ t('categories.promptCount', { count: getPromptCount(category.id) }) }}</div>
+                                    <div class="font-medium text-gray-800 dark:text-gray-200 truncate">{{ category.name }}</div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400">{{ t('categories.promptCount', { count: getPromptCount(category.id) }) }}</div>
                                 </div>
                             </div>
                             <div
                                 class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                 <button @click="editCategory(category)" :title="t('categories.editTooltip')"
-                                    class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors">
+                                    class="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors">
                                     <div class="i-carbon-edit"></div>
                                 </button>
                                 <button @click="deleteCategory(category.id)" :title="t('categories.deleteTooltip')"
-                                    class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors">
+                                    class="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors">
                                     <div class="i-carbon-trash-can"></div>
                                 </button>
                             </div>
@@ -101,16 +101,16 @@
     </div>
 
     <div v-if="iconPicker.visible" ref="iconPickerRef"
-        class="fixed z-[60] bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
+        class="fixed z-[60] bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
         :style="{ top: `${iconPicker.y}px`, left: `${iconPicker.x}px` }">
         <div class="p-3">
             <input v-model="iconSearch" type="text" :placeholder="t('categories.searchIconPlaceholder')" ref="iconSearchInputRef"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow" />
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow" />
         </div>
         <div class="p-3 grid grid-cols-8 sm:grid-cols-10 gap-2 overflow-y-auto max-h-[40vh]">
             <button v-for="icon in filteredIcons" :key="icon" @click="selectIcon(icon)" :class="[
                 'h-12 w-full flex items-center justify-center rounded-md border transition',
-                isActiveIcon(icon) ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-transparent hover:bg-gray-100 text-gray-700'
+                isActiveIcon(icon) ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-transparent hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
             ]" :title="icon">
                 <div :class="[icon, 'text-2xl']"></div>
             </button>

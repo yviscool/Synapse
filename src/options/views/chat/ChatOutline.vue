@@ -1,10 +1,10 @@
 <template>
   <div class="outline-nav fixed right-14 top-1/2 -translate-y-1/2 z-30 w-52 max-h-[80vh] flex flex-col">
-    <div class="bg-white rounded-xl shadow-lg border border-gray-200/80 overflow-hidden flex flex-col">
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700/80 overflow-hidden flex flex-col">
       <!-- 标题栏 -->
-      <div class="px-4 py-3 border-b border-gray-100/80 flex items-center gap-2">
-        <div class="i-carbon-list-boxes text-sm text-gray-400"></div>
-        <span class="text-xs font-medium text-gray-500">{{ t('chat.outline.title') }}</span>
+      <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800/80 flex items-center gap-2">
+        <div class="i-carbon-list-boxes text-sm text-gray-400 dark:text-gray-500"></div>
+        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('chat.outline.title') }}</span>
       </div>
 
       <!-- 目录列表 -->
@@ -17,17 +17,17 @@
           :key="item.index"
           @click="$emit('jump', item.index)"
           class="outline-item group relative flex items-start gap-2 px-4 py-2 cursor-pointer transition-colors duration-150"
-          :class="activeIndex === item.index ? 'is-active' : 'hover:bg-gray-50'"
+          :class="activeIndex === item.index ? 'is-active' : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
         >
           <!-- 左侧激活指示条 -->
           <div
             class="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full transition-all duration-200"
-            :class="activeIndex === item.index ? 'bg-blue-500' : 'bg-transparent group-hover:bg-gray-200'"
+            :class="activeIndex === item.index ? 'bg-blue-500' : 'bg-transparent group-hover:bg-gray-200 dark:hover:bg-gray-700'"
           ></div>
           <span class="text-[11px] leading-5 text-gray-300 flex-shrink-0 font-mono select-none">{{ item.seq }}</span>
           <span
             class="text-[13px] leading-5 line-clamp-2 transition-colors duration-150"
-            :class="activeIndex === item.index ? 'text-blue-600 font-medium' : 'text-gray-500 group-hover:text-gray-700'"
+            :class="activeIndex === item.index ? 'text-blue-600 font-medium' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:hover:text-gray-200'"
           >{{ item.summary }}</span>
         </div>
       </div>

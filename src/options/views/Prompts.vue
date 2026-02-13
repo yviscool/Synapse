@@ -6,7 +6,7 @@
                 <div class="flex justify-center">
                     <div class="relative w-full max-w-2xl z-20">
                         <div
-                            class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg i-carbon-search z-10"
+                            class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 text-lg i-carbon-search z-10"
                         ></div>
                         <input
                             v-model="searchQuery"
@@ -14,24 +14,24 @@
                             type="text"
                             :aria-label="t('prompts.search')"
                             :placeholder="t('prompts.searchPlaceholder')"
-                            class="w-full pl-12 pr-40 py-4 text-lg border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                            class="w-full pl-12 pr-40 py-4 text-lg border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-900/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                         />
                         <button
                             v-if="searchQuery"
                             @click="searchQuery = ''"
-                            class="absolute right-32 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                            class="absolute right-32 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 p-1"
                         >
                             <div class="i-carbon-close"></div>
                         </button>
                         <div
                             class="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center"
                         >
-                            <div class="w-px h-6 bg-gray-200/80 mr-3"></div>
+                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700/80 mr-3"></div>
                             <!-- 排序方式下拉菜单 -->
                             <div class="relative" ref="sortMenuRef">
                                 <button
                                     @click="showSortMenu = !showSortMenu"
-                                    class="flex items-center gap-2 text-base text-gray-600 font-medium hover:text-gray-900 transition-colors"
+                                    class="flex items-center gap-2 text-base text-gray-600 dark:text-gray-300 font-medium hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                                 >
                                     <span>{{ currentSortText }}</span>
                                     <i
@@ -50,7 +50,7 @@
                                 >
                                     <div
                                         v-if="showSortMenu"
-                                        class="absolute z-30 top-full right-0 mt-2 w-32 bg-white rounded-lg shadow-lg border border-gray-200/80"
+                                        class="absolute z-30 top-full right-0 mt-2 w-32 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700/80"
                                     >
                                         <div class="py-1">
                                             <button
@@ -62,8 +62,8 @@
                                                 class="w-full text-left px-4 py-2 text-sm flex items-center gap-2"
                                                 :class="[
                                                     sortBy === option.value
-                                                        ? 'font-semibold text-blue-600 bg-blue-50'
-                                                        : 'text-gray-700 hover:bg-gray-100',
+                                                        ? 'font-semibold text-blue-600 dark:text-blue-200 bg-blue-50 dark:bg-slate-800'
+                                                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700',
                                                 ]"
                                             >
                                                 <i
@@ -87,7 +87,7 @@
                 <div class="space-y-4">
                     <!-- The new Control Shelf -->
                     <div
-                        class="relative z-10 p-4 bg-gray-50/80 backdrop-blur-sm rounded-xl border border-gray-200/60 space-y-4"
+                        class="relative z-10 p-4 bg-white/90 dark:bg-slate-900/70 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-slate-700/60 space-y-4"
                     >
                         <div
                             class="flex items-center justify-between gap-4 flex-wrap"
@@ -100,7 +100,7 @@
                                         'flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors',
                                         selectedCategories.length === 0
                                             ? 'bg-blue-600 border-blue-600 text-white'
-                                            : 'bg-white border-gray-200 hover:bg-gray-50',
+                                            : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800',
                                     ]"
                                 >
                                     <div class="i-ph-books"></div>
@@ -132,7 +132,7 @@
                                                         category.id,
                                                     )
                                                         ? 'bg-blue-600 border-blue-600 text-white'
-                                                        : 'bg-white border-gray-200 hover:bg-gray-50',
+                                                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800',
                                                 ]"
                                             >
                                                 <div
@@ -146,7 +146,7 @@
                                     <button
                                         v-if="canScrollLeft"
                                         @click="scrollShelf('left')"
-                                        class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 h-8 w-8 rounded-full bg-white/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 h-8 w-8 rounded-full bg-white dark:bg-gray-900/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 dark:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
                                         <div
                                             class="i-carbon-chevron-left"
@@ -155,7 +155,7 @@
                                     <button
                                         v-if="canScrollRight"
                                         @click="scrollShelf('right')"
-                                        class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 h-8 w-8 rounded-full bg-white/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 h-8 w-8 rounded-full bg-white dark:bg-gray-900/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 dark:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
                                         <div
                                             class="i-carbon-chevron-right"
@@ -171,7 +171,7 @@
                                         'flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors',
                                         showFavoriteOnly
                                             ? 'bg-yellow-100 border-yellow-300 text-yellow-800'
-                                            : 'bg-white border-gray-200 hover:bg-gray-50',
+                                            : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800',
                                     ]"
                                 >
                                     <div
@@ -188,7 +188,7 @@
                                 </button>
 
                                 <div
-                                    class="w-px h-6 bg-gray-200/80 ml-2 mr-1"
+                                    class="w-px h-6 bg-gray-200 dark:bg-gray-700/80 ml-2 mr-1"
                                 ></div>
 
                                 <!-- New Category Settings Dropdown -->
@@ -198,7 +198,7 @@
                                             isCategorySettingsOpen =
                                                 !isCategorySettingsOpen
                                         "
-                                        class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 hover:border-gray-400"
+                                        class="flex-shrink-0 flex items-center justify-center w-10 h-10 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-400 dark:text-gray-500 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-200 hover:border-gray-400"
                                         :title="t('categories.settings')"
                                     >
                                         <div
@@ -207,14 +207,14 @@
                                     </button>
                                     <div
                                         v-if="isCategorySettingsOpen"
-                                        class="absolute right-0 top-12 z-30 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1"
+                                        class="absolute right-0 top-12 z-30 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1"
                                     >
                                         <button
                                             @click="
                                                 showCategoryManager = true;
                                                 isCategorySettingsOpen = false;
                                             "
-                                            class="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                            class="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                                         >
                                             <div class="i-carbon-edit"></div>
                                             <span>{{
@@ -226,7 +226,7 @@
                                                 showMergeImport = true;
                                                 isCategorySettingsOpen = false;
                                             "
-                                            class="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                            class="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                                         >
                                             <div
                                                 class="i-carbon-document-import"
@@ -236,7 +236,7 @@
                                             }}</span>
                                         </button>
                                         <div
-                                            class="h-px bg-gray-200 my-1"
+                                            class="h-px bg-gray-200 dark:bg-gray-700 my-1"
                                         ></div>
                                         <button
                                             @click="
@@ -263,15 +263,15 @@
                                 selectedCategories.length > 0 &&
                                 availableTags.length > 0
                             "
-                            class="flex items-center justify-start gap-2 flex-wrap border-t border-gray-200 pt-4"
+                            class="flex items-center justify-start gap-2 flex-wrap border-t border-gray-200 dark:border-gray-700 pt-4"
                         >
                             <button
                                 @click="toggleTag('')"
                                 :class="[
                                     'px-3 py-1 text-sm rounded-md transition-colors',
                                     selectedTags.length === 0
-                                        ? 'bg-green-500 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600',
                                 ]"
                             >
                                 {{ t("tags.all") }}
@@ -283,8 +283,8 @@
                                 :class="[
                                     'px-3 py-1 text-sm rounded-md transition-colors',
                                     selectedTags.includes(tag.id)
-                                        ? 'bg-green-500 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600',
                                 ]"
                             >
                                 {{ tag.name }}
@@ -305,10 +305,10 @@
                             class="i-carbon-document-blank text-6xl text-gray-300"
                         ></div>
                     </div>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                         {{ t("prompts.noPrompts") }}
                     </h3>
-                    <p class="text-gray-600 mb-6 max-w-md">
+                    <p class="text-gray-600 dark:text-gray-300 mb-6 max-w-md">
                         {{
                             searchQueryDebounced
                                 ? t("prompts.noMatch")
@@ -331,18 +331,18 @@
                     <div
                         v-for="prompt in promptCards"
                         :key="prompt.id"
-                        class="bg-white rounded-xl border border-gray-200/50 p-6 hover:shadow-lg transition-transform duration-200 hover:-translate-y-1"
+                        class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700/50 p-6 hover:shadow-lg transition-transform duration-200 hover:-translate-y-1"
                         @dblclick="editPrompt(prompt)"
                         :title="t('prompts.doubleClickToEdit')"
                     >
                         <div class="flex items-start justify-between mb-4">
                             <div class="flex-1 min-w-0">
                                 <h3
-                                    class="font-semibold text-gray-900 mb-2 line-clamp-2"
+                                    class="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2"
                                     v-html="prompt.highlightedTitle"
                                 ></h3>
                                 <div
-                                    class="flex items-center gap-3 text-sm text-gray-500"
+                                    class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400"
                                 >
                                     <span class="card-date">{{
                                         formatDate(prompt.updatedAt)
@@ -355,7 +355,7 @@
                                     @click.stop="toggleFavorite(prompt)"
                                     @dblclick.stop
                                     :class="[
-                                        'p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors',
+                                        'p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
                                         {
                                             'text-yellow-500 hover:text-yellow-600':
                                                 prompt.favorite,
@@ -383,7 +383,7 @@
                                                 : prompt.id
                                     "
                                     @dblclick.stop
-                                    class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                                    class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                     :title="t('common.more')"
                                 >
                                     <div
@@ -392,14 +392,14 @@
                                 </button>
                                 <div
                                     v-if="menuOpenId === prompt.id"
-                                    class="absolute right-0 top-10 z-10 w-32 bg-white border border-gray-200 rounded-lg shadow-lg py-1"
+                                    class="absolute right-0 top-10 z-10 w-32 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1"
                                 >
                                     <button
                                         @click.stop="
                                             editPrompt(prompt);
                                             menuOpenId = null;
                                         "
-                                        class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50"
+                                        class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
                                     >
                                         <div class="i-carbon-edit"></div>
                                         <span>{{ t("common.edit") }}</span>
@@ -409,7 +409,7 @@
                                             forkPrompt(prompt);
                                             menuOpenId = null;
                                         "
-                                        class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50"
+                                        class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
                                     >
                                         <div class="i-carbon-fork"></div>
                                         <span>{{ t("prompts.fork") }}</span>
@@ -419,12 +419,12 @@
                                             copyPrompt(prompt);
                                             menuOpenId = null;
                                         "
-                                        class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50"
+                                        class="w-full flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
                                     >
                                         <div class="i-carbon-copy"></div>
                                         <span>{{ t("prompts.copy") }}</span>
                                     </button>
-                                    <div class="h-px bg-gray-200 my-1"></div>
+                                    <div class="h-px bg-gray-200 dark:bg-gray-700 my-1"></div>
                                     <button
                                         @click.stop="
                                             deletePrompt(prompt.id);
@@ -441,7 +441,7 @@
 
                         <div class="mb-4">
                             <p
-                                class="text-gray-600 leading-relaxed line-clamp-3"
+                                class="text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3"
                                 @dblclick.stop
                                 v-html="prompt.highlightedContent"
                             ></p>
@@ -475,7 +475,7 @@
                 >
                     <div
                         v-if="isLoading && prompts.length > 0"
-                        class="flex items-center gap-2 text-gray-500"
+                        class="flex items-center gap-2 text-gray-500 dark:text-gray-400"
                     >
                         <div
                             class="i-carbon-circle-dash w-6 h-6 animate-spin"
@@ -484,7 +484,7 @@
                     </div>
                     <div
                         v-if="!hasMore && prompts.length > 0"
-                        class="text-gray-500"
+                        class="text-gray-500 dark:text-gray-400"
                     >
                         --- {{ t("common.allLoaded") }} ---
                     </div>

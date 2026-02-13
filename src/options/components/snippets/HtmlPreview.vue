@@ -1,10 +1,10 @@
 <template>
-  <div class="html-preview flex flex-col h-full bg-white rounded-lg overflow-hidden">
+  <div class="html-preview flex flex-col h-full bg-white dark:bg-gray-900 rounded-lg overflow-hidden">
     <!-- Header -->
-    <div class="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-gray-50">
+    <div class="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
       <div class="flex items-center gap-2">
-        <div class="i-carbon-code text-gray-500"></div>
-        <span class="text-sm font-medium text-gray-700">{{ t('tools.preview.title') }}</span>
+        <div class="i-carbon-code text-gray-500 dark:text-gray-400"></div>
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ t('tools.preview.title') }}</span>
       </div>
       <div class="flex items-center gap-2">
         <button
@@ -17,21 +17,21 @@
         </button>
         <button
           @click="exportHtml"
-          class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+          class="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           :title="t('tools.preview.exportHtml')"
         >
           <div class="i-carbon-download"></div>
         </button>
         <button
           @click="openInCodePen"
-          class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+          class="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           :title="t('tools.preview.openInCodePen')"
         >
           <div class="i-carbon-launch"></div>
         </button>
         <button
           @click="toggleFullscreen"
-          class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+          class="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           :title="isFullscreen ? t('tools.preview.exitFullscreen') : t('tools.preview.fullscreen')"
         >
           <div :class="isFullscreen ? 'i-carbon-minimize' : 'i-carbon-maximize'"></div>
@@ -54,7 +54,7 @@
     </div>
 
     <!-- Preview iframe -->
-    <div class="flex-1 relative bg-white" :class="{ 'fixed inset-0 z-50': isFullscreen }">
+    <div class="flex-1 relative bg-white dark:bg-gray-900" :class="{ 'fixed inset-0 z-50': isFullscreen }">
       <iframe
         ref="iframeRef"
         :srcdoc="sanitizedHtml"
@@ -67,9 +67,9 @@
       <button
         v-if="isFullscreen"
         @click="toggleFullscreen"
-        class="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+        class="absolute top-4 right-4 p-2 bg-white dark:bg-gray-900 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
       >
-        <div class="i-carbon-close text-gray-600"></div>
+        <div class="i-carbon-close text-gray-600 dark:text-gray-300"></div>
       </button>
     </div>
   </div>

@@ -1,17 +1,17 @@
 <template>
   <div class="flex h-full">
     <!-- Left Sidebar -->
-    <aside class="w-48 bg-gray-50 border-r p-4">
+    <aside class="w-48 bg-gray-50 dark:bg-gray-800 border-r p-4">
       <nav class="space-y-2">
         <button
           @click="activeTab = 'general'"
-          :class="['w-full text-left px-4 py-2 rounded-lg transition-colors', activeTab === 'general' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-200']"
+          :class="['w-full text-left px-4 py-2 rounded-lg transition-colors', activeTab === 'general' ? 'bg-blue-100 text-blue-700 dark:bg-slate-800 dark:text-blue-200' : 'hover:bg-gray-200 dark:hover:bg-gray-700']"
         >
           {{ t('menu.generalSettings') }}
         </button>
         <button
           @click="activeTab = 'data'"
-          :class="['w-full text-left px-4 py-2 rounded-lg transition-colors', activeTab === 'data' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-200']"
+          :class="['w-full text-left px-4 py-2 rounded-lg transition-colors', activeTab === 'data' ? 'bg-blue-100 text-blue-700 dark:bg-slate-800 dark:text-blue-200' : 'hover:bg-gray-200 dark:hover:bg-gray-700']"
         >
           {{ t('menu.dataManagement') }}
         </button>
@@ -20,14 +20,14 @@
 
     <!-- Main Content -->
     <main class="flex-1 p-4 md:p-8 overflow-y-auto">
-      <div v-if="isLoading" class="text-center text-gray-500">
+      <div v-if="isLoading" class="text-center text-gray-500 dark:text-gray-400">
         <p>{{ t('common.loading') }}</p>
       </div>
 
       <!-- General Settings -->
       <div v-show="!isLoading && activeTab === 'general'" class="max-w-4xl mx-auto space-y-8">
-        <div class="p-6 border rounded-xl bg-white shadow-sm">
-          <h3 class="text-lg font-semibold text-gray-900">{{ t('settings.language.title') }}</h3>
+        <div class="p-6 border rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ t('settings.language.title') }}</h3>
           <div class="mt-4 space-y-4">
             <div v-for="option in languageOptions" :key="option.value" class="flex items-center">
               <input
@@ -37,15 +37,35 @@
                 :value="option.value"
                 :checked="settings && settings.locale === option.value"
                 @change="handleLocaleChange(option.value)"
-                class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                class="h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
               >
-              <label :for="`lang-${option.value}`" class="ml-3 block text-sm font-medium text-gray-700">
+              <label :for="`lang-${option.value}`" class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-200">
                 {{ option.label }}
               </label>
             </div>
-            <p v-if="settings && settings.locale === 'system'" class="text-sm text-gray-500 mt-2 ml-7">
+            <p v-if="settings && settings.locale === 'system'" class="text-sm text-gray-500 dark:text-gray-400 mt-2 ml-7">
               {{ t('settings.language.currentSystem', { lang: systemLanguageLabel }) }}
             </p>
+          </div>
+        </div>
+
+        <div class="p-6 border rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ t('settings.theme.title') }}</h3>
+          <div class="mt-4 space-y-4">
+            <div v-for="option in themeOptions" :key="option.value" class="flex items-center">
+              <input
+                :id="`theme-${option.value}`"
+                name="theme-selection"
+                type="radio"
+                :value="option.value"
+                :checked="settings && settings.theme === option.value"
+                @change="handleThemeChange(option.value)"
+                class="h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+              >
+              <label :for="`theme-${option.value}`" class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-200">
+                {{ option.label }}
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -53,13 +73,13 @@
       <!-- Data Management -->
       <div v-show="!isLoading && activeTab === 'data'" class="max-w-4xl mx-auto space-y-8">
         <!-- Cloud Sync -->
-        <div class="p-6 border rounded-xl bg-white shadow-sm transition-all">
+        <div class="p-6 border rounded-xl bg-white dark:bg-gray-900 shadow-sm transition-all">
           <!-- State B: Sync Enabled -->
           <div v-if="settings?.syncEnabled && settings.userProfile" class="space-y-4">
             <div class="flex justify-between items-start">
               <div>
                 <div class="flex items-center gap-3">
-                  <h3 class="text-lg font-semibold text-gray-900">{{ t('settings.sync.status.enabled') }}</h3>
+                  <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ t('settings.sync.status.enabled') }}</h3>
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     {{ t('settings.sync.status.connected') }}
                   </span>
@@ -67,8 +87,8 @@
                 <div class="flex items-center space-x-3 mt-3">
                   <img v-if="settings.userProfile.picture" :src="settings.userProfile.picture" alt="User Avatar" class="w-10 h-10 rounded-full">
                   <div class="flex-grow">
-                    <p class="text-sm font-semibold text-gray-700">{{ settings.userProfile.email }}</p>
-                    <p class="text-sm text-gray-500" :title="t('settings.sync.status.lastSync', { time: formatTimestamp(settings.lastSyncTimestamp) })">
+                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">{{ settings.userProfile.email }}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400" :title="t('settings.sync.status.lastSync', { time: formatTimestamp(settings.lastSyncTimestamp) })">
                       {{ syncStatusText }}
                     </p>
                   </div>
@@ -84,11 +104,11 @@
                   <span v-else>{{ t('settings.sync.status.syncNow') }}</span>
                 </button>
                 <div class="relative">
-                  <button @click="showAdvancedSyncMenu = !showAdvancedSyncMenu" class="p-2 text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-full">
+                  <button @click="showAdvancedSyncMenu = !showAdvancedSyncMenu" class="p-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path></svg>
                   </button>
                   <div v-if="showAdvancedSyncMenu" @click="showAdvancedSyncMenu = false" class="fixed inset-0 z-10"></div>
-                  <div v-if="showAdvancedSyncMenu" class="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-xl z-20 border">
+                  <div v-if="showAdvancedSyncMenu" class="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-900 rounded-lg shadow-xl z-20 border">
                     <button
                       @click="handleDisconnect"
                       :disabled="isDisconnecting"
@@ -104,11 +124,11 @@
 
           <!-- State A: Not Synced -->
           <div v-else class="text-center space-y-3">
-            <div class="mx-auto bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center">
-              <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"></path></svg>
+            <div class="mx-auto bg-gray-100 dark:bg-gray-800 rounded-full w-16 h-16 flex items-center justify-center">
+              <svg class="w-8 h-8 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"></path></svg>
             </div>
-            <h3 class="text-xl font-semibold text-gray-900">{{ t('settings.sync.enable.title') }}</h3>
-            <p class="text-gray-600 max-w-md mx-auto">{{ t('settings.sync.enable.description') }}</p>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ t('settings.sync.enable.title') }}</h3>
+            <p class="text-gray-600 dark:text-gray-300 max-w-md mx-auto">{{ t('settings.sync.enable.description') }}</p>
             <div class="pt-4">
               <button
                 @click="handleEnableSync('google-drive')"
@@ -117,33 +137,33 @@
               >
                 {{ isEnablingSync ? t('common.loading') : t('settings.sync.enable.button') }}
               </button>
-              <p class="text-xs text-gray-500 mt-2">{{ t('settings.sync.enable.provider') }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">{{ t('settings.sync.enable.provider') }}</p>
             </div>
           </div>
         </div>
 
         <!-- Data Vault -->
-        <details class="p-6 border rounded-xl bg-white shadow-sm">
-          <summary class="text-lg font-semibold text-gray-800 cursor-pointer">{{ t('settings.data.title') }}</summary>
+        <details class="p-6 border rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+          <summary class="text-lg font-semibold text-gray-800 dark:text-gray-200 cursor-pointer">{{ t('settings.data.title') }}</summary>
           <div class="mt-6 border-t pt-6 space-y-6">
             <!-- Cloud Time Machine -->
-            <div v-if="settings?.syncEnabled" class="p-4 border rounded-lg bg-gray-50">
+            <div v-if="settings?.syncEnabled" class="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
               <div class="flex justify-between items-center">
-                <h4 class="font-semibold text-gray-800">{{ t('settings.data.backup.title') }}</h4>
-                <button @click="loadBackupHistory" :disabled="isHistoryLoading" class="px-3 py-1 text-sm bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50">
+                <h4 class="font-semibold text-gray-800 dark:text-gray-200">{{ t('settings.data.backup.title') }}</h4>
+                <button @click="loadBackupHistory" :disabled="isHistoryLoading" class="px-3 py-1 text-sm bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">
                   {{ isHistoryLoading ? t('common.loading') : t('settings.data.backup.refresh') }}
                 </button>
               </div>
-              <p class="text-sm text-gray-500 mt-2">{{ t('settings.data.backup.description') }}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">{{ t('settings.data.backup.description') }}</p>
               <ul v-if="backupHistory.length > 0" class="mt-4 space-y-2">
-                <li v-for="file in backupHistory" :key="file.id" class="flex items-center justify-between p-3 rounded-md bg-white border">
+                <li v-for="file in backupHistory" :key="file.id" class="flex items-center justify-between p-3 rounded-md bg-white dark:bg-gray-900 border">
                   <div>
-                    <p class="text-sm font-semibold text-gray-800" :title="formatBackupName(file)">{{ formatRelativeTime(file) }}</p>
-                    <p class="text-xs text-gray-500">{{ formatFileSize(file.size) }}</p>
+                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-200" :title="formatBackupName(file)">{{ formatRelativeTime(file) }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatFileSize(file.size) }}</p>
                   </div>
                   <div class="flex gap-2">
                     <button @click="handleRestoreFromCloud(file.id)" class="px-3 py-1 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700">{{ t('settings.data.backup.restore') }}</button>
-                    <button @click="handleDownloadFromCloud(file.id, file.name)" class="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">{{ t('settings.data.backup.download') }}</button>
+                    <button @click="handleDownloadFromCloud(file.id, file.name)" class="px-3 py-1 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800">{{ t('settings.data.backup.download') }}</button>
                     <button
                       @click="handleDeleteFromCloud(file.id)"
                       :disabled="isDeletingMap[file.id]"
@@ -154,20 +174,20 @@
                   </div>
                 </li>
               </ul>
-              <p v-else-if="!isHistoryLoading" class="text-sm text-gray-500 mt-4 text-center">{{ t('settings.data.backup.noHistory') }}</p>
+              <p v-else-if="!isHistoryLoading" class="text-sm text-gray-500 dark:text-gray-400 mt-4 text-center">{{ t('settings.data.backup.noHistory') }}</p>
             </div>
 
             <!-- Local Snapshot -->
             <div>
-              <h4 class="font-semibold text-gray-800">{{ t('settings.data.local.title') }}</h4>
-              <p class="text-sm text-gray-600 mt-2">{{ t('settings.data.local.description') }}</p>
+              <h4 class="font-semibold text-gray-800 dark:text-gray-200">{{ t('settings.data.local.title') }}</h4>
+              <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">{{ t('settings.data.local.description') }}</p>
               <div class="flex gap-4 flex-wrap mt-3">
                 <button @click="exportData" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                   {{ t('settings.data.local.create') }}
                 </button>
                 <div class="relative">
                   <input ref="importInput" type="file" accept=".json" @change="importData" class="hidden">
-                  <button @click="importInput?.click()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                  <button @click="importInput?.click()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                     {{ t('settings.data.local.import') }}
                   </button>
                 </div>
@@ -190,7 +210,7 @@
                   <button @click="executeResetData" :disabled="resetConfirmationText !== 'DELETE'" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {{ t('settings.data.danger.confirmButton') }}
                   </button>
-                  <button @click="showResetConfirmation = false; resetConfirmationText = ''" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                  <button @click="showResetConfirmation = false; resetConfirmationText = ''" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                     {{ t('common.cancel') }}
                   </button>
                 </div>
@@ -204,7 +224,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, toRaw } from 'vue'
+import { ref, onMounted, computed, toRaw, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUI } from '@/stores/ui'
 import { db, getSettings } from '@/stores/db'
@@ -213,8 +233,10 @@ import { syncManager, type SyncRunResult } from '@/stores/sync'
 import { SUPPORTED_LOCALES, type LocalePreference, type SupportedLocale } from '@/types/i18n'
 import type { Settings } from '@/types/prompt'
 import { resolveLocalePreference, resolveSystemLocale } from '@/utils/locale'
+import { optionsThemeKey } from '@/options/composables/useOptionsTheme'
 
 type LocaleOption = LocalePreference;
+type ThemeOption = Settings["theme"];
 
 interface DriveFile {
   id: string;
@@ -225,6 +247,7 @@ interface DriveFile {
 
 const { t, locale } = useI18n()
 const { showToast, askConfirm } = useUI()
+const optionsTheme = inject(optionsThemeKey, null)
 
 const activeTab = ref('general')
 const importInput = ref<HTMLInputElement>()
@@ -262,6 +285,12 @@ const languageOptions = computed<Array<{ value: LocaleOption; label: string }>>(
   { value: 'system', label: t('settings.language.followSystem') },
 ]);
 
+const themeOptions = computed<Array<{ value: ThemeOption; label: string }>>(() => [
+  { value: 'light', label: t('settings.theme.light') },
+  { value: 'dark', label: t('settings.theme.dark') },
+  { value: 'auto', label: t('settings.theme.followSystem') },
+]);
+
 const systemLocale = computed<SupportedLocale>(() => resolveSystemLocale())
 const systemLanguageLabel = computed(() => getLocaleLabel(systemLocale.value))
 
@@ -289,6 +318,29 @@ async function handleLocaleChange(newLocale: LocaleOption) {
     await repository.setSettings(newSettings);
     await refreshSettings();
     showToast(t('common.toast.saveSuccess'), 'success');
+  }
+}
+
+async function handleThemeChange(newTheme: ThemeOption) {
+  if (settings.value) {
+    const previousSettings = toRaw(settings.value)
+    const previousTheme = previousSettings.theme
+
+    settings.value = { ...settings.value, theme: newTheme } as Settings
+    optionsTheme?.applyThemePreference(newTheme === 'light' || newTheme === 'dark' || newTheme === 'auto' ? newTheme : 'auto')
+
+    const result = await repository.setSettings({ ...previousSettings, theme: newTheme })
+    if (!result.ok) {
+      settings.value = { ...settings.value, theme: previousTheme } as Settings
+      optionsTheme?.applyThemePreference(
+        previousTheme === 'light' || previousTheme === 'dark' || previousTheme === 'auto' ? previousTheme : 'auto',
+      )
+      showToast(t('common.toast.saveFailed'), 'error')
+      return
+    }
+
+    await refreshSettings()
+    showToast(t('common.toast.saveSuccess'), 'success')
   }
 }
 

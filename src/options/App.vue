@@ -1,8 +1,11 @@
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div
+        class="options-root min-h-screen bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/30 dark:from-slate-950 dark:via-slate-950 dark:to-black"
+        :class="{ dark: isDark }"
+    >
         <!-- 现代化头部 -->
         <header
-            class="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-40"
+            class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/60 sticky top-0 z-40"
         >
             <div
                 class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between"
@@ -102,7 +105,7 @@
                                 :href="href"
                                 @click="navigate"
                                 class="px-3 py-2 rounded-md text-sm transition-colors"
-                                :class="isActive ? 'font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600' : 'font-medium text-gray-500 hover:text-gray-800'"
+                                :class="isActive ? 'font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600' : 'font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100'"
                             >
                                 {{ t(item.name) }}
                             </a>
@@ -113,7 +116,7 @@
                 <div class="flex items-center gap-2">
                     <button
                         @click="showSettings = true"
-                        class="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-gray-600 dark:text-gray-300 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                         :title="t('settings.title')"
                     >
                         <div class="i-carbon-settings text-lg"></div>
@@ -129,14 +132,14 @@
                         <span>{{ t("prompts.new") }}</span>
                     </button>
 
-                    <div class="w-px h-6 bg-gray-200/80 ml-3 mr-1"></div>
+                    <div class="w-px h-6 bg-gray-200/80 dark:bg-gray-700/80 ml-3 mr-1"></div>
 
                     <a
                         href="https://github.com/yviscool/Synapse"
                         target="_blank"
                         rel="noopener noreferrer"
                         :title="t('common.feedback')"
-                        class="p-2 rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                        class="p-2 rounded-lg text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                     >
                         <div class="i-carbon-logo-github text-xl"></div>
                     </a>
@@ -153,15 +156,15 @@
             @click="showSettings = false"
         >
             <div
-                class="bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden max-w-4xl w-full"
+                class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl dark:shadow-none border border-transparent dark:border-gray-700 max-h-[90vh] overflow-hidden max-w-4xl w-full"
                 @click.stop
             >
                 <div
-                    class="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50"
+                    class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800"
                 >
                     <div class="flex-1">
                         <h2
-                            class="flex items-center gap-3 text-xl font-semibold text-gray-900"
+                            class="flex items-center gap-3 text-xl font-semibold text-gray-900 dark:text-gray-100"
                         >
                             <div class="i-carbon-settings"></div>
                             {{ t("settings.title") }}
@@ -169,7 +172,7 @@
                     </div>
                     <button
                         @click="showSettings = false"
-                        class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/50 transition-colors"
+                        class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-white/50 dark:hover:bg-gray-700 transition-colors"
                     >
                         <div class="i-carbon-close"></div>
                     </button>
@@ -199,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, defineAsyncComponent } from "vue";
+import { ref, onMounted, onUnmounted, defineAsyncComponent, provide } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from 'vue-router';
 import { ui, useUI } from "@/stores/ui";
@@ -207,12 +210,20 @@ import { getSettings } from "@/stores/db";
 import { MSG, type DataUpdatedPayload, type RequestMessage } from "@/utils/messaging";
 import { useModal } from "@/composables/useModal";
 import { resolveLocalePreference } from "@/utils/locale";
+import { optionsThemeKey, useOptionsTheme } from "@/options/composables/useOptionsTheme";
 
 const Settings = defineAsyncComponent(() => import("./components/Settings.vue"));
 
 const { t, locale } = useI18n();
 const { handleConfirm, hideToast } = useUI();
 const router = useRouter();
+const { isDark, resolvedTheme, applyThemePreference, initTheme, refreshThemeFromSettings } = useOptionsTheme();
+
+provide(optionsThemeKey, {
+    isDark,
+    resolvedTheme,
+    applyThemePreference,
+});
 
 const menuItems = [
     { name: 'menu.prompts', path: '/prompts' },
@@ -225,14 +236,20 @@ async function setLocale() {
     locale.value = resolveLocalePreference(settings.locale);
 }
 
+async function refreshSettingsViewState() {
+    await Promise.all([
+        setLocale(),
+        refreshThemeFromSettings(),
+    ]);
+}
+
 const handleMessage = (message: RequestMessage<unknown>) => {
     if (message.type === MSG.DATA_UPDATED) {
         const payload = message.data as DataUpdatedPayload | undefined;
         if (!payload) return;
         const { scope } = payload;
         if (scope === "settings") {
-            console.log("Settings updated, updating locale...");
-            setLocale();
+            refreshSettingsViewState();
         }
     }
 };
@@ -254,7 +271,10 @@ function createNewPrompt() {
 }
 
 onMounted(async () => {
-    await setLocale(); // Set initial locale
+    await Promise.all([
+        setLocale(),
+        initTheme(),
+    ]);
     chrome.runtime.onMessage.addListener(handleMessage);
 });
 

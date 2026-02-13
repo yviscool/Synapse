@@ -1,32 +1,32 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+  <div class="min-h-screen">
     <main class="max-w-7xl mx-auto px-6 py-8">
       <!-- 搜索和过滤区域 - 与 Prompts.vue 一致 -->
       <div class="mb-8 space-y-6">
         <!-- 居中搜索框 -->
         <div class="flex justify-center">
           <div class="relative w-full max-w-2xl z-20">
-            <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg i-carbon-search z-10"></div>
+            <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 text-lg i-carbon-search z-10"></div>
             <input
               v-model="searchQuery"
               type="text"
               :placeholder="t('chat.list.searchPlaceholder')"
-              class="w-full pl-12 pr-40 py-4 text-lg border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+              class="w-full pl-12 pr-40 py-4 text-lg border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-900/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
             />
             <button
               v-if="searchQuery"
               @click="searchQuery = ''"
-              class="absolute right-32 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+              class="absolute right-32 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 p-1"
             >
               <div class="i-carbon-close"></div>
             </button>
             <div class="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center">
-              <div class="w-px h-6 bg-gray-200/80 mr-3"></div>
+              <div class="w-px h-6 bg-gray-200 dark:bg-gray-700/80 mr-3"></div>
               <!-- 排序下拉 -->
               <div class="relative" ref="sortRef">
                 <button
                   @click="showSortMenu = !showSortMenu"
-                  class="flex items-center gap-2 text-base text-gray-600 font-medium hover:text-gray-900 transition-colors"
+                  class="flex items-center gap-2 text-base text-gray-600 dark:text-gray-300 font-medium hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                 >
                   <span>{{ currentSortLabel }}</span>
                   <i class="i-carbon-chevron-down text-sm transition-transform" :class="{ 'rotate-180': showSortMenu }"></i>
@@ -39,14 +39,14 @@
                   leave-from-class="transform opacity-100 scale-100"
                   leave-to-class="transform opacity-0 scale-95"
                 >
-                  <div v-if="showSortMenu" class="absolute z-30 top-full right-0 mt-2 w-36 bg-white rounded-lg shadow-lg border border-gray-200/80">
+                  <div v-if="showSortMenu" class="absolute z-30 top-full right-0 mt-2 w-36 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700/80">
                     <div class="py-1">
                       <button
                         v-for="opt in sortOptions"
                         :key="opt.value"
                         @click="handleSortChange(opt.value)"
                         class="w-full text-left px-4 py-2 text-sm flex items-center gap-2"
-                        :class="[sortBy === opt.value ? 'font-semibold text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-100']"
+                        :class="[sortBy === opt.value ? 'font-semibold text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700']"
                       >
                         <i class="i-carbon-checkmark text-transparent" :class="{ '!text-blue-600': sortBy === opt.value }"></i>
                         <span>{{ opt.label }}</span>
@@ -61,7 +61,7 @@
 
         <!-- 控制栏 - 平台筛选 + 收藏 + 标签 -->
         <div class="space-y-4">
-          <div class="relative z-10 p-4 bg-gray-50/80 backdrop-blur-sm rounded-xl border border-gray-200/60 space-y-4">
+          <div class="relative z-10 p-4 bg-white/90 dark:bg-slate-900/70 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-slate-700/60 space-y-4">
             <div class="flex items-center justify-between gap-4 flex-wrap">
               <!-- 平台筛选 -->
               <div class="flex items-center gap-2 flex-1 min-w-0">
@@ -71,12 +71,12 @@
                     'flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors',
                     selectedPlatforms.length === 0
                       ? 'bg-blue-600 border-blue-600 text-white'
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                   ]"
                 >
                   <div class="i-carbon-chat-bot"></div>
                   <span>{{ t('chat.sidebar.all') }}</span>
-                  <span class="ml-1 px-1.5 py-0.5 text-xs rounded" :class="selectedPlatforms.length === 0 ? 'bg-white/20' : 'bg-gray-100'">
+                  <span class="ml-1 px-1.5 py-0.5 text-xs rounded" :class="selectedPlatforms.length === 0 ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'">
                     {{ totalConversations }}
                   </span>
                 </button>
@@ -96,7 +96,7 @@
                           'flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors',
                           selectedPlatforms.includes(platform.id)
                             ? 'bg-blue-600 border-blue-600 text-white'
-                            : 'bg-white border-gray-200 hover:bg-gray-50'
+                            : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                         ]"
                       >
                         <div :class="platform.icon" :style="{ color: selectedPlatforms.includes(platform.id) ? 'white' : platform.color }"></div>
@@ -104,7 +104,7 @@
                         <span
                           v-if="getPlatformCount(platform.id)"
                           class="ml-1 px-1.5 py-0.5 text-xs rounded"
-                          :class="selectedPlatforms.includes(platform.id) ? 'bg-white/20' : 'bg-gray-100'"
+                          :class="selectedPlatforms.includes(platform.id) ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'"
                         >
                           {{ getPlatformCount(platform.id) }}
                         </span>
@@ -115,14 +115,14 @@
                   <button
                     v-if="canScrollPlatformLeft"
                     @click="scrollPlatform('left')"
-                    class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 h-8 w-8 rounded-full bg-white/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 h-8 w-8 rounded-full bg-white dark:bg-gray-900/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 dark:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <div class="i-carbon-chevron-left"></div>
                   </button>
                   <button
                     v-if="canScrollPlatformRight"
                     @click="scrollPlatform('right')"
-                    class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 h-8 w-8 rounded-full bg-white/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 h-8 w-8 rounded-full bg-white dark:bg-gray-900/80 shadow-md backdrop-blur-sm flex items-center justify-center text-gray-600 dark:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <div class="i-carbon-chevron-right"></div>
                   </button>
@@ -135,7 +135,7 @@
                     'flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors',
                     showStarredOnly
                       ? 'bg-yellow-100 border-yellow-300 text-yellow-800'
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                   ]"
                 >
                   <div :class="showStarredOnly ? 'i-carbon-star-filled' : 'i-carbon-star'" class="text-yellow-500"></div>
@@ -147,15 +147,15 @@
             <!-- 标签筛选 -->
             <div
               v-if="tags.length > 0"
-              class="flex items-center justify-start gap-2 flex-wrap border-t border-gray-200 pt-4"
+              class="flex items-center justify-start gap-2 flex-wrap border-t border-gray-200 dark:border-gray-700 pt-4"
             >
               <button
                 @click="clearTagSelection"
                 :class="[
                   'px-3 py-1 text-sm rounded-md transition-colors',
                   selectedTagIds.length === 0
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
                 ]"
               >
                 {{ t('tags.all') }}
@@ -167,8 +167,8 @@
                 :class="[
                   'px-3 py-1 text-sm rounded-md transition-colors',
                   selectedTagIds.includes(tag.id)
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
                 ]"
               >
                 {{ tag.name }}
@@ -181,10 +181,10 @@
       <!-- 主内容区：左列表 + 右详情 -->
       <div class="flex gap-6 min-h-[calc(100vh-320px)]">
         <!-- 左侧：对话列表 -->
-        <aside class="w-[320px] flex-shrink-0 bg-white rounded-xl border border-gray-200/50 flex flex-col overflow-hidden">
+        <aside class="w-[320px] flex-shrink-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700/50 flex flex-col overflow-hidden">
           <!-- 列表头部 -->
-          <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <span class="text-sm text-gray-500 font-medium">
+          <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <span class="text-sm text-gray-500 dark:text-gray-400 font-medium">
               {{ t('chat.sidebar.conversations', { count: totalConversations }) }}
             </span>
           </div>
@@ -196,8 +196,8 @@
               <div class="mb-4">
                 <div class="i-carbon-chat text-5xl text-gray-300"></div>
               </div>
-              <p class="text-gray-600 mb-1">{{ t('chat.list.empty') }}</p>
-              <p class="text-sm text-gray-400">{{ t('chat.list.emptyHint') }}</p>
+              <p class="text-gray-600 dark:text-gray-300 mb-1">{{ t('chat.list.empty') }}</p>
+              <p class="text-sm text-gray-400 dark:text-gray-500">{{ t('chat.list.emptyHint') }}</p>
             </div>
 
             <!-- 对话项 -->
@@ -207,13 +207,18 @@
               @click="selectConversation(conv)"
               class="relative flex gap-3 p-3 rounded-lg cursor-pointer transition-all mb-1"
               :class="[
-                selectedId === conv.id
-                  ? 'bg-blue-50 border border-blue-200'
-                  : 'hover:bg-gray-50 border border-transparent'
+                  selectedId === conv.id
+                  ? 'bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-blue-600/60'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'
               ]"
             >
               <!-- 编号 -->
-              <span class="absolute top-1.5 right-2 text-[10px] text-gray-300 font-mono">{{ idx + 1 }}</span>
+              <span
+                class="absolute top-1.5 right-2 text-[10px] font-mono"
+                :class="selectedId === conv.id ? 'text-blue-400 dark:text-blue-300' : 'text-gray-300 dark:text-gray-600'"
+              >
+                {{ idx + 1 }}
+              </span>
 
               <!-- 平台标识 -->
               <div
@@ -227,7 +232,7 @@
               <div class="flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-2 mb-1">
                   <h4
-                    class="text-sm font-semibold text-gray-900 truncate"
+                    class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"
                     v-html="getHighlightedTitle(conv)"
                   ></h4>
                   <button
@@ -238,7 +243,7 @@
                     <div :class="conv.starred ? 'i-carbon-star-filled' : 'i-carbon-star'" class="text-sm"></div>
                   </button>
                 </div>
-                <div class="flex items-center gap-1.5 text-xs text-gray-400 mb-1.5">
+                <div class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 mb-1.5">
                   <span>{{ getPlatformConfig(conv.platform).name }}</span>
                   <span>·</span>
                   <span>{{ conv.messageCount }}条</span>
@@ -246,7 +251,7 @@
                   <span>{{ formatRelativeTime(conv.collectedAt || conv.createdAt) }}</span>
                 </div>
                 <p
-                  class="text-xs text-gray-500 line-clamp-2"
+                  class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2"
                   v-html="getHighlightedPreview(conv)"
                 ></p>
               </div>
@@ -254,10 +259,10 @@
 
             <!-- 加载更多 -->
             <div ref="loaderRef" class="py-4 flex justify-center">
-              <div v-if="isLoading" class="flex items-center gap-2 text-gray-500">
+              <div v-if="isLoading" class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                 <div class="i-carbon-circle-dash w-5 h-5 animate-spin"></div>
               </div>
-              <span v-else-if="!hasMore && conversations.length > 0" class="text-xs text-gray-400">
+              <span v-else-if="!hasMore && conversations.length > 0" class="text-xs text-gray-400 dark:text-gray-500">
                 --- {{ t('common.allLoaded') }} ---
               </span>
             </div>
@@ -265,7 +270,7 @@
         </aside>
 
         <!-- 右侧：对话详情 -->
-        <section class="flex-1 min-w-0 bg-white rounded-xl border border-gray-200/50 overflow-hidden flex flex-col">
+        <section class="flex-1 min-w-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-hidden flex flex-col">
           <ConversationDetail
             v-if="selectedConversation"
             ref="detailRef"
@@ -303,8 +308,8 @@
     <button
       v-if="selectedConversation"
       @click="showOutline = !showOutline"
-      class="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-md text-gray-400 hover:text-blue-500 hover:border-blue-300 hover:shadow-lg transition-all"
-      :class="{ '!text-blue-500 !border-blue-300 !bg-blue-50': showOutline }"
+      class="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md text-gray-400 dark:text-gray-500 hover:text-blue-500 hover:border-blue-300 hover:shadow-lg transition-all"
+      :class="{ '!text-blue-500 !border-blue-300 !bg-blue-50 dark:!bg-blue-900/40 dark:!border-blue-700': showOutline }"
       :title="t('chat.outline.title')"
     >
       <div class="i-carbon-list-boxes text-sm"></div>

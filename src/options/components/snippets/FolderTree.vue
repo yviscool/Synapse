@@ -1,7 +1,7 @@
 <template>
   <div class="folder-tree h-full flex flex-col">
     <!-- Header -->
-    <div class="px-3 py-3 border-b border-gray-100">
+    <div class="px-3 py-3 border-b border-gray-100 dark:border-gray-800">
       <button
         @click="$emit('new-snippet')"
         class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -12,7 +12,7 @@
     </div>
 
     <!-- Quick filters -->
-    <div class="px-2 py-2 space-y-0.5 border-b border-gray-100">
+    <div class="px-2 py-2 space-y-0.5 border-b border-gray-100 dark:border-gray-800">
       <button
         v-for="item in quickFilters"
         :key="item.type"
@@ -20,25 +20,25 @@
         :class="[
           'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors',
           specialFolder === item.type
-            ? 'bg-blue-50 text-blue-700'
-            : 'text-gray-600 hover:bg-gray-50'
+            ? 'bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-200'
+            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
         ]"
       >
         <div :class="item.icon" class="text-base"></div>
         <span class="flex-1 text-left truncate">{{ item.label }}</span>
-        <span v-if="item.count !== undefined" class="text-xs text-gray-400">{{ item.count }}</span>
+        <span v-if="item.count !== undefined" class="text-xs text-gray-400 dark:text-gray-500">{{ item.count }}</span>
       </button>
     </div>
 
     <!-- Folders section -->
     <div class="flex-1 overflow-y-auto px-2 py-2">
       <div class="flex items-center justify-between px-2 py-1 mb-1">
-        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">
+        <span class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
           {{ t('tools.sidebar.folders') }}
         </span>
         <button
           @click="showNewFolderInput = true"
-          class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded transition-colors"
+          class="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors"
           :title="t('tools.sidebar.newFolder')"
         >
           <div class="i-carbon-folder-add text-sm"></div>
@@ -51,7 +51,7 @@
           ref="newFolderInputRef"
           v-model="newFolderName"
           type="text"
-          class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           :placeholder="t('tools.folder.namePlaceholder')"
           @keydown.enter="createFolder(null)"
           @keydown.escape="cancelNewFolder"
@@ -87,26 +87,26 @@
         :class="[
           'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors mt-2',
           selectedFolderId === null && specialFolder === 'all'
-            ? 'bg-blue-50 text-blue-700'
-            : 'text-gray-600 hover:bg-gray-50'
+            ? 'bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-200'
+            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
         ]"
       >
-        <div class="i-carbon-folder text-gray-400"></div>
+        <div class="i-carbon-folder text-gray-400 dark:text-gray-500"></div>
         <span class="flex-1 text-left truncate">{{ t('tools.sidebar.uncategorized') }}</span>
-        <span class="text-xs text-gray-400">{{ snippetCounts.get(null) || 0 }}</span>
+        <span class="text-xs text-gray-400 dark:text-gray-500">{{ snippetCounts.get(null) || 0 }}</span>
       </button>
     </div>
 
     <!-- Tags section -->
-    <div class="border-t border-gray-100 px-2 py-2">
+    <div class="border-t border-gray-100 dark:border-gray-800 px-2 py-2">
       <div class="flex items-center justify-between px-2 py-1 mb-1">
-        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">
+        <span class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
           {{ t('tools.sidebar.tags') }}
         </span>
         <button
           v-if="selectedTagIds.length > 0"
           @click="clearAllTags"
-          class="text-xs text-gray-400 hover:text-blue-600 transition-colors"
+          class="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 transition-colors"
           :title="t('tools.sidebar.clearTags')"
         >
           {{ t('tools.sidebar.clearAll') }}
@@ -121,15 +121,15 @@
             :class="[
               'px-2 py-0.5 text-xs rounded-full transition-colors',
               selectedTagIds.includes(tag.id)
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-blue-600 text-white dark:bg-slate-800 dark:text-blue-200'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
             ]"
           >
             {{ tag.name }}
           </button>
         </div>
       </div>
-      <span v-if="tags.length === 0" class="text-xs text-gray-400 px-1">
+      <span v-if="tags.length === 0" class="text-xs text-gray-400 dark:text-gray-500 px-1">
         {{ t('tools.sidebar.noTags') }}
       </span>
     </div>
@@ -140,20 +140,20 @@
       class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
       @click="cancelRename"
     >
-      <div class="bg-white rounded-lg shadow-xl p-4 w-80" @click.stop>
+      <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl p-4 w-80" @click.stop>
         <h3 class="text-lg font-medium mb-3">{{ t('tools.folder.rename') }}</h3>
         <input
           ref="renameInputRef"
           v-model="renameValue"
           type="text"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           @keydown.enter="confirmRename"
           @keydown.escape="cancelRename"
         />
         <div class="flex justify-end gap-2 mt-4">
           <button
             @click="cancelRename"
-            class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            class="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             {{ t('common.cancel') }}
           </button>
