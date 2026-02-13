@@ -141,3 +141,5 @@ vite.config.ts.timestamp-*
 .vscode
 .codebuddy
 bun.lock
+dontsubmit
+todo.md

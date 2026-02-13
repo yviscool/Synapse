@@ -90,7 +90,7 @@ function createSafeConversation(data: Partial<ChatConversation>): ChatConversati
     createdAt: data.createdAt || now,
     updatedAt: data.updatedAt || now,
     collectedAt: data.collectedAt || now,
-    messageCount: data.messages?.length || 0,
+    messageCount: Math.ceil((data.messages?.length || 0) / 2),
   };
 }
 
@@ -155,10 +155,10 @@ export const chatRepository = {
       patch.updatedAt = Date.now();
     }
     if (patch.messages) {
-      patch.messageCount = patch.messages.length;
+      patch.messageCount = Math.ceil(patch.messages.length / 2);
     }
     return withCommitNotification(
-      ["chat_conversations", "chat_search_index"],
+      ["chat_conversations", "chat_tags", "chat_search_index"],
       async () => {
         await db.chat_conversations.update(id, patch);
         if (patch.title || patch.messages || patch.tagIds) {

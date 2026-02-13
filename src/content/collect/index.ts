@@ -3,7 +3,7 @@
  * 根据统一 SiteConfig 自动选择合适的适配器
  */
 
-import type { PlatformAdapter, CollectResult } from './adapters/base'
+import type { PlatformAdapter, CollectResult, CollectOptions } from './adapters/base'
 import type { SiteConfig } from '../site-configs'
 import { getSiteConfig } from '../site-configs'
 import { ChatGPTAdapter } from './adapters/chatgpt'
@@ -54,9 +54,9 @@ export function canCollect(): boolean {
 }
 
 /**
- * 执行采集
+ * 执行采集（支持异步适配器，如 Gemini 需要等待 Angular 渲染）
  */
-export function collect(): CollectResult {
+export async function collect(options?: CollectOptions): Promise<CollectResult> {
   const adapter = getAdapter()
 
   if (!adapter) {
@@ -66,7 +66,7 @@ export function collect(): CollectResult {
     }
   }
 
-  return adapter.collect()
+  return await adapter.collect(options)
 }
 
 /**

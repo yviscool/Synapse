@@ -24,6 +24,7 @@
  */
 
 import { BaseAdapter } from './base'
+import type { CollectResult, CollectOptions } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class GeminiAdapter extends BaseAdapter {
@@ -77,6 +78,52 @@ export class GeminiAdapter extends BaseAdapter {
     })
   }
 
+  /**
+   * 展开所有折叠的思考区域，使 DOM 中包含 thinking 内容
+   * 返回被展开的按钮列表，采集后可恢复
+   */
+  private expandThoughts(): HTMLElement[] {
+    const expanded: HTMLElement[] = []
+    document.querySelectorAll('model-thoughts').forEach((mt) => {
+      // 如果 thoughts-content 不存在，说明是折叠状态
+      if (!mt.querySelector('[data-test-id="thoughts-content"]')) {
+        const btn = mt.querySelector('[data-test-id="thoughts-header-button"]') as HTMLElement
+        if (btn) {
+          btn.click()
+          expanded.push(btn)
+        }
+      }
+    })
+    return expanded
+  }
+
+  /**
+   * 恢复折叠状态
+   */
+  private collapseThoughts(buttons: HTMLElement[]): void {
+    buttons.forEach((btn) => btn.click())
+  }
+
+  /**
+   * 覆写 collect：
+   * 展开折叠的思考区域，等待 Angular 渲染后再采集，然后恢复折叠
+   * 自动同步和手动采集均展开，确保 thinking 内容不丢失
+   */
+  override async collect(_options?: CollectOptions): Promise<CollectResult> {
+    const expandedBtns = this.expandThoughts()
+    if (expandedBtns.length) {
+      await new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 150)))
+    }
+
+    const result = super.collect()
+
+    if (expandedBtns.length) {
+      this.collapseThoughts(expandedBtns)
+    }
+
+    return result
+  }
+
   collectMessages(): ChatMessage[] {
     const messages: ChatMessage[] = []
 
@@ -113,9 +160,9 @@ export class GeminiAdapter extends BaseAdapter {
           if (parts.length) thinking = parts.join('\n\n')
         }
 
-        // 主回复内容 — 优先匹配 .markdown-main-panel（实际 class 组合）
+        // 主回复内容 — 限定在 .model-response-text 内，避免匹配到 thinking 的 .markdown
         const responseEl =
-          modelResponse.querySelector('.markdown-main-panel') ||
+          modelResponse.querySelector('.model-response-text .markdown-main-panel') ||
           modelResponse.querySelector('.model-response-text .markdown') ||
           modelResponse.querySelector('message-content .markdown')
         const content = responseEl ? this.extractMarkdown(responseEl) : ''

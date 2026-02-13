@@ -16,6 +16,9 @@ import {
 // --- Initialize Background ---
 console.log('[Background] Script loaded. Setting up repository listeners.')
 
+// 显式打开数据库，确保 schema 升级在消息处理之前完成
+db.open().catch(e => console.error('[Background] Failed to open database:', e))
+
 type PromptLookupCache = {
   categoryMap: Map<string, string>
   tagMap: Map<string, string>
@@ -176,9 +179,24 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
       conversation.externalId
     )
     if (existing) {
+      // 合并消息：某些平台（如 Gemini）懒加载只显示最新 N 条，
+      // 新采集的消息可能少于已保存的。保留旧消息中不在新批次里的部分。
+      let mergedMessages = conversation.messages
+      if (existing.messages && conversation.messages) {
+        const newCount = conversation.messages.length
+        const oldCount = existing.messages.length
+        if (oldCount > newCount) {
+          // 新采集的是尾部子集，保留旧的头部 + 新的尾部
+          const headToKeep = existing.messages.slice(0, oldCount - newCount)
+          mergedMessages = [...headToKeep, ...conversation.messages]
+        }
+      }
+
       // 更新现有对话
       const { ok, error } = await chatRepository.updateConversation(existing.id, {
         ...conversation,
+        messages: mergedMessages,
+        messageCount: Math.ceil((mergedMessages?.length ?? conversation.messages?.length ?? 0) / 2),
         updatedAt: Date.now(),
       })
       if (ok) {

@@ -511,7 +511,7 @@ function handleDeleteMessage(index: number) {
 
   emit('update', props.conversation.id, {
     messages: updatedMessages,
-    messageCount: updatedMessages.filter(m => !m.isDeleted).length,
+    messageCount: Math.ceil(updatedMessages.filter(m => !m.isDeleted).length / 2),
   })
 }
 
@@ -553,8 +553,9 @@ function formatFullTime(timestamp: number): string {
   will-change: max-height;
 }
 
-/* Markdown 样式 */
-.message-text :deep(pre) {
+/* Markdown 样式（消息正文 + thinking 卡片共用） */
+.message-text :deep(pre),
+.thinking-content :deep(pre) {
   background: #1e1e2e;
   color: #cdd6f4;
   padding: 12px;
@@ -563,45 +564,54 @@ function formatFullTime(timestamp: number): string {
   margin: 8px 0;
 }
 
-.message-text :deep(code) {
+.message-text :deep(code),
+.thinking-content :deep(code) {
   background: rgba(0, 0, 0, 0.06);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.875em;
 }
 
-.message-text :deep(pre code) {
+.message-text :deep(pre code),
+.thinking-content :deep(pre code) {
   background: transparent;
   padding: 0;
   color: inherit;
 }
 
 .message-text :deep(ul),
-.message-text :deep(ol) {
+.message-text :deep(ol),
+.thinking-content :deep(ul),
+.thinking-content :deep(ol) {
   padding-left: 1.5em;
   margin: 8px 0;
 }
 
-.message-text :deep(blockquote) {
+.message-text :deep(blockquote),
+.thinking-content :deep(blockquote) {
   border-left: 3px solid currentColor;
   padding-left: 12px;
   margin: 8px 0;
   opacity: 0.8;
 }
 
-.message-text :deep(a) {
+.message-text :deep(a),
+.thinking-content :deep(a) {
   color: #3b82f6;
   text-decoration: underline;
 }
 
-.message-text :deep(table) {
+.message-text :deep(table),
+.thinking-content :deep(table) {
   border-collapse: collapse;
   margin: 8px 0;
   width: 100%;
 }
 
 .message-text :deep(th),
-.message-text :deep(td) {
+.message-text :deep(td),
+.thinking-content :deep(th),
+.thinking-content :deep(td) {
   border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 8px;
   text-align: left;

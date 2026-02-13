@@ -115,7 +115,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         lastConversationId = platformInfo.conversationId
       }
 
-      const result = collect()
+      const result = await collect({ isAutoSync: true })
 
       if (!result.success || !result.conversation) {
         throw new Error(result.error || '采集失败')
@@ -127,6 +127,8 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       const currentUrl = window.location.href
       const saveKey = currentUrl + ':' + contentHash
 
+      console.log(`[SyncEngine] doSync: ${messages.length} msgs, hash=${contentHash}, lastHash=${lastCollectedHash}, lastSaved=${lastSavedKey.slice(-12)}`)
+
       // ── 防腐 + 去重，两层检查 ──
 
       if (lastCollectedUrl && currentUrl !== lastCollectedUrl) {
@@ -134,6 +136,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         // SPA 切换瞬间 DOM 大概率还是旧内容
         lastCollectedUrl = currentUrl
         lastCollectedHash = contentHash
+        console.log('[SyncEngine] skip: URL changed (dirty baseline)')
         syncState.value.status = 'idle'
         return
       }
@@ -146,6 +149,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         // 内容与脏基线相同 → 可能 DOM 还没更新（Gemini），也可能本来就是正确内容（DeepSeek）
         // 用 lastSavedKey 判断：如果这个 URL+内容 已经保存过就跳过，否则放行
         if (saveKey === lastSavedKey) {
+          console.log('[SyncEngine] skip: same content already saved')
           syncState.value.status = 'idle'
           return
         }
@@ -175,10 +179,11 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       if (response?.ok) {
         lastSavedKey = saveKey
         syncState.value.status = 'success'
-        syncState.value.messageCount = messages.length
+        syncState.value.messageCount = Math.ceil(messages.length / 2)
         syncState.value.lastSyncAt = Date.now()
         syncState.value.error = undefined
         retryCount = 0
+        console.log(`[SyncEngine] saved: ${messages.length} msgs`)
         opts.onSyncSuccess(result.conversation)
 
         if (statusResetTimer) {
@@ -195,6 +200,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '同步失败'
+      console.error(`[SyncEngine] error:`, errorMsg)
       syncState.value.status = 'error'
       syncState.value.error = errorMsg
 
@@ -225,24 +231,47 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
 
   /**
    * 启动 MutationObserver
+   * 带重试查找 observeTarget，避免 SPA 切换后 fallback 到 document.body
    */
   function startObserver() {
     stopObserver()
 
     const config = getSiteConfig()
     const targetSelector = config?.observeTarget
-    const target = targetSelector ? document.querySelector(targetSelector) : null
 
-    observer = new MutationObserver(() => {
-      if (!syncState.value.enabled) return
-      debouncedSync()
-    })
+    const attachObserver = (target: Node) => {
+      observer = new MutationObserver(() => {
+        if (!syncState.value.enabled) return
+        debouncedSync()
+      })
+      observer.observe(target, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      })
+    }
 
-    observer.observe(target || document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    })
+    if (!targetSelector) {
+      attachObserver(document.body)
+      return
+    }
+
+    const target = document.querySelector(targetSelector)
+    if (target) {
+      attachObserver(target)
+      return
+    }
+
+    // 目标元素未就绪，重试查找（SPA 切换后 DOM 可能还没渲染）
+    let attempts = 0
+    const retryInterval = window.setInterval(() => {
+      attempts++
+      const el = document.querySelector(targetSelector)
+      if (el || attempts >= 30) {
+        clearInterval(retryInterval)
+        attachObserver(el || document.body)
+      }
+    }, 100)
   }
 
   function stopObserver() {

@@ -15,6 +15,11 @@ export interface CollectResult {
   error?: string
 }
 
+export interface CollectOptions {
+  /** 是否为自动同步（自动同步时跳过展开 thinking 等 UI 操作） */
+  isAutoSync?: boolean
+}
+
 export interface PlatformAdapter {
   /** 平台标识 */
   platform: ChatPlatform
@@ -32,7 +37,7 @@ export interface PlatformAdapter {
   collectMessages(): ChatMessage[]
 
   /** 执行完整采集 */
-  collect(): CollectResult
+  collect(options?: CollectOptions): CollectResult | Promise<CollectResult>
 }
 
 /**
@@ -178,7 +183,7 @@ export abstract class BaseAdapter implements PlatformAdapter {
   /**
    * 执行完整采集
    */
-  collect(): CollectResult {
+  collect(_options?: CollectOptions): CollectResult | Promise<CollectResult> {
     try {
       if (!this.isConversationPage()) {
         return { success: false, error: '当前页面不是对话页面' }
@@ -195,7 +200,7 @@ export abstract class BaseAdapter implements PlatformAdapter {
         title: this.getTitle() || '未命名对话',
         link: window.location.href,
         messages,
-        messageCount: messages.length,
+        messageCount: Math.ceil(messages.length / 2),
         collectedAt: Date.now(),
       }
 
