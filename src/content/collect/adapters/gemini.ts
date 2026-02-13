@@ -27,6 +27,10 @@ import { BaseAdapter } from './base'
 import type { CollectResult, CollectOptions } from './base'
 import type { ChatMessage } from '@/types/chat'
 
+// 模块级 thinking 缓存：按 container id 存储已展开过的 thinking 文本
+// 自动同步时 thinking 折叠无 DOM，从缓存读取；手动采集或用户展开时写入缓存
+const thinkingCache = new Map<string, string>()
+
 export class GeminiAdapter extends BaseAdapter {
   override getTitle(): string {
     const base = super.getTitle()
@@ -79,13 +83,16 @@ export class GeminiAdapter extends BaseAdapter {
   }
 
   /**
-   * 展开所有折叠的思考区域，使 DOM 中包含 thinking 内容
-   * 返回被展开的按钮列表，采集后可恢复
+   * 只展开尚未缓存的折叠思考区域
+   * 已缓存的跳过 → 首次短暂闪烁一次，之后零闪烁
    */
-  private expandThoughts(): HTMLElement[] {
+  private expandUncachedThoughts(): HTMLElement[] {
     const expanded: HTMLElement[] = []
-    document.querySelectorAll('model-thoughts').forEach((mt) => {
-      // 如果 thoughts-content 不存在，说明是折叠状态
+    document.querySelectorAll('.conversation-container').forEach((container) => {
+      if (container.id && thinkingCache.has(container.id)) return
+
+      const mt = container.querySelector('model-thoughts')
+      if (!mt) return
       if (!mt.querySelector('[data-test-id="thoughts-content"]')) {
         const btn = mt.querySelector('[data-test-id="thoughts-header-button"]') as HTMLElement
         if (btn) {
@@ -106,11 +113,11 @@ export class GeminiAdapter extends BaseAdapter {
 
   /**
    * 覆写 collect：
-   * 展开折叠的思考区域，等待 Angular 渲染后再采集，然后恢复折叠
-   * 同步引擎在调用期间会抑制 MutationObserver，不会产生死循环
+   * 自动展开未缓存的 thinking → 采集 → 折叠 → 写入缓存
+   * 已缓存的不展开，无 UI 闪烁。每个 thinking 只展开一次。
    */
   override async collect(_options?: CollectOptions): Promise<CollectResult> {
-    const expandedBtns = this.expandThoughts()
+    const expandedBtns = this.expandUncachedThoughts()
     if (expandedBtns.length) {
       await new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 150)))
     }
@@ -148,7 +155,7 @@ export class GeminiAdapter extends BaseAdapter {
       // ── AI 回复 ──
       const modelResponse = container.querySelector('model-response')
       if (modelResponse) {
-        // thinking 内容
+        // thinking 内容：优先从 DOM 读取，折叠时回退到缓存
         let thinking: string | undefined
         const thoughtsEl = modelResponse.querySelector('model-thoughts')
         if (thoughtsEl) {
@@ -157,7 +164,14 @@ export class GeminiAdapter extends BaseAdapter {
             const t = this.extractText(md).trim()
             if (t) parts.push(t)
           })
-          if (parts.length) thinking = parts.join('\n\n')
+          if (parts.length) {
+            thinking = parts.join('\n\n')
+            // 写入缓存（用户展开或手动采集时）
+            if (container.id) thinkingCache.set(container.id, thinking)
+          } else if (container.id) {
+            // 折叠状态，从缓存读取
+            thinking = thinkingCache.get(container.id)
+          }
         }
 
         // 主回复内容 — 限定在 .model-response-text 内，避免匹配到 thinking 的 .markdown

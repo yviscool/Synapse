@@ -72,7 +72,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   let lastUrl = window.location.href
   let navigationSuccessHandler: (() => void) | null = null
   let unmounted = false
-  let suppressObserver = false  // 同步期间抑制 Observer，避免 expand/collapse thinking 触发死循环
 
   // 计算属性
   const isEnabled = computed(() => syncState.value.enabled)
@@ -108,13 +107,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     if (syncState.value.status === 'syncing') return
 
     syncState.value.status = 'syncing'
-    suppressObserver = true
-
-    // 清除待执行的防抖，避免 expand/collapse 产生的变更排队重入
-    if (debounceTimer) {
-      clearTimeout(debounceTimer)
-      debounceTimer = null
-    }
 
     try {
       // 检测对话 ID 变化，强制全量同步
@@ -227,9 +219,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         opts.onSyncError(errorMsg)
         retryCount = 0
       }
-    } finally {
-      // 延迟恢复 Observer，等 Angular 完成 collapse 后的重渲染
-      setTimeout(() => { suppressObserver = false }, 300)
     }
   }
 
@@ -252,7 +241,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
 
     const attachObserver = (target: Node) => {
       observer = new MutationObserver(() => {
-        if (!syncState.value.enabled || suppressObserver) return
+        if (!syncState.value.enabled) return
         debouncedSync()
       })
       observer.observe(target, {

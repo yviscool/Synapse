@@ -181,14 +181,47 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
     if (existing) {
       // 合并消息：某些平台（如 Gemini）懒加载只显示最新 N 条，
       // 新采集的消息可能少于已保存的。保留旧消息中不在新批次里的部分。
-      let mergedMessages = conversation.messages
-      if (existing.messages && conversation.messages) {
-        const newCount = conversation.messages.length
-        const oldCount = existing.messages.length
-        if (oldCount > newCount) {
-          // 新采集的是尾部子集，保留旧的头部 + 新的尾部
-          const headToKeep = existing.messages.slice(0, oldCount - newCount)
-          mergedMessages = [...headToKeep, ...conversation.messages]
+      let mergedMessages = conversation.messages!
+      const newCount = conversation.messages!.length
+      const oldCount = existing.messages.length
+
+      if (oldCount > newCount) {
+        // 新采集的是尾部子集 — 检查尾部内容是否一致，一致则跳过更新
+        const existingTail = existing.messages.slice(oldCount - newCount)
+        const tailUnchanged = existingTail.length === newCount && existingTail.every((msg, i) => {
+          const oldText = typeof msg.content === 'string' ? msg.content : (msg.content.original || '')
+          const newText = typeof conversation.messages![i].content === 'string'
+            ? conversation.messages![i].content as string
+            : ((conversation.messages![i].content as { original?: string }).original || '')
+          return oldText.slice(0, 200) === newText.slice(0, 200)
+        })
+        if (tailUnchanged) {
+          // 懒加载重入，已有数据更完整，跳过
+          return { ok: true }
+        }
+        // 内容有变化，保留旧的头部 + 新的尾部
+        const headToKeep = existing.messages.slice(0, oldCount - newCount)
+        mergedMessages = [...headToKeep, ...conversation.messages]
+      }
+
+      // 保留已有消息中的 thinking（自动同步时 thinking 折叠无 DOM，新消息不含 thinking）
+      if (existing.messages) {
+        const thinkingByContent = new Map<string, string>()
+        for (const msg of existing.messages) {
+          if (msg.role === 'assistant' && msg.thinking) {
+            const key = (typeof msg.content === 'string' ? msg.content : (msg.content.original || '')).slice(0, 200)
+            thinkingByContent.set(key, msg.thinking)
+          }
+        }
+        if (thinkingByContent.size > 0) {
+          mergedMessages = mergedMessages.map(msg => {
+            if (msg.role === 'assistant' && !msg.thinking) {
+              const key = (typeof msg.content === 'string' ? msg.content : (msg.content.original || '')).slice(0, 200)
+              const cached = thinkingByContent.get(key)
+              if (cached) return { ...msg, thinking: cached }
+            }
+            return msg
+          })
         }
       }
 
