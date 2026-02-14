@@ -66,10 +66,10 @@
               <!-- Left Info -->
               <div class="flex flex-col">
                 <div class="flex items-center gap-2 text-sm">
-                  <span class="font-mono font-semibold text-blue-600 dark:text-blue-400">v{{ getVersionNumber(version) }}</span>
-                  <span class="text-gray-500 dark:text-gray-400">{{ formatRelativeTime(version.createdAt) }}</span>
-                  <span v-if="isLatestVersion(version)" class="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium dark:bg-green-900/50 dark:text-green-300">{{ t('prompts.versionHistory.current') }}</span>
-                  <span v-if="version.type === 'revert'" class="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium dark:bg-yellow-900/50 dark:text-yellow-300">{{ t('prompts.versionHistory.revert') }}</span>
+                  <span class="font-mono font-semibold text-blue-600 whitespace-nowrap shrink-0 dark:text-blue-400">v{{ getVersionNumber(version) }}</span>
+                  <span class="text-gray-500 whitespace-nowrap shrink-0 dark:text-gray-400">{{ formatRelativeTime(version.createdAt) }}</span>
+                  <span v-if="isLatestVersion(version)" class="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium whitespace-nowrap shrink-0 dark:bg-green-900/50 dark:text-green-300">{{ t('prompts.versionHistory.current') }}</span>
+                  <span v-if="version.type === 'revert'" class="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium whitespace-nowrap shrink-0 dark:bg-yellow-900/50 dark:text-yellow-300">{{ t('prompts.versionHistory.revert') }}</span>
                 </div>
                 <div class="text-xs text-gray-400 mt-0.5 dark:text-gray-500">{{ formatDate(version.createdAt) }}</div>
               </div>
@@ -414,13 +414,50 @@ onUnmounted(() => {
 <style scoped>
 /* Markdown Diff Styles */
 .markdown-diff :deep(.diff-addition) {
-  @apply bg-green-50 border-l-4 border-green-400 px-3 my-2 rounded-r-md text-green-800 dark:bg-green-900/40 dark:border-green-500 dark:text-green-200;
+  background: #f0fdf4;
+  border-left: 4px solid #4ade80;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 0 0.375rem 0.375rem 0;
+  color: #166534;
 }
 .markdown-diff :deep(.diff-deletion) {
-  @apply bg-red-50 border-l-4 border-red-400 px-3 my-2 rounded-r-md text-red-800 dark:bg-red-900/40 dark:border-red-500 dark:text-red-200 line-through;
+  background: #fef2f2;
+  border-left: 4px solid #f87171;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 0 0.375rem 0.375rem 0;
+  color: #991b1b;
+  text-decoration: line-through;
 }
 .markdown-diff :deep(.diff-unchanged) {
-  @apply bg-transparent border-l-4 border-gray-300 px-3 my-2 rounded-r-md text-gray-600 dark:border-gray-600 dark:text-gray-400 opacity-70;
+  background: transparent;
+  border-left: 4px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 0 0.375rem 0.375rem 0;
+  color: #4b5563;
+  opacity: 0.7;
+}
+
+:global(.dark .markdown-diff .diff-addition),
+:global([data-theme='dark'] .markdown-diff .diff-addition) {
+  background: rgba(20, 83, 45, 0.45);
+  border-left-color: #22c55e;
+  color: #bbf7d0;
+}
+
+:global(.dark .markdown-diff .diff-deletion),
+:global([data-theme='dark'] .markdown-diff .diff-deletion) {
+  background: rgba(127, 29, 29, 0.45);
+  border-left-color: #ef4444;
+  color: #fecaca;
+}
+
+:global(.dark .markdown-diff .diff-unchanged),
+:global([data-theme='dark'] .markdown-diff .diff-unchanged) {
+  border-left-color: #4b5563;
+  color: #9ca3af;
 }
 
 .markdown-diff :deep(pre) {

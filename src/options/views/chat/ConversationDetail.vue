@@ -710,6 +710,13 @@ function formatFullTime(timestamp: number): string {
   font-size: 0.875em;
 }
 
+.message-text :deep(code::before),
+.message-text :deep(code::after),
+.thinking-content :deep(code::before),
+.thinking-content :deep(code::after) {
+  content: none !important;
+}
+
 :global(.dark .message-text code),
 :global(.dark .thinking-content code),
 :global([data-theme='dark'] .message-text code),
