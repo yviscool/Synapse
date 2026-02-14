@@ -24,6 +24,11 @@ import { BaseAdapter } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class DeepSeekAdapter extends BaseAdapter {
+  private extractKatexTex(node: Element): string {
+    const annotation = node.querySelector('annotation[encoding="application/x-tex"]')
+    return (annotation?.textContent || node.textContent || '').trim()
+  }
+
   override getTitle(): string {
     const base = super.getTitle()
     if (base !== '未命名对话') return base
@@ -45,6 +50,22 @@ export class DeepSeekAdapter extends BaseAdapter {
    * 处理 .md-code-block 代码块 + .ds-scroll-area 表格清理
    */
   protected override preprocessClone(clone: Element): void {
+    // 0. 还原 KaTeX 公式（优先从 MathML annotation 提取原始 TeX）
+    clone.querySelectorAll('.katex-display, .ds-markdown-math').forEach((displayMath) => {
+      const tex = this.extractKatexTex(displayMath)
+      if (tex) {
+        displayMath.replaceWith(`\n$$${tex}$$\n`)
+      }
+    })
+
+    clone.querySelectorAll('span.katex').forEach((inlineMath) => {
+      if (inlineMath.closest('.katex-display, .ds-markdown-math')) return
+      const tex = this.extractKatexTex(inlineMath)
+      if (tex) {
+        inlineMath.replaceWith(`$${tex}$`)
+      }
+    })
+
     // 1. 处理 DeepSeek 代码块：.md-code-block 包含 banner(语言) + pre
     clone.querySelectorAll('.md-code-block').forEach((block) => {
       const langEl = block.querySelector('.d813de27')
@@ -96,7 +117,7 @@ export class DeepSeekAdapter extends BaseAdapter {
         let thinking: string | undefined
         const thinkEl = child.querySelector('.ds-think-content .ds-markdown')
         if (thinkEl) {
-          thinking = this.extractText(thinkEl).trim() || undefined
+          thinking = this.extractMarkdown(thinkEl).trim() || undefined
         }
 
         // 主回复：直接子级 .ds-markdown（排除 thinking 内的）

@@ -169,15 +169,44 @@ export abstract class BaseAdapter implements PlatformAdapter {
     })
 
     // 7. 清理文本
-    const raw = clone.textContent || ''
-    return raw
+    const raw = (clone.textContent || '')
       .replace(/\u200B/g, '')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .split('\n')
-      .map((l) => l.trim())
-      .join('\n')
-      .trim()
+      .replace(/\r\n?/g, '\n')
+      .replace(/\u00A0/g, ' ')
+
+    const lines = raw.split('\n')
+    const output: string[] = []
+    let inFence = false
+    let lastLineBlank = false
+
+    for (const line of lines) {
+      // 代码围栏内不做 trim/collapse，保留缩进与空行
+      if (/^\s*```/.test(line)) {
+        output.push(line.trim())
+        inFence = !inFence
+        lastLineBlank = false
+        continue
+      }
+
+      if (inFence) {
+        output.push(line.replace(/\s+$/g, ''))
+        continue
+      }
+
+      const cleaned = line.replace(/[ \t]+/g, ' ').trim()
+      if (!cleaned) {
+        if (!lastLineBlank) {
+          output.push('')
+          lastLineBlank = true
+        }
+        continue
+      }
+
+      output.push(cleaned)
+      lastLineBlank = false
+    }
+
+    return output.join('\n').trim()
   }
 
   /**
