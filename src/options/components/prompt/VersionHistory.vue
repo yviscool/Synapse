@@ -145,6 +145,7 @@
               ref="comparisonContentRef"
               v-html="comparisonData.diff.markdownHtml" 
               class="markdown-diff prose prose-sm dark:prose-invert max-w-none"
+              @click="handleComparisonMarkdownClick"
             ></div>
           </div>
         </div>
@@ -158,7 +159,7 @@ import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUI } from '@/stores/ui'
 import type { PromptVersion } from '@/types/prompt'
-import { renderMermaidInElement } from '@/utils/markdown'
+import { handleMarkdownCodeCopyClick, renderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
 import {
   getVersionHistory,
   compareVersions,
@@ -207,6 +208,17 @@ watch([showComparison, comparisonData], async ([visible, data]) => {
   await nextTick()
   await renderMermaidInElement(comparisonContentRef.value)
 })
+
+watch(() => locale.value, () => {
+  setMarkdownCodeCopyLabels({
+    copy: t('chat.detail.copy'),
+    copied: t('chat.detail.copied'),
+  })
+}, { immediate: true })
+
+async function handleComparisonMarkdownClick(event: MouseEvent) {
+  await handleMarkdownCodeCopyClick(event)
+}
 
 // Methods
 async function loadVersions() {

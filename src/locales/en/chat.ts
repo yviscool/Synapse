@@ -60,6 +60,7 @@ export default {
     thinkingTime: "{seconds}s",
     edit: "Edit",
     copy: "Copy",
+    copied: "Copied",
     deleteMessage: "Delete message",
     edited: "Edited",
     user: "User",

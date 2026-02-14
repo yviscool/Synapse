@@ -117,7 +117,7 @@
     </div>
 
     <!-- 消息列表 -->
-    <div ref="messageListRef" @scroll="handleMessageScroll" class="relative flex-1 overflow-y-auto p-4 space-y-1 bg-gradient-to-b from-white to-blue-50/40 dark:from-slate-950 dark:to-black">
+    <div ref="messageListRef" @scroll="handleMessageScroll" @click="handleMarkdownContentClick" class="relative flex-1 overflow-y-auto p-4 space-y-1 bg-gradient-to-b from-white to-blue-50/40 dark:from-slate-950 dark:to-black">
       <template v-for="(item, index) in visibleMessages" :key="item.message.id || item.originalIndex">
         <!-- 轮次分隔线 -->
         <hr
@@ -351,7 +351,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { renderMarkdown, renderMermaidInElement } from '@/utils/markdown'
+import { handleMarkdownCodeCopyClick, renderMarkdown, renderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
 import { getPlatformConfig, getPlatformIconUrl } from '@/content/site-configs'
 import MilkdownEditor from '@/components/Milkdown.vue'
 import type { ChatConversation, ChatMessage, ChatPlatform } from '@/types/chat'
@@ -531,6 +531,13 @@ watch(showTagInput, async (show) => {
   }
 })
 
+watch(() => locale.value, () => {
+  setMarkdownCodeCopyLabels({
+    copy: t('chat.detail.copy'),
+    copied: t('chat.detail.copied'),
+  })
+}, { immediate: true })
+
 watch([() => props.conversation.id, visibleMessages], async () => {
   await nextTick()
   handleMessageScroll()
@@ -539,6 +546,10 @@ watch([() => props.conversation.id, visibleMessages], async () => {
 
 function handleWindowScroll() {
   handleMessageScroll()
+}
+
+async function handleMarkdownContentClick(event: MouseEvent) {
+  await handleMarkdownCodeCopyClick(event)
 }
 
 onMounted(() => {
@@ -710,6 +721,11 @@ function formatFullTime(timestamp: number): string {
 .thinking-content :deep(pre code) {
   background: transparent !important;
   padding: 0;
+}
+
+.message-text :deep(pre code.hljs),
+.thinking-content :deep(pre code.hljs) {
+  padding: 0.9rem 1rem;
 }
 
 .message-text :deep(ul),

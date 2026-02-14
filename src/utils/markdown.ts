@@ -84,9 +84,40 @@ hljs.registerLanguage('gql', graphql)
 hljs.registerLanguage('wasm', wasm)
 
 const MERMAID_LANGS = new Set(['mermaid', 'mmd'])
+let codeCopyLabel = 'Copy'
+let codeCopiedLabel = 'Copied'
+const CODE_LANG_LABELS: Record<string, string> = {
+  js: 'JavaScript',
+  jsx: 'JavaScript',
+  javascript: 'JavaScript',
+  ts: 'TypeScript',
+  tsx: 'TypeScript',
+  typescript: 'TypeScript',
+  py: 'Python',
+  python: 'Python',
+  sh: 'Shell',
+  shell: 'Shell',
+  bash: 'Bash',
+  zsh: 'Zsh',
+  yml: 'YAML',
+  yaml: 'YAML',
+  md: 'Markdown',
+  markdown: 'Markdown',
+  cpp: 'C++',
+  csharp: 'C#',
+  cs: 'C#',
+  gql: 'GraphQL',
+}
 
 function normalizeLang(lang?: string): string {
   return (lang || '').trim().split(/\s+/, 1)[0].toLowerCase()
+}
+
+function getCodeLangLabel(lang: string): string {
+  if (!lang) return 'Text'
+  const known = CODE_LANG_LABELS[lang]
+  if (known) return known
+  return lang.charAt(0).toUpperCase() + lang.slice(1)
 }
 
 function escapeHtml(raw: string): string {
@@ -173,8 +204,15 @@ export const markedWithHighlight = new Marked(
         if (MERMAID_LANGS.has(normalizedLang)) {
           return `<div class="mermaid">${escapeHtml(text).trim()}</div>\n`
         }
+        const langLabel = getCodeLangLabel(normalizedLang)
         const className = normalizedLang ? `hljs language-${escapeHtml(normalizedLang)}` : 'hljs'
-        return `<pre><code class="${className}">${escaped ? text : escapeHtml(text)}\n</code></pre>`
+        return `<div class="md-code-block">
+  <div class="md-code-block-banner">
+    <span class="md-code-block-lang">${escapeHtml(langLabel)}</span>
+    <button type="button" class="md-code-block-copy" data-md-code-copy>${escapeHtml(codeCopyLabel)}</button>
+  </div>
+  <pre><code class="${className}">${escaped ? text : escapeHtml(text)}\n</code></pre>
+</div>`
       },
     },
   },
@@ -189,6 +227,65 @@ export function renderMarkdown(content: string): string {
   } catch {
     return content.replace(/\n/g, '<br>')
   }
+}
+
+/**
+ * Set i18n labels for markdown code copy button.
+ */
+export function setMarkdownCodeCopyLabels(labels: { copy: string; copied: string }) {
+  codeCopyLabel = labels.copy || 'Copy'
+  codeCopiedLabel = labels.copied || 'Copied'
+}
+
+async function copyText(text: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  if (typeof document === 'undefined') return
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  textarea.style.pointerEvents = 'none'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  document.execCommand('copy')
+  textarea.remove()
+}
+
+/**
+ * Handle markdown code copy button clicks in rendered HTML.
+ * Returns true when the click target is a markdown copy button.
+ */
+export async function handleMarkdownCodeCopyClick(event: Event): Promise<boolean> {
+  const target = event.target as Element | null
+  const copyButton = target?.closest<HTMLElement>('[data-md-code-copy]')
+  if (!copyButton) return false
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  const block = copyButton.closest('.md-code-block')
+  const codeEl = block?.querySelector('pre code')
+  const content = codeEl?.textContent?.replace(/\n$/, '') || ''
+  if (!content) return true
+
+  try {
+    await copyText(content)
+    copyButton.textContent = codeCopiedLabel
+    copyButton.dataset.copied = 'true'
+    window.setTimeout(() => {
+      copyButton.textContent = codeCopyLabel
+      delete copyButton.dataset.copied
+    }, 1200)
+  } catch {
+    // Ignore copy failures.
+  }
+
+  return true
 }
 
 type MermaidModule = typeof import('mermaid')

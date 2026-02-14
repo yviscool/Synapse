@@ -60,6 +60,7 @@ export default {
     thinkingTime: "{seconds}秒",
     edit: "编辑",
     copy: "复制",
+    copied: "已复制",
     deleteMessage: "删除消息",
     edited: "已编辑",
     user: "用户",

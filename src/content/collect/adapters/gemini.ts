@@ -69,10 +69,22 @@ export class GeminiAdapter extends BaseAdapter {
 
     // 2. Gemini code-block 自定义元素
     clone.querySelectorAll('code-block').forEach((block) => {
-      const langEl = block.querySelector('code-block-decoration span')
-      const lang = langEl?.textContent?.trim().toLowerCase() || ''
-      block.querySelectorAll('code-block-decoration').forEach((d) => d.remove())
-      const codeEl = block.querySelector('pre code') || block.querySelector('code')
+      const langEl =
+        block.querySelector('.code-block-decoration span') ||
+        block.querySelector('[class*="code-block-decoration"] span') ||
+        block.querySelector('code-block-decoration span')
+
+      const codeEl =
+        block.querySelector('pre code') ||
+        block.querySelector('code[data-test-id="code-content"]') ||
+        block.querySelector('code')
+
+      const classLang = codeEl?.className.match(/\blanguage-([a-z0-9#+-]+)/i)?.[1] || ''
+      const lang = (langEl?.textContent?.trim() || classLang).toLowerCase()
+
+      block
+        .querySelectorAll('.code-block-decoration, [class*="code-block-decoration"], code-block-decoration')
+        .forEach((d) => d.remove())
       const codeText = codeEl?.textContent || ''
       block.replaceWith(`\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`)
     })

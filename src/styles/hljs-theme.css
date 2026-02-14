@@ -8,6 +8,13 @@
 :root {
   --hljs-text: #24292e;
   --hljs-bg: #f6f8fa;
+  --hljs-border: #d0d7de;
+  --hljs-banner-bg: #f1f5f9;
+  --hljs-banner-text: #475569;
+  --hljs-copy-bg: #ffffff;
+  --hljs-copy-border: #cbd5e1;
+  --hljs-copy-text: #334155;
+  --hljs-copy-hover-bg: #f8fafc;
   --hljs-keyword: #d73a49;
   --hljs-title: #6f42c1;
   --hljs-literal: #005cc5;
@@ -30,6 +37,13 @@
 :root[data-theme='dark'] {
   --hljs-text: #c9d1d9;
   --hljs-bg: #0f172a;
+  --hljs-border: #334155;
+  --hljs-banner-bg: #0b1220;
+  --hljs-banner-text: #94a3b8;
+  --hljs-copy-bg: #111827;
+  --hljs-copy-border: #334155;
+  --hljs-copy-text: #cbd5e1;
+  --hljs-copy-hover-bg: #0b1220;
   --hljs-keyword: #ff7b72;
   --hljs-title: #d2a8ff;
   --hljs-literal: #79c0ff;
@@ -62,6 +76,61 @@ code.hljs {
 .hljs {
   color: var(--hljs-text);
   background: var(--hljs-bg);
+}
+
+.md-code-block {
+  border: 1px solid var(--hljs-border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 0.75rem 0;
+  background: var(--hljs-bg);
+}
+
+.md-code-block-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0.7rem;
+  border-bottom: 1px solid var(--hljs-border);
+  background: var(--hljs-banner-bg);
+}
+
+.md-code-block-lang {
+  font-size: 0.75rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--hljs-banner-text);
+}
+
+.md-code-block-copy {
+  appearance: none;
+  border: 1px solid var(--hljs-copy-border);
+  border-radius: 6px;
+  background: var(--hljs-copy-bg);
+  color: var(--hljs-copy-text);
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.28rem 0.5rem;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.md-code-block-copy:hover {
+  background: var(--hljs-copy-hover-bg);
+}
+
+.md-code-block-copy[data-copied='true'] {
+  border-color: #22c55e;
+  color: #16a34a;
+}
+
+.md-code-block pre {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
 }
 
 .hljs-doctag,
