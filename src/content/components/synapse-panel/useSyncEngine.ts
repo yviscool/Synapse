@@ -50,6 +50,22 @@ let lastCollectedHash = ''
 let lastSavedKey = ''  // url + ':' + hash，已成功保存的内容标识，用于去重
 let lastConversationId: string | null = null
 
+function hashString(input: string): string {
+  let hash = 0
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return hash.toString(36)
+}
+
+function buildFallbackConversationId(platform: string, url: string): string {
+  const u = new URL(url)
+  const normalized = `${u.origin}${u.pathname}`.toLowerCase()
+  return `auto:${platform}:${hashString(normalized)}`
+}
+
 export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options }
 
@@ -126,6 +142,9 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       const contentHash = hashContent(currentTitle, messages)
       const currentUrl = window.location.href
       const saveKey = currentUrl + ':' + contentHash
+      const config = getSiteConfig()
+      const requireExternalId = Boolean(config?.conversationIdPattern)
+      const platform = result.conversation.platform || platformInfo.platform || 'other'
 
       console.log(`[SyncEngine] doSync: ${messages.length} msgs, hash=${contentHash}, lastHash=${lastCollectedHash}, lastSaved=${lastSavedKey.slice(-12)}`)
 
@@ -159,11 +178,19 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       // 内容已变化 或 未保存过 → 更新快照
       lastCollectedHash = contentHash
 
-      // 自动同步时，externalId 缺失说明 URL 处于过渡态，跳过以避免创建孤立记录
+      // 仅对“本应从 URL 提取 externalId”的平台做强校验。
+      // 对无 conversationIdPattern 的平台，使用 URL 派生稳定 id，避免静默跳过与重复新建。
       if (!result.conversation.externalId) {
-        lastCollectedHash = '' // 回退，URL 稳定后仍能触发保存
-        syncState.value.status = 'idle'
-        return
+        if (requireExternalId) {
+          lastCollectedHash = '' // 回退，URL 稳定后仍能触发保存
+          console.log('[SyncEngine] skip: missing externalId on id-required site')
+          syncState.value.status = 'idle'
+          return
+        }
+
+        if (!result.conversation.id) {
+          result.conversation.id = buildFallbackConversationId(platform, currentUrl)
+        }
       }
 
       // 发送到 background 保存

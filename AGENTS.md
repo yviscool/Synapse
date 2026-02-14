@@ -91,4 +91,9 @@
 > **第三步（仅全新平台标识时）：**
 >
 > - `src/types/chat.ts` — 在 `ChatPlatform` 类型中新增枚举值
-> - `src/utils/chatPlatform.ts` — 在 `PLATFORM_CONFIGS` 中添加图标、颜色等 UI 配置
+> - `src/content/site-configs.ts` — 在 `platformMetaConfigs` 中添加图标、颜色等 UI 配置
+>
+> **统一约束（必须遵守）**
+>
+> - 平台识别、平台 UI 元数据、站点选择器配置全部以 `src/content/site-configs.ts` 为唯一数据源。
+> - 禁止新增任何并行平台配置文件，避免双份配置漂移。

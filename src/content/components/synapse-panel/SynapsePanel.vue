@@ -234,7 +234,7 @@ import {
 import { useDraggable, useWindowSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { canCollect } from '@/content/collect'
-import { detectPlatformFromUrl } from '@/utils/chatPlatform'
+import { detectPlatformFromUrl } from '@/content/site-configs'
 import type { SiteConfig } from '@/content/site-configs'
 
 import CollectPanel from './CollectPanel.vue'

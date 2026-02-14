@@ -5,7 +5,7 @@ import type {
 } from "@/types/chat";
 import { getMessageContent } from "@/types/chat";
 import { resolveLocalePreference } from "@/utils/locale";
-import { getPlatformConfig } from "./chatPlatform";
+import { getPlatformConfig } from "@/content/site-configs";
 
 type ExportLocaleKey =
   | "zh-CN"

@@ -59,12 +59,12 @@ import {
     useScrollLock,
 } from "@vueuse/core";
 
-import { siteConfigs } from "@/content/site-configs";
+import { getSiteConfigByUrl } from "@/content/site-configs";
 import { SynapsePanel } from "./components/synapse-panel";
 import PromptSelector from "./components/PromptSelector.vue";
 import PromptComposerPanel from "./components/PromptComposerPanel.vue";
 import { canCollect } from "@/content/collect";
-import { detectPlatformFromUrl } from "@/utils/chatPlatform";
+import { detectPlatformFromUrl } from "@/content/site-configs";
 import { appendAtEnd, findActiveInput } from "@/utils/inputAdapter";
 import {
     MSG,
@@ -129,18 +129,16 @@ function describeTarget(target: ReturnType<typeof findActiveInput> | null) {
     };
 }
 
+const outlineKey = ref(window.location.href);
+
 // Logic to select the correct config for the current site
 const outlineConfig = computed(() => {
-    const host = window.location.hostname;
-    const key = Object.keys(siteConfigs).find((domain) =>
-        host.includes(domain),
-    );
-    return key ? siteConfigs[key] : null;
+    return getSiteConfigByUrl(outlineKey.value);
 });
 
 // 是否显示统一面板（有大纲配置或在 AI 平台时显示）
 const showSynapsePanel = computed(() => {
-    return outlineConfig.value !== null || canCollect() || detectPlatformFromUrl(window.location.href) !== 'other';
+    return outlineConfig.value !== null || canCollect() || detectPlatformFromUrl(outlineKey.value) !== 'other';
 });
 
 // === UI 控制 ===
@@ -148,7 +146,6 @@ const { showToast, hideToast } = useUI();
 const { t, locale } = useI18n();
 
 // --- SPA Navigation Handling ---
-const outlineKey = ref(window.location.href);
 const navigationApi = (window as Window & { navigation?: NavigationApi }).navigation;
 const handleNavigateSuccess = () => {
     outlineKey.value = window.location.href;

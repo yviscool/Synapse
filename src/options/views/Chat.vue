@@ -99,7 +99,17 @@
                             : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                         ]"
                       >
-                        <div :class="platform.icon" :style="{ color: selectedPlatforms.includes(platform.id) ? 'white' : platform.color }"></div>
+                        <img
+                          v-if="getIconUrl(platform)"
+                          :src="getIconUrl(platform) || ''"
+                          alt=""
+                          class="w-4 h-4 rounded-sm object-cover"
+                        />
+                        <div
+                          v-else
+                          :class="platform.icon"
+                          :style="{ color: selectedPlatforms.includes(platform.id) ? 'white' : platform.color }"
+                        ></div>
                         <span>{{ platform.name }}</span>
                         <span
                           v-if="getPlatformCount(platform.id)"
@@ -225,7 +235,18 @@
                 class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                 :style="{ backgroundColor: getPlatformConfig(conv.platform).color + '15' }"
               >
-                <div :class="getPlatformConfig(conv.platform).icon" class="text-lg" :style="{ color: getPlatformConfig(conv.platform).color }"></div>
+                <img
+                  v-if="getIconUrl(conv.platform)"
+                  :src="getIconUrl(conv.platform) || ''"
+                  alt=""
+                  class="w-5 h-5 rounded object-cover"
+                />
+                <div
+                  v-else
+                  :class="getPlatformConfig(conv.platform).icon"
+                  class="text-lg"
+                  :style="{ color: getPlatformConfig(conv.platform).color }"
+                ></div>
               </div>
 
               <!-- 内容 -->
@@ -339,7 +360,8 @@ import {
 import {
   getAllPlatforms,
   getPlatformConfig,
-} from '@/utils/chatPlatform'
+  getPlatformIconUrl,
+} from '@/content/site-configs'
 import type { ChatConversation, ChatPlatform, PlatformConfig } from '@/types/chat'
 
 // 开发环境加载调试工具
@@ -438,6 +460,10 @@ const currentSortLabel = computed(() => {
 // Methods
 function getPlatformCount(platform: ChatPlatform): number {
   return platformCounts.value.get(platform) || 0
+}
+
+function getIconUrl(platform: ChatPlatform | PlatformConfig): string | null {
+  return getPlatformIconUrl(platform)
 }
 
 function handlePlatformClick(platform: ChatPlatform) {

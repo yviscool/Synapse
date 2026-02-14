@@ -193,6 +193,11 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       isLoading.value = false;
     }
 
+    // 首次扫描为空时也要结束 loading，避免一直显示加载态
+    if (newItems.length === 0 && items.value.length === 0) {
+      isLoading.value = false;
+    }
+
     // 每次更新完数据，都重新计算一次滚动高亮
     updateHighlight();
   }, 200); // 200ms 防抖：在密集的 DOM 变动停止后 200ms 再执行扫描

@@ -7,7 +7,14 @@
           class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
           :style="{ backgroundColor: getPlatformConfig(conversation.platform).color + '15' }"
         >
+          <img
+            v-if="getIconUrl(conversation.platform)"
+            :src="getIconUrl(conversation.platform) || ''"
+            alt=""
+            class="w-6 h-6 rounded object-cover"
+          />
           <div
+            v-else
             :class="getPlatformConfig(conversation.platform).icon"
             class="text-xl"
             :style="{ color: getPlatformConfig(conversation.platform).color }"
@@ -345,9 +352,9 @@
 import { ref, watch, nextTick, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
-import { getPlatformConfig } from '@/utils/chatPlatform'
+import { getPlatformConfig, getPlatformIconUrl } from '@/content/site-configs'
 import MilkdownEditor from '@/components/Milkdown.vue'
-import type { ChatConversation, ChatMessage } from '@/types/chat'
+import type { ChatConversation, ChatMessage, ChatPlatform } from '@/types/chat'
 
 const { t, locale } = useI18n()
 
@@ -385,6 +392,10 @@ const editContent = ref('')
 
 // 角色筛选
 const roleFilter = ref<'all' | 'user' | 'assistant'>('all')
+
+function getIconUrl(platform: ChatPlatform): string | null {
+  return getPlatformIconUrl(platform)
+}
 
 // 配置 marked
 marked.setOptions({ breaks: true, gfm: true })

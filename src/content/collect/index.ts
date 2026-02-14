@@ -16,9 +16,11 @@ import { DoubaoAdapter } from './adapters/doubao'
 import { GrokAdapter } from './adapters/grok'
 import { MiniMaxAdapter } from './adapters/minimax'
 import { ZAIAdapter } from './adapters/zai'
+import { QianwenAdapter } from './adapters/qianwen'
+import { YuanbaoAdapter } from './adapters/yuanbao'
 import { GenericAdapter } from './adapters/generic'
 import type { ChatPlatform } from '@/types/chat'
-import { detectPlatformFromUrl } from '@/utils/chatPlatform'
+import { detectPlatformFromUrl } from '@/content/site-configs'
 
 const adapterMap: Record<string, (config: SiteConfig) => PlatformAdapter> = {
   chatgpt: (c) => new ChatGPTAdapter(c),
@@ -28,6 +30,8 @@ const adapterMap: Record<string, (config: SiteConfig) => PlatformAdapter> = {
   aistudio: (c) => new AIStudioAdapter(c),
   kimi: (c) => new KimiAdapter(c),
   doubao: (c) => new DoubaoAdapter(c),
+  qianwen: (c) => new QianwenAdapter(c),
+  yuanbao: (c) => new YuanbaoAdapter(c),
   grok: (c) => new GrokAdapter(c),
   minimax: (c) => new MiniMaxAdapter(c),
   zai: (c) => new ZAIAdapter(c),

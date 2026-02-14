@@ -10,6 +10,7 @@ export default {
     deepseek: "DeepSeek",
     kimi: "Kimi",
     doubao: "Doubao",
+    qianwen: "Qwen",
     yuanbao: "Tencent Yuanbao",
     grok: "Grok",
     copilot: "Copilot",

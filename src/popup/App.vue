@@ -87,7 +87,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { db, getSettings } from '@/stores/db'
-import { getPlatformConfig } from '@/utils/chatPlatform'
+import { getPlatformConfig } from '@/content/site-configs'
 import { MSG, type DataUpdatedPayload, type RequestMessage } from '@/utils/messaging'
 import type { ChatPlatform } from '@/types/chat'
 import { resolveLocalePreference } from '@/utils/locale'

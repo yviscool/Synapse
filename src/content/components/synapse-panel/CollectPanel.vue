@@ -7,7 +7,13 @@
       :style="platformCardStyle"
     >
       <div class="platform-icon-wrap" :style="{ color: platformInfo.color }">
-        <span :class="platformInfo.icon" class="text-xl"></span>
+        <img
+          v-if="platformInfo.iconUrl"
+          :src="platformInfo.iconUrl"
+          alt=""
+          class="w-5 h-5 rounded object-cover"
+        />
+        <span v-else :class="platformInfo.icon" class="text-xl"></span>
       </div>
       <div class="platform-name" :style="{ color: 'var(--sp-text-primary)' }">{{ platformInfo.name }}</div>
     </div>
@@ -87,7 +93,7 @@ import { computed, watch, type CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SyncEngineInstance } from './useSyncEngine'
 import { getCurrentPlatformInfo } from '@/content/collect'
-import { getPlatformConfig } from '@/utils/chatPlatform'
+import { getPlatformConfig, getPlatformIconUrl } from '@/content/site-configs'
 import { MSG } from '@/utils/messaging'
 
 const { t, locale } = useI18n()
@@ -125,6 +131,7 @@ const platformInfo = computed(() => {
     id: info.platform,
     name: config.name,
     icon: config.icon,
+    iconUrl: getPlatformIconUrl(config),
     color: config.color,
   }
 })

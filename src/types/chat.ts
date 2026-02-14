@@ -12,6 +12,7 @@ export type ChatPlatform =
   | 'deepseek'
   | 'kimi'
   | 'doubao'
+  | 'qianwen'
   | 'yuanbao'
   | 'grok'
   | 'copilot'
@@ -140,6 +141,7 @@ export interface PlatformConfig {
   id: ChatPlatform
   name: string
   icon: string
+  iconUrl?: string
   color: string
   urlPatterns: RegExp[]
 }

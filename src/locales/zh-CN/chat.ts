@@ -10,6 +10,7 @@ export default {
     deepseek: "DeepSeek",
     kimi: "Kimi",
     doubao: "豆包",
+    qianwen: "千问",
     yuanbao: "腾讯元宝",
     grok: "Grok",
     copilot: "Copilot",
