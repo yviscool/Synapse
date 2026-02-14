@@ -295,7 +295,7 @@
           <span
             v-for="tagId in conversation.tagIds"
             :key="tagId"
-            class="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700"
+            class="px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-400/20"
           >
             {{ getTagName(tagId) }}
           </span>
@@ -351,7 +351,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { marked } from 'marked'
+import { renderMarkdown, renderMermaidInElement } from '@/utils/markdown'
 import { getPlatformConfig, getPlatformIconUrl } from '@/content/site-configs'
 import MilkdownEditor from '@/components/Milkdown.vue'
 import type { ChatConversation, ChatMessage, ChatPlatform } from '@/types/chat'
@@ -397,9 +397,6 @@ function getIconUrl(platform: ChatPlatform): string | null {
   return getPlatformIconUrl(platform)
 }
 
-// 配置 marked
-marked.setOptions({ breaks: true, gfm: true })
-
 // 过滤已删除的消息 + 角色筛选（保留原始索引）
 const visibleMessages = computed(() => {
   return props.conversation.messages
@@ -423,15 +420,6 @@ function getThinkingDurationSeconds(message: ChatMessage): number | null {
     return null
   }
   return Math.round(rawDuration / 1000)
-}
-
-// 渲染 Markdown
-function renderMarkdown(content: string): string {
-  try {
-    return marked.parse(content) as string
-  } catch {
-    return content.replace(/\n/g, '<br>')
-  }
 }
 
 // 标题编辑
@@ -546,6 +534,7 @@ watch(showTagInput, async (show) => {
 watch([() => props.conversation.id, visibleMessages], async () => {
   await nextTick()
   handleMessageScroll()
+  await renderMermaidInElement(messageListRef.value)
 }, { immediate: true })
 
 function handleWindowScroll() {
@@ -695,12 +684,11 @@ function formatFullTime(timestamp: number): string {
 /* Markdown 样式（消息正文 + thinking 卡片共用） */
 .message-text :deep(pre),
 .thinking-content :deep(pre) {
-  background: #f3f4f6;
-  color: #111827;
-  padding: 12px;
   border-radius: 8px;
   overflow-x: auto;
   margin: 8px 0;
+  background: transparent !important;
+  padding: 0 !important;
 }
 
 .message-text :deep(code),
@@ -720,9 +708,8 @@ function formatFullTime(timestamp: number): string {
 
 .message-text :deep(pre code),
 .thinking-content :deep(pre code) {
-  background: transparent;
+  background: transparent !important;
   padding: 0;
-  color: inherit;
 }
 
 .message-text :deep(ul),
@@ -794,9 +781,7 @@ function formatFullTime(timestamp: number): string {
 :global(.dark .thinking-content pre),
 :global([data-theme='dark'] .message-text pre),
 :global([data-theme='dark'] .thinking-content pre) {
-  background: #0f172a !important;
-  color: #e5e7eb !important;
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 :global(.dark .message-text table),

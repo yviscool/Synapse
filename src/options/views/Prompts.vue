@@ -452,14 +452,14 @@
                                 <span
                                     v-for="(categoryName, categoryIndex) in prompt.categoryNames"
                                     :key="`${prompt.id}-category-${categoryIndex}`"
-                                    class="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800"
+                                    class="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-400/20"
                                 >
                                     {{ categoryName }}
                                 </span>
                                 <span
                                     v-for="(tagName, tagIndex) in prompt.tagNames"
                                     :key="`${prompt.id}-tag-${tagIndex}`"
-                                    class="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-green-100 text-green-800"
+                                    class="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-700/10 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20"
                                 >
                                     {{ tagName }}
                                 </span>

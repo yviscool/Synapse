@@ -75,6 +75,87 @@ async function removeChatSearchIndex(conversationIds: string | string[]): Promis
 // ============================================
 // Helper Functions
 // ============================================
+function toSerializableValue(
+  value: unknown,
+  seen: WeakMap<object, unknown>,
+): unknown {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return value;
+  }
+
+  if (value === undefined || typeof value === "function" || typeof value === "symbol") {
+    return undefined;
+  }
+
+  if (value instanceof Date) {
+    return new Date(value.getTime());
+  }
+
+  if (value instanceof RegExp) {
+    return value.toString();
+  }
+
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+      stack: value.stack,
+    };
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => toSerializableValue(item, seen))
+      .filter((item) => item !== undefined);
+  }
+
+  if (value instanceof Set) {
+    return Array.from(value.values())
+      .map((item) => toSerializableValue(item, seen))
+      .filter((item) => item !== undefined);
+  }
+
+  if (value instanceof Map) {
+    const mapped: Record<string, unknown> = {};
+    for (const [key, mapValue] of value.entries()) {
+      const serialized = toSerializableValue(mapValue, seen);
+      if (serialized !== undefined) {
+        mapped[String(key)] = serialized;
+      }
+    }
+    return mapped;
+  }
+
+  if (typeof value === "object") {
+    if (seen.has(value)) {
+      return seen.get(value);
+    }
+
+    const plainObject: Record<string, unknown> = {};
+    seen.set(value, plainObject);
+
+    for (const [key, objectValue] of Object.entries(value as Record<string, unknown>)) {
+      const serialized = toSerializableValue(objectValue, seen);
+      if (serialized !== undefined) {
+        plainObject[key] = serialized;
+      }
+    }
+    return plainObject;
+  }
+
+  return undefined;
+}
+
+function ensureSerializable<T>(input: T): T {
+  return toSerializableValue(input, new WeakMap()) as T;
+}
+
 function createSafeConversation(data: Partial<ChatConversation>): ChatConversation {
   const now = Date.now();
   return {
@@ -128,7 +209,14 @@ export const chatRepository = {
         }
 
         // 2. Prepare Conversation
-        const safeConversation = createSafeConversation({ ...data, tagIds });
+        const sanitizedData = ensureSerializable(data);
+        const resolvedTagIds = tagNames.length > 0
+          ? tagIds
+          : (sanitizedData.tagIds || []);
+        const safeConversation = createSafeConversation({
+          ...sanitizedData,
+          tagIds: resolvedTagIds,
+        });
 
         // 3. Check if update or create
         const existing = data.id ? await db.chat_conversations.get(data.id) : null;
@@ -151,17 +239,18 @@ export const chatRepository = {
     id: string,
     patch: Partial<ChatConversation>
   ): Promise<{ ok: boolean; error?: Error }> {
-    if (!patch.updatedAt) {
-      patch.updatedAt = Date.now();
+    const sanitizedPatch = ensureSerializable(patch);
+    if (!sanitizedPatch.updatedAt) {
+      sanitizedPatch.updatedAt = Date.now();
     }
-    if (patch.messages) {
-      patch.messageCount = Math.ceil(patch.messages.length / 2);
+    if (sanitizedPatch.messages) {
+      sanitizedPatch.messageCount = Math.ceil(sanitizedPatch.messages.length / 2);
     }
     return withCommitNotification(
       ["chat_conversations", "chat_tags", "chat_search_index"],
       async () => {
-        await db.chat_conversations.update(id, patch);
-        if (patch.title || patch.messages || patch.tagIds) {
+        await db.chat_conversations.update(id, sanitizedPatch);
+        if (sanitizedPatch.title || sanitizedPatch.messages || sanitizedPatch.tagIds) {
           const updated = await db.chat_conversations.get(id);
           if (updated) {
             await upsertChatSearchIndex(updated);

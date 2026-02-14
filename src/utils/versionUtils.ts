@@ -1,14 +1,8 @@
-import { marked } from 'marked'
+import { markedWithHighlight } from '@/utils/markdown'
 import { db } from '@/stores/db' // Keep for read-only
 import { repository } from '@/stores/repository'
 import type { PromptVersion } from '@/types/prompt'
 import DiffMatchPatch from 'diff-match-patch'
-
-// 配置 marked
-marked.setOptions({
-  breaks: true,
-  gfm: true
-})
 
 const dmp = new DiffMatchPatch()
 type TextDiff = [number, string]
@@ -55,7 +49,7 @@ async function renderDiffAsMarkdown(diffs: TextDiff[]): Promise<string> {
   let html = ''
 
   for (const [op, text] of diffs) {
-    const renderedText = await marked.parse(text)
+    const renderedText = await markedWithHighlight.parse(text)
 
     if (op === 1) { // 添加
       html += `<div class="diff-addition">${renderedText}</div>`

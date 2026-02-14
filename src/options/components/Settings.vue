@@ -25,47 +25,109 @@
       </div>
 
       <!-- General Settings -->
-      <div v-show="!isLoading && activeTab === 'general'" class="max-w-4xl mx-auto space-y-8">
-        <div class="p-6 border rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ t('settings.language.title') }}</h3>
-          <div class="mt-4 space-y-4">
-            <div v-for="option in languageOptions" :key="option.value" class="flex items-center">
-              <input
-                :id="`lang-${option.value}`"
-                name="language-selection"
-                type="radio"
-                :value="option.value"
-                :checked="settings && settings.locale === option.value"
-                @change="handleLocaleChange(option.value)"
-                class="h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
-              >
-              <label :for="`lang-${option.value}`" class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                {{ option.label }}
-              </label>
-            </div>
-            <p v-if="settings && settings.locale === 'system'" class="text-sm text-gray-500 dark:text-gray-400 mt-2 ml-7">
-              {{ t('settings.language.currentSystem', { lang: systemLanguageLabel }) }}
-            </p>
+      <div v-show="!isLoading && activeTab === 'general'" class="max-w-2xl mx-auto space-y-6">
+        <!-- Theme (card-style) -->
+        <div class="p-6 border border-gray-200/80 dark:border-gray-700/60 rounded-2xl bg-white dark:bg-gray-900/80 shadow-sm">
+          <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 tracking-tight">{{ t('settings.theme.title') }}</h3>
+          <div class="mt-5 grid grid-cols-3 gap-3">
+            <button
+              v-for="option in themeOptions" :key="option.value"
+              @click="handleThemeChange(option.value)"
+              :class="['relative flex flex-col items-center gap-2.5 pt-3 pb-4 rounded-xl border-2 transition-all duration-200 cursor-pointer group',
+                settings?.theme === option.value
+                  ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/20 ring-1 ring-blue-500/20'
+                  : 'border-gray-200 dark:border-gray-700/80 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm']"
+            >
+              <!-- Mini window preview -->
+              <div class="w-[calc(100%-1.25rem)] mx-auto">
+                <!-- Light preview -->
+                <div v-if="option.value === 'light'" class="aspect-[3/2] rounded-lg border border-gray-200 overflow-hidden bg-white">
+                  <div class="h-1.5 bg-gray-100 border-b border-gray-200 flex items-center px-1 gap-px">
+                    <i class="w-[3px] h-[3px] rounded-full bg-red-300 not-italic"></i>
+                    <i class="w-[3px] h-[3px] rounded-full bg-yellow-300 not-italic"></i>
+                    <i class="w-[3px] h-[3px] rounded-full bg-green-300 not-italic"></i>
+                  </div>
+                  <div class="p-1.5 space-y-[3px]">
+                    <div class="h-[3px] w-4/5 bg-gray-200 rounded-full"></div>
+                    <div class="h-[3px] w-3/5 bg-gray-100 rounded-full"></div>
+                    <div class="h-[3px] w-2/3 bg-gray-100 rounded-full"></div>
+                  </div>
+                </div>
+                <!-- Dark preview -->
+                <div v-else-if="option.value === 'dark'" class="aspect-[3/2] rounded-lg border border-gray-700 overflow-hidden bg-gray-900">
+                  <div class="h-1.5 bg-gray-800 border-b border-gray-700 flex items-center px-1 gap-px">
+                    <i class="w-[3px] h-[3px] rounded-full bg-red-400/60 not-italic"></i>
+                    <i class="w-[3px] h-[3px] rounded-full bg-yellow-400/60 not-italic"></i>
+                    <i class="w-[3px] h-[3px] rounded-full bg-green-400/60 not-italic"></i>
+                  </div>
+                  <div class="p-1.5 space-y-[3px]">
+                    <div class="h-[3px] w-4/5 bg-gray-700 rounded-full"></div>
+                    <div class="h-[3px] w-3/5 bg-gray-800 rounded-full"></div>
+                    <div class="h-[3px] w-2/3 bg-gray-800 rounded-full"></div>
+                  </div>
+                </div>
+                <!-- Auto preview (split) -->
+                <div v-else class="aspect-[3/2] rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden flex">
+                  <div class="w-1/2 bg-white border-r border-gray-200">
+                    <div class="h-1.5 bg-gray-100 border-b border-gray-200 flex items-center pl-1 gap-px">
+                      <i class="w-[3px] h-[3px] rounded-full bg-red-300 not-italic"></i>
+                      <i class="w-[3px] h-[3px] rounded-full bg-yellow-300 not-italic"></i>
+                    </div>
+                    <div class="p-1 space-y-[3px]">
+                      <div class="h-[3px] w-4/5 bg-gray-200 rounded-full"></div>
+                      <div class="h-[3px] w-3/5 bg-gray-100 rounded-full"></div>
+                    </div>
+                  </div>
+                  <div class="w-1/2 bg-gray-900">
+                    <div class="h-1.5 bg-gray-800 border-b border-gray-700 flex items-center pl-1 gap-px">
+                      <i class="w-[3px] h-[3px] rounded-full bg-green-400/60 not-italic"></i>
+                    </div>
+                    <div class="p-1 space-y-[3px]">
+                      <div class="h-[3px] w-4/5 bg-gray-700 rounded-full"></div>
+                      <div class="h-[3px] w-3/5 bg-gray-800 rounded-full"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <span :class="['text-sm font-medium transition-colors',
+                settings?.theme === option.value
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200']">{{ option.label }}</span>
+              <div v-if="settings?.theme === option.value" class="absolute top-1.5 right-1.5">
+                <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+              </div>
+            </button>
           </div>
         </div>
-
-        <div class="p-6 border rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ t('settings.theme.title') }}</h3>
-          <div class="mt-4 space-y-4">
-            <div v-for="option in themeOptions" :key="option.value" class="flex items-center">
-              <input
-                :id="`theme-${option.value}`"
-                name="theme-selection"
-                type="radio"
-                :value="option.value"
-                :checked="settings && settings.theme === option.value"
-                @change="handleThemeChange(option.value)"
-                class="h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+        <!-- Language (dropdown) -->
+        <div class="p-6 border border-gray-200/80 dark:border-gray-700/60 rounded-2xl bg-white dark:bg-gray-900/80 shadow-sm">
+          <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 tracking-tight">{{ t('settings.language.title') }}</h3>
+          <div class="mt-4">
+            <div class="relative">
+              <select
+                :value="settings?.locale"
+                @change="handleLocaleChange(($event.target as HTMLSelectElement).value as LocaleOption)"
+                class="w-full appearance-none px-4 py-2.5 pr-10 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 outline-none transition-shadow cursor-pointer"
               >
-              <label :for="`theme-${option.value}`" class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                {{ option.label }}
-              </label>
+                <option value="zh-CN">简体中文</option>
+                <option value="en">English</option>
+                <option disabled class="text-gray-300">──────────</option>
+                <option value="zh-TW">繁體中文</option>
+                <option value="de">Deutsch</option>
+                <option value="ja-JP">日本語</option>
+                <option value="ko">한국어</option>
+                <option value="ru-RU">Русский</option>
+                <option disabled class="text-gray-300">──────────</option>
+                <option value="system">{{ t('settings.language.followSystem') }}</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </div>
             </div>
+            <p v-if="settings && settings.locale === 'system'" class="text-xs text-gray-500 dark:text-gray-400 mt-2.5 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {{ t('settings.language.currentSystem', { lang: systemLanguageLabel }) }}
+            </p>
           </div>
         </div>
       </div>
@@ -230,7 +292,7 @@ import { useUI } from '@/stores/ui'
 import { db, getSettings } from '@/stores/db'
 import { repository } from '@/stores/repository'
 import { syncManager, type SyncRunResult } from '@/stores/sync'
-import { SUPPORTED_LOCALES, type LocalePreference, type SupportedLocale } from '@/types/i18n'
+import { type LocalePreference, type SupportedLocale } from '@/types/i18n'
 import type { Settings } from '@/types/prompt'
 import { resolveLocalePreference, resolveSystemLocale } from '@/utils/locale'
 import { optionsThemeKey } from '@/options/composables/useOptionsTheme'
@@ -276,14 +338,6 @@ const LOCALE_NAME_KEY_MAP: Record<SupportedLocale, string> = {
 function getLocaleLabel(value: SupportedLocale): string {
   return t(`settings.language.localeNames.${LOCALE_NAME_KEY_MAP[value]}`)
 }
-
-const languageOptions = computed<Array<{ value: LocaleOption; label: string }>>(() => [
-  ...SUPPORTED_LOCALES.map((value) => ({
-    value,
-    label: getLocaleLabel(value),
-  })),
-  { value: 'system', label: t('settings.language.followSystem') },
-]);
 
 const themeOptions = computed<Array<{ value: ThemeOption; label: string }>>(() => [
   { value: 'light', label: t('settings.theme.light') },

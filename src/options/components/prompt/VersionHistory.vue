@@ -142,6 +142,7 @@
           
           <div v-if="comparisonData?.diff">
             <div 
+              ref="comparisonContentRef"
               v-html="comparisonData.diff.markdownHtml" 
               class="markdown-diff prose prose-sm dark:prose-invert max-w-none"
             ></div>
@@ -153,11 +154,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { marked } from 'marked'
 import { useUI } from '@/stores/ui'
 import type { PromptVersion } from '@/types/prompt'
+import { renderMermaidInElement } from '@/utils/markdown'
 import {
   getVersionHistory,
   compareVersions,
@@ -165,12 +166,6 @@ import {
   deleteVersion as removeVersion,
   cleanupOldVersions as cleanupVersions
 } from '@/utils/versionUtils'
-
-// Configure marked
-marked.setOptions({
-  breaks: true,
-  gfm: true
-})
 
 interface Props {
   promptId: string
@@ -194,6 +189,7 @@ type VersionDiffResult = Awaited<ReturnType<typeof compareVersions>>
 const versions = ref<PromptVersion[]>([])
 const selectedVersionId = ref<string>()
 const showComparison = ref(false)
+const comparisonContentRef = ref<HTMLElement | null>(null)
 
 const comparisonData = ref<{
   oldVersion: PromptVersion
@@ -205,6 +201,12 @@ const comparisonData = ref<{
 watch(() => props.promptId, () => {
   loadVersions()
 }, { immediate: true })
+
+watch([showComparison, comparisonData], async ([visible, data]) => {
+  if (!visible || !data?.diff) return
+  await nextTick()
+  await renderMermaidInElement(comparisonContentRef.value)
+})
 
 // Methods
 async function loadVersions() {
@@ -407,5 +409,10 @@ onUnmounted(() => {
 }
 .markdown-diff :deep(.diff-unchanged) {
   @apply bg-transparent border-l-4 border-gray-300 px-3 my-2 rounded-r-md text-gray-600 dark:border-gray-600 dark:text-gray-400 opacity-70;
+}
+
+.markdown-diff :deep(pre) {
+  background: transparent !important;
+  padding: 0 !important;
 }
 </style>
