@@ -11,7 +11,7 @@ Synapse 是一款围绕 AI 使用场景打造的浏览器扩展，集提示词�
 * 集中创建、编辑、分类、搜索提示词，随时调用
 * 所见即所得的 Markdown 编辑器，实时预览排版效果
 * 自动保存提示词的历史版本，随时回溯与恢复
-* 在 AI 网站输入框旁一键注入提示词（`/p` 或 `Alt + K` 呼出选择器）
+* 在 AI 网站输入框旁一键注入提示词（`Alt + K` 呼出选择器）
 * `Ctrl + Shift + S` 快速保存选中文本 / 右键菜单直接保存
 * 全文搜索，快速定位所需内容
 
@@ -47,38 +47,35 @@ Synapse 是一款围绕 AI 使用场景打造的浏览器扩展，集提示词�
 
 ## 📸 Demo 截图
 
-
 ### 提示词管理
 
-![提示词列表](./demo/prompt1.png)
-![提示词分类](./demo/prompt2.png)
-![提示词分类](./demo/3.png)
+![提示词列表](../demo/prompt1.png)
+![提示词分类](../demo/prompt2.png)
+![提示词分类](../demo/3.png)
 
 ### 提示词选择器注入（AI 输入框）
 
-![提示词编辑](./demo/prompt_content1.png)
-![提示词预览](./demo/prompt_content2.png)
-![版本历史](./demo/prompt_content3.png)
-
+![提示词编辑](../demo/prompt_content1.png)
+![提示词预览](../demo/prompt_content2.png)
+![版本历史](../demo/prompt_content3.png)
 
 ### 对话采集与管理
 
-![对话列表](./demo/chat1.png)
-![对话详情](./demo/chat2.png)
-![对话导出](./demo/chat4.png)
-![对话导出](./demo/chat3.png)
+![对话列表](../demo/chat1.png)
+![对话详情](../demo/chat2.png)
+![对话导出](../demo/chat4.png)
+![对话导出](../demo/chat3.png)
 
 ### AI 网站大纲生成
 
-![AI 大纲生成 1](./demo/5.png)
-![AI 大纲生成 2](./demo/6.png)
-![AI 大纲生成 3](./demo/7.png)
+![AI 大纲生成 1](../demo/5.png)
+![AI 大纲生成 2](../demo/6.png)
+![AI 大纲生成 3](../demo/7.png)
 
 ### 代码片段管理
 
-![片段编辑器](./demo/tool1.png)
-![片段预览](./demo/tool2.png)
-
+![片段编辑器](../demo/tool1.png)
+![片段预览](../demo/tool2.png)
 
 ---
 
@@ -101,7 +98,7 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · 豆包 · 腾讯
 [点击前往 Chrome 商店安装](https://chromewebstore.google.com/detail/synapse/mdnfmfgnnbeodhpfnkeobmhifodhhjcj?authuser=0&hl=zh-CN)
 
 ### Releases 手动安装
-1. 前往 [Releases](https://github.com/your-repo/synapse/releases) 页面
+1. 前往 [Releases](https://github.com/yviscool/synapse/releases) 页面
 2. 下载 `extension-版本号.zip`
 3. 打开浏览器扩展管理页面，开启 **开发者模式**
 4. 将 `extension-版本号.zip` 拖拽安装
@@ -111,4 +108,4 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · 豆包 · 腾讯
 
 ## 📜 开源许可
 
-本项目基于 [MIT License](./LICENSE) 开源
+本项目基于 [MIT License](../LICENSE) 开源

@@ -1,4 +1,4 @@
-[简体中文](README.zh-CN.md)
+[简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md) | [日本語](docs/README.ja-JP.md) | [한국어](docs/README.ko.md) | [Deutsch](docs/README.de.md) | [Русский](docs/README.ru-RU.md)
 
 # Synapse - Your AI Toolbox
 
@@ -13,7 +13,7 @@ Synapse is a browser extension built for your AI workflow — combining prompt m
 * Create, edit, categorize, and search for prompts in one place
 * WYSIWYG Markdown editor with real-time preview
 * Automatically saves historical versions of your prompts, allowing you to review and restore them at any time
-* Inject prompts with a single click next to AI website input boxes (type `/p` or press `Alt + K`)
+* Inject prompts with a single click next to AI website input boxes (press `Alt + K`)
 * `Ctrl + Shift + S` to quickly save selected text / right-click context menu to save
 * Full-text search to quickly locate the content you need
 
@@ -100,7 +100,7 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 [Click here to install from the Chrome Web Store](https://chromewebstore.google.com/detail/synapse/mdnfmfgnnbeodhpfnkeobmhifodhhjcj?authuser=0&hl=en)
 
 ### Manual Installation from Releases
-1.  Go to the [Releases](https://github.com/your-repo/synapse/releases) page
+1.  Go to the [Releases](https://github.com/yviscool/synapse/releases) page
 2.  Download `extension-vX.X.X.zip`
 3.  Open your browser's extension management page and enable **Developer mode**
 4.  Drag and drop the `extension-vX.X.X.zip` file to install
