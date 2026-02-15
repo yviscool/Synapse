@@ -535,6 +535,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from "vue";
 import { useI18n } from "vue-i18n";
+import { useTitle } from "@vueuse/core";
 import { useUI } from "@/stores/ui";
 import { db } from "@/stores/db";
 import { type PromptWithMatches } from "@/stores/promptSearch";
@@ -571,6 +572,7 @@ const DeleteCategoryModal = defineAsyncComponent(
 );
 
 const { t, locale } = useI18n();
+useTitle(() => `${t('menu.prompts')} - Synapse`)
 const { showToast, askConfirm } = useUI();
 const route = useRoute();
 

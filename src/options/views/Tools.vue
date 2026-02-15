@@ -71,6 +71,7 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useTitle } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
 import { optionsThemeKey } from '@/options/composables/useOptionsTheme'
 import { snippetRepository } from '@/stores/snippetRepository'
@@ -81,6 +82,7 @@ import SnippetEditor from '@/options/components/snippets/SnippetEditor.vue'
 import type { Snippet, SnippetLanguage } from '@/types/snippet'
 
 const { t } = useI18n()
+useTitle(() => `${t('menu.tools')} - Synapse`)
 const { showToast, askConfirm } = useUI()
 const optionsTheme = inject(optionsThemeKey, null)
 const isDark = computed(() => optionsTheme?.isDark.value ?? false)

@@ -348,7 +348,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onClickOutside } from '@vueuse/core'
+import { onClickOutside, useTitle } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
 import { chatRepository } from '@/stores/chatRepository'
@@ -376,6 +376,7 @@ const ExportModal = defineAsyncComponent(() => import('./chat/ExportModal.vue'))
 const ChatOutline = defineAsyncComponent(() => import('./chat/ChatOutline.vue'))
 
 const { t, locale } = useI18n()
+useTitle(() => `${t('menu.chat')} - Synapse`)
 const { showToast, askConfirm } = useUI()
 
 // Query composable
