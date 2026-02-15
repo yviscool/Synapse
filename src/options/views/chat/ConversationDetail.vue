@@ -724,7 +724,7 @@ function formatFullTime(timestamp: number): string {
   background: rgba(0, 0, 0, 0.06);
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.875em;
+  font-size: 0.92em;
 }
 
 .message-text :deep(code::before),

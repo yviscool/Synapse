@@ -20,6 +20,9 @@
  *                                               │     └── code-block
  *                                               │           ├── code-block-decoration (语言 + 复制按钮)
  *                                               │           └── pre > code.code-container
+ *                                               ├── .horizontal-scroll-wrapper  ← 表格包装
+ *                                               │     └── .table-block-component
+ *                                               │           └── response-element > table-block > table
  *                                               ├── generated-image     ← AI 生成图片
  *                                               │     └── single-image > .image-container > img.image
  *                                               └── span.math-inline[data-math]  ← KaTeX 公式
@@ -52,9 +55,15 @@ export class GeminiAdapter extends BaseAdapter {
     return '未命名对话'
   }
 
+  /** 检测代码内容是否为 mermaid 图表语法 */
+  private isMermaidContent(code: string): boolean {
+    const trimmed = code.trim()
+    return /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|xychart|block-beta|packet-beta|architecture-beta|kanban)/i.test(trimmed)
+  }
+
   /**
    * Gemini 专用预处理
-   * 处理 KaTeX .math-inline/.math-display + code-block + response-element
+   * 处理 KaTeX .math-inline/.math-display + code-block + table-block + response-element
    */
   protected override preprocessClone(clone: Element): void {
     // 1. KaTeX 公式：用 data-math 属性还原 LaTeX
@@ -80,16 +89,51 @@ export class GeminiAdapter extends BaseAdapter {
         block.querySelector('code')
 
       const classLang = codeEl?.className.match(/\blanguage-([a-z0-9#+-]+)/i)?.[1] || ''
-      const lang = (langEl?.textContent?.trim() || classLang).toLowerCase()
+      const rawLang = (langEl?.textContent?.trim() || classLang).toLowerCase()
+      const codeText = codeEl?.textContent || ''
+
+      // Gemini 有时用通用标签（如"代码段"）而非实际语言名，需按内容检测 mermaid
+      const lang = this.isMermaidContent(codeText) ? 'mermaid' : rawLang
 
       block
         .querySelectorAll('.code-block-decoration, [class*="code-block-decoration"], code-block-decoration')
         .forEach((d) => d.remove())
-      const codeText = codeEl?.textContent || ''
       block.replaceWith(`\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`)
     })
 
-    // 3. Gemini 生成图片（generated-image / single-image 自定义元素）
+    // 3. 表格转 Markdown（table-block 自定义元素内的 <table>）
+    clone.querySelectorAll('table').forEach((table) => {
+      const rows: string[][] = []
+      table.querySelectorAll('tr').forEach((tr) => {
+        const cells: string[] = []
+        tr.querySelectorAll('th, td').forEach((cell) => {
+          cells.push((cell.textContent || '').trim().replace(/\|/g, '\\|'))
+        })
+        if (cells.length > 0) rows.push(cells)
+      })
+
+      if (rows.length === 0) return
+
+      const colCount = Math.max(...rows.map((r) => r.length))
+      const mdLines: string[] = []
+
+      // 表头
+      const header = rows[0].concat(Array(Math.max(0, colCount - rows[0].length)).fill(''))
+      mdLines.push('| ' + header.join(' | ') + ' |')
+      mdLines.push('| ' + header.map(() => '---').join(' | ') + ' |')
+
+      // 数据行
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i].concat(Array(Math.max(0, colCount - rows[i].length)).fill(''))
+        mdLines.push('| ' + row.join(' | ') + ' |')
+      }
+
+      // 替换最外层包装容器（table-block / horizontal-scroll-wrapper）
+      const wrapper = table.closest('table-block') || table.closest('.horizontal-scroll-wrapper') || table
+      wrapper.replaceWith('\n' + mdLines.join('\n') + '\n')
+    })
+
+    // 4. Gemini 生成图片（generated-image / single-image 自定义元素）
     clone.querySelectorAll('generated-image').forEach((genImg) => {
       const img = genImg.querySelector('img')
       if (img) {
@@ -101,7 +145,7 @@ export class GeminiAdapter extends BaseAdapter {
       }
     })
 
-    // 4. 清理 response-element 空壳
+    // 5. 清理 response-element 空壳
     clone.querySelectorAll('response-element').forEach((el) => {
       while (el.firstChild) el.parentNode?.insertBefore(el.firstChild, el)
       el.remove()
