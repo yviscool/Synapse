@@ -188,6 +188,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useUI } from '@/stores/ui'
 import CodeEditor from './CodeEditor.vue'
 import HtmlPreview from './HtmlPreview.vue'
 import type { Snippet, SnippetFolder, SnippetLanguage } from '@/types/snippet'
@@ -208,6 +209,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { askConfirm } = useUI()
 
 // Local state
 const localTitle = ref('')
@@ -231,17 +233,35 @@ const originalStarred = ref(false)
 // Language options
 const languageOptions = computed(() => [
   { value: 'html', label: t('tools.languages.html') },
+  { value: 'css', label: t('tools.languages.css') },
+  { value: 'scss', label: t('tools.languages.scss') },
+  { value: 'less', label: t('tools.languages.less') },
   { value: 'javascript', label: t('tools.languages.javascript') },
   { value: 'typescript', label: t('tools.languages.typescript') },
   { value: 'python', label: t('tools.languages.python') },
-  { value: 'rust', label: t('tools.languages.rust') },
+  { value: 'java', label: t('tools.languages.java') },
+  { value: 'c', label: t('tools.languages.c') },
+  { value: 'cpp', label: t('tools.languages.cpp') },
+  { value: 'csharp', label: t('tools.languages.csharp') },
   { value: 'go', label: t('tools.languages.go') },
-  { value: 'css', label: t('tools.languages.css') },
-  { value: 'json', label: t('tools.languages.json') },
-  { value: 'markdown', label: t('tools.languages.markdown') },
+  { value: 'rust', label: t('tools.languages.rust') },
+  { value: 'ruby', label: t('tools.languages.ruby') },
+  { value: 'php', label: t('tools.languages.php') },
+  { value: 'swift', label: t('tools.languages.swift') },
+  { value: 'kotlin', label: t('tools.languages.kotlin') },
+  { value: 'dart', label: t('tools.languages.dart') },
+  { value: 'lua', label: t('tools.languages.lua') },
+  { value: 'r', label: t('tools.languages.r') },
+  { value: 'scala', label: t('tools.languages.scala') },
   { value: 'sql', label: t('tools.languages.sql') },
   { value: 'shell', label: t('tools.languages.shell') },
+  { value: 'json', label: t('tools.languages.json') },
   { value: 'yaml', label: t('tools.languages.yaml') },
+  { value: 'xml', label: t('tools.languages.xml') },
+  { value: 'markdown', label: t('tools.languages.markdown') },
+  { value: 'dockerfile', label: t('tools.languages.dockerfile') },
+  { value: 'graphql', label: t('tools.languages.graphql') },
+  { value: 'diff', label: t('tools.languages.diff') },
   { value: 'text', label: t('tools.languages.text') },
 ])
 
@@ -338,9 +358,10 @@ function save() {
   originalTags.value = [...localTags.value]
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   if (!props.snippet) return
-  if (confirm(t('tools.editor.deleteConfirm'))) {
+  const confirmed = await askConfirm(t('tools.editor.deleteConfirm'), { type: 'danger' })
+  if (confirmed) {
     emit('delete', props.snippet.id)
   }
 }
