@@ -159,7 +159,7 @@ import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUI } from '@/stores/ui'
 import type { PromptVersion } from '@/types/prompt'
-import { handleMarkdownCodeCopyClick, renderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
+import { handleMarkdownCodeCopyClick, handleMermaidBlockClick, renderMermaidInElement, reRenderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
 import {
   getVersionHistory,
   compareVersions,
@@ -198,6 +198,8 @@ const comparisonData = ref<{
   diff: VersionDiffResult
 } | null>(null)
 
+let themeObserver: MutationObserver | null = null
+
 // Watchers
 watch(() => props.promptId, () => {
   loadVersions()
@@ -213,10 +215,16 @@ watch(() => locale.value, () => {
   setMarkdownCodeCopyLabels({
     copy: t('chat.detail.copy'),
     copied: t('chat.detail.copied'),
+    mermaidChart: t('chat.detail.mermaidChart'),
+    mermaidCode: t('chat.detail.mermaidCode'),
+    mermaidCopy: t('chat.detail.mermaidCopy'),
+    mermaidDownload: t('chat.detail.mermaidDownload'),
+    mermaidFullscreen: t('chat.detail.mermaidFullscreen'),
   })
 }, { immediate: true })
 
 async function handleComparisonMarkdownClick(event: MouseEvent) {
+  if (await handleMermaidBlockClick(event)) return
   await handleMarkdownCodeCopyClick(event)
 }
 
@@ -404,10 +412,20 @@ const handleEsc = (e: KeyboardEvent) => {
 onMounted(() => {
   loadVersions()
   window.addEventListener('keydown', handleEsc, true)
+
+  // 监听主题切换，重新渲染 mermaid
+  themeObserver = new MutationObserver(() => {
+    reRenderMermaidInElement(comparisonContentRef.value)
+  })
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme', 'class'],
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleEsc, true)
+  themeObserver?.disconnect()
 })
 </script>
 

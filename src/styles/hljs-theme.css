@@ -208,3 +208,148 @@ code.hljs {
   height: auto;
   margin: 0 auto;
 }
+
+/* ── Mermaid Block (toolbar wrapper) ── */
+.md-mermaid-block {
+  border: 1px solid var(--hljs-border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 0.75rem 0;
+  background: var(--hljs-bg);
+}
+
+.md-mermaid-block .mermaid {
+  margin: 0;
+  padding: 1rem;
+}
+
+.md-mermaid-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  border-bottom: 1px solid var(--hljs-border);
+  background: var(--hljs-banner-bg);
+}
+
+.md-mermaid-tabs {
+  display: flex;
+  gap: 2px;
+  background: color-mix(in srgb, var(--hljs-banner-text) 12%, transparent);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.md-mermaid-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--hljs-banner-text);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0.25rem 0.55rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+
+.md-mermaid-tab:hover {
+  background: color-mix(in srgb, var(--hljs-banner-text) 10%, transparent);
+}
+
+.md-mermaid-tab--active {
+  background: var(--hljs-copy-bg);
+  color: var(--hljs-text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.md-mermaid-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.md-mermaid-action {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--hljs-banner-text);
+  padding: 0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, color 120ms;
+}
+
+.md-mermaid-action:hover {
+  background: color-mix(in srgb, var(--hljs-banner-text) 14%, transparent);
+  color: var(--hljs-text);
+}
+
+.md-mermaid-source pre {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+/* ── Mermaid Preview Overlay ── */
+.md-mermaid-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.md-mermaid-preview-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  appearance: none;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.md-mermaid-preview-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.md-mermaid-preview-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.md-mermaid-preview-container svg {
+  max-width: 90vw;
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  transform-origin: center center;
+  transition: transform 100ms ease;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 1rem;
+  filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.3));
+}

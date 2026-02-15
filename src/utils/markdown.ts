@@ -86,6 +86,11 @@ hljs.registerLanguage('wasm', wasm)
 const MERMAID_LANGS = new Set(['mermaid', 'mmd'])
 let codeCopyLabel = 'Copy'
 let codeCopiedLabel = 'Copied'
+let mermaidChartLabel = 'Chart'
+let mermaidCodeLabel = 'Code'
+let mermaidCopyLabel = 'Copy'
+let mermaidDownloadLabel = 'Download'
+let mermaidFullscreenLabel = 'Fullscreen'
 const CODE_LANG_LABELS: Record<string, string> = {
   js: 'JavaScript',
   jsx: 'JavaScript',
@@ -142,13 +147,29 @@ function normalizeMathDelimiters(content: string): string {
         .replace(/\\\[([\s\S]*?)\\?\]/g, (_, formula: string) => `\n\n$$\n${formula.trim()}\n$$\n\n`)
         // \( ... \) -> $ ... $
         .replace(/\\\(([\s\S]*?)\\\)/g, (_, formula: string) => `$${formula.trim()}$`)
+        // Ensure $$ delimiters are on their own lines (e.g. $$content\n...$$ → $$\ncontent\n...\n$$)
+        .replace(/\$\$([\s\S]+?)\$\$/g, (_, inner: string) => {
+          if (!inner.includes('\n')) return `$$${inner}$$`
+          return `\n\n$$\n${inner.trim()}\n$$\n\n`
+        })
+        // Promote $...$ containing \begin{env} or multi-line LaTeX commands to display math $$...$$
+        .replace(/(?<!\$)\$(?!\$)((?:[^$])*?\\[a-zA-Z]+(?:[^$])*?)\$(?!\$)/g, (match, formula: string) => {
+          // \begin{...}...\end{...} is always display math
+          if (/\\begin\{/.test(formula)) return `\n\n$$\n${formula.trim()}\n$$\n\n`
+          if (!formula.includes('\n')) return match
+          return `\n\n$$\n${formula.trim()}\n$$\n\n`
+        })
 
-      // Only apply "( ... )" fallback on non-math parts to avoid nested delimiters.
+      // Only apply "( ... )" fallback and bare \begin{} wrapping on non-math parts.
       const parts = normalizedSegment.split(/(\$\$[\s\S]*?\$\$|\$(?:\\.|[^$\n])+\$)/g)
       return parts
         .map((part, partIndex) => {
           if (partIndex % 2 === 1) return part
-          return part.replace(/\(([^()\n]{1,180})\)/g, (raw: string, formula: string, offset: number, source: string) => {
+          // Wrap bare \begin{env}...\end{env} (no $ delimiters) as display math
+          let processed = part.replace(/\\begin\{(\w+)\}([\s\S]*?)\\end\{\1\}/g, (match) => {
+            return `\n\n$$\n${match.trim()}\n$$\n\n`
+          })
+          return processed.replace(/\(([^()\n]{1,180})\)/g, (raw: string, formula: string, offset: number, source: string) => {
             // Preserve markdown link syntax: [text](url)
             if (offset > 0 && source[offset - 1] === ']') return raw
             const normalized = formula.trim()
@@ -202,7 +223,22 @@ export const markedWithHighlight = new Marked(
       code({ text, lang, escaped }) {
         const normalizedLang = normalizeLang(lang)
         if (MERMAID_LANGS.has(normalizedLang)) {
-          return `<div class="mermaid">${escapeHtml(text).trim()}</div>\n`
+          const source = escapeHtml(text).trim()
+          return `<div class="md-mermaid-block">
+  <div class="md-mermaid-banner">
+    <div class="md-mermaid-tabs">
+      <button type="button" class="md-mermaid-tab md-mermaid-tab--active" data-md-mermaid-tab="chart">${mermaidChartLabel}</button>
+      <button type="button" class="md-mermaid-tab" data-md-mermaid-tab="code">${mermaidCodeLabel}</button>
+    </div>
+    <div class="md-mermaid-actions">
+      <button type="button" class="md-mermaid-action" data-md-mermaid-action="copy" title="${mermaidCopyLabel}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      <button type="button" class="md-mermaid-action" data-md-mermaid-action="download" title="${mermaidDownloadLabel}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+      <button type="button" class="md-mermaid-action" data-md-mermaid-action="preview" title="${mermaidFullscreenLabel}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
+    </div>
+  </div>
+  <div class="md-mermaid-chart"><div class="mermaid">${source}</div></div>
+  <div class="md-mermaid-source" style="display:none"><pre><code class="hljs language-mermaid">${source}\n</code></pre></div>
+</div>\n`
         }
         const langLabel = getCodeLangLabel(normalizedLang)
         const className = normalizedLang ? `hljs language-${escapeHtml(normalizedLang)}` : 'hljs'
@@ -232,9 +268,22 @@ export function renderMarkdown(content: string): string {
 /**
  * Set i18n labels for markdown code copy button.
  */
-export function setMarkdownCodeCopyLabels(labels: { copy: string; copied: string }) {
+export function setMarkdownCodeCopyLabels(labels: {
+  copy: string
+  copied: string
+  mermaidChart?: string
+  mermaidCode?: string
+  mermaidCopy?: string
+  mermaidDownload?: string
+  mermaidFullscreen?: string
+}) {
   codeCopyLabel = labels.copy || 'Copy'
   codeCopiedLabel = labels.copied || 'Copied'
+  if (labels.mermaidChart) mermaidChartLabel = labels.mermaidChart
+  if (labels.mermaidCode) mermaidCodeLabel = labels.mermaidCode
+  if (labels.mermaidCopy) mermaidCopyLabel = labels.mermaidCopy
+  if (labels.mermaidDownload) mermaidDownloadLabel = labels.mermaidDownload
+  if (labels.mermaidFullscreen) mermaidFullscreenLabel = labels.mermaidFullscreen
 }
 
 async function copyText(text: string): Promise<void> {
@@ -288,14 +337,151 @@ export async function handleMarkdownCodeCopyClick(event: Event): Promise<boolean
   return true
 }
 
+/**
+ * Handle mermaid block toolbar interactions (tab switch, copy, download, fullscreen).
+ * Returns true when the click target is a mermaid toolbar element.
+ */
+export async function handleMermaidBlockClick(event: Event): Promise<boolean> {
+  const target = event.target as Element | null
+
+  // ── Tab switch ──
+  const tab = target?.closest<HTMLElement>('[data-md-mermaid-tab]')
+  if (tab) {
+    event.preventDefault()
+    event.stopPropagation()
+    const block = tab.closest('.md-mermaid-block')
+    if (!block) return true
+    const mode = tab.dataset.mdMermaidTab // 'chart' | 'code'
+    block.querySelectorAll<HTMLElement>('[data-md-mermaid-tab]').forEach((t) => {
+      t.classList.toggle('md-mermaid-tab--active', t.dataset.mdMermaidTab === mode)
+    })
+    const chart = block.querySelector<HTMLElement>('.md-mermaid-chart')
+    const source = block.querySelector<HTMLElement>('.md-mermaid-source')
+    if (chart) chart.style.display = mode === 'chart' ? '' : 'none'
+    if (source) source.style.display = mode === 'code' ? '' : 'none'
+    return true
+  }
+
+  // ── Action buttons ──
+  const action = target?.closest<HTMLElement>('[data-md-mermaid-action]')
+  if (!action) return false
+
+  event.preventDefault()
+  event.stopPropagation()
+  const block = action.closest('.md-mermaid-block')
+  if (!block) return true
+  const kind = action.dataset.mdMermaidAction
+
+  if (kind === 'copy') {
+    const source = block.querySelector('.md-mermaid-source code')?.textContent?.replace(/\n$/, '') || ''
+    if (source) {
+      try {
+        await copyText(source)
+      } catch { /* ignore */ }
+    }
+    return true
+  }
+
+  if (kind === 'download') {
+    const svg = block.querySelector<SVGSVGElement>('.mermaid svg')
+    if (svg) {
+      const serializer = new XMLSerializer()
+      const svgStr = serializer.serializeToString(svg)
+      const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'mermaid-diagram.svg'
+      a.click()
+      URL.revokeObjectURL(url)
+    }
+    return true
+  }
+
+  if (kind === 'preview') {
+    const svg = block.querySelector<SVGSVGElement>('.mermaid svg')
+    if (svg) openMermaidPreview(svg)
+    return true
+  }
+
+  return true
+}
+
+/**
+ * Open a fullscreen image-preview overlay for a mermaid SVG.
+ * Supports mouse-wheel zoom and a close button.
+ */
+function openMermaidPreview(sourceSvg: SVGSVGElement): void {
+  // Clone the SVG so the original stays untouched
+  const svg = sourceSvg.cloneNode(true) as SVGSVGElement
+  svg.style.cssText = ''
+  svg.removeAttribute('style')
+
+  let scale = 1
+  const MIN_SCALE = 0.1
+  const MAX_SCALE = 10
+
+  // ── Overlay ──
+  const overlay = document.createElement('div')
+  overlay.className = 'md-mermaid-preview-overlay'
+
+  // ── Close button ──
+  const closeBtn = document.createElement('button')
+  closeBtn.className = 'md-mermaid-preview-close'
+  closeBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+
+  // ── SVG container ──
+  const container = document.createElement('div')
+  container.className = 'md-mermaid-preview-container'
+  container.appendChild(svg)
+
+  overlay.appendChild(closeBtn)
+  overlay.appendChild(container)
+  document.body.appendChild(overlay)
+
+  function applyTransform() {
+    svg.style.transform = `scale(${scale})`
+  }
+
+  function close() {
+    window.removeEventListener('keydown', onKey, true)
+    overlay.remove()
+  }
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') { e.stopPropagation(); close() }
+  }
+
+  // Wheel zoom
+  container.addEventListener('wheel', (e) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? 0.9 : 1.1
+    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * delta))
+    applyTransform()
+  }, { passive: false })
+
+  // Click backdrop to close
+  overlay.addEventListener('mousedown', (e) => {
+    if (e.target === overlay) close()
+  })
+
+  closeBtn.addEventListener('click', close)
+  window.addEventListener('keydown', onKey, true)
+}
+
 type MermaidModule = typeof import('mermaid')
 
 let mermaidModulePromise: Promise<MermaidModule> | null = null
-let mermaidInitialized = false
 
 async function loadMermaid(): Promise<MermaidModule> {
   mermaidModulePromise ??= import('mermaid')
   return mermaidModulePromise
+}
+
+function detectDarkMode(): boolean {
+  if (typeof document === 'undefined') return false
+  const el = document.documentElement
+  return el.classList.contains('dark') || el.getAttribute('data-theme') === 'dark'
 }
 
 /**
@@ -309,14 +495,19 @@ export async function renderMermaidInElement(container: ParentNode | null | unde
   )
   if (nodes.length === 0) return
 
+  // 保存原始源码，供主题切换时重新渲染
+  nodes.forEach((node) => {
+    if (!node.getAttribute('data-mermaid-source')) {
+      node.setAttribute('data-mermaid-source', node.textContent || '')
+    }
+  })
+
   try {
     const mermaid = (await loadMermaid()).default
-    if (!mermaidInitialized) {
-      mermaid.initialize({
-        startOnLoad: false,
-      })
-      mermaidInitialized = true
-    }
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: detectDarkMode() ? 'dark' : 'default',
+    })
     await mermaid.run({
       nodes,
       suppressErrors: true,
@@ -324,4 +515,28 @@ export async function renderMermaidInElement(container: ParentNode | null | unde
   } catch {
     // Ignore Mermaid render failures and keep raw diagram source visible.
   }
+}
+
+/**
+ * Re-render already processed Mermaid diagrams (e.g. after theme switch).
+ */
+export async function reRenderMermaidInElement(container: ParentNode | null | undefined): Promise<void> {
+  if (!container || typeof window === 'undefined') return
+
+  const processed = Array.from(
+    container.querySelectorAll<HTMLElement>('.mermaid[data-processed]'),
+  )
+  if (processed.length === 0) return
+
+  // 还原源码，清除已渲染状态
+  for (const node of processed) {
+    const source = node.getAttribute('data-mermaid-source')
+    if (source) {
+      node.removeAttribute('data-processed')
+      node.innerHTML = ''
+      node.textContent = source
+    }
+  }
+
+  await renderMermaidInElement(container)
 }

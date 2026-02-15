@@ -351,7 +351,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { handleMarkdownCodeCopyClick, renderMarkdown, renderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
+import { handleMarkdownCodeCopyClick, handleMermaidBlockClick, renderMarkdown, renderMermaidInElement, reRenderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
 import { getPlatformConfig, getPlatformIconUrl } from '@/content/site-configs'
 import MilkdownEditor from '@/components/Milkdown.vue'
 import type { ChatConversation, ChatMessage, ChatPlatform } from '@/types/chat'
@@ -377,6 +377,7 @@ const showTagInput = ref(false)
 const newTag = ref('')
 const tagInputRef = ref<HTMLInputElement | null>(null)
 const messageListRef = ref<HTMLElement | null>(null)
+let themeObserver: MutationObserver | null = null
 
 // 标题编辑
 const isEditingTitle = ref(false)
@@ -535,6 +536,11 @@ watch(() => locale.value, () => {
   setMarkdownCodeCopyLabels({
     copy: t('chat.detail.copy'),
     copied: t('chat.detail.copied'),
+    mermaidChart: t('chat.detail.mermaidChart'),
+    mermaidCode: t('chat.detail.mermaidCode'),
+    mermaidCopy: t('chat.detail.mermaidCopy'),
+    mermaidDownload: t('chat.detail.mermaidDownload'),
+    mermaidFullscreen: t('chat.detail.mermaidFullscreen'),
   })
 }, { immediate: true })
 
@@ -549,15 +555,26 @@ function handleWindowScroll() {
 }
 
 async function handleMarkdownContentClick(event: MouseEvent) {
+  if (await handleMermaidBlockClick(event)) return
   await handleMarkdownCodeCopyClick(event)
 }
 
 onMounted(() => {
   window.addEventListener('scroll', handleWindowScroll, true)
+
+  // 监听主题切换，重新渲染 mermaid
+  themeObserver = new MutationObserver(() => {
+    reRenderMermaidInElement(messageListRef.value)
+  })
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme', 'class'],
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleWindowScroll, true)
+  themeObserver?.disconnect()
 })
 
 // 标签相关

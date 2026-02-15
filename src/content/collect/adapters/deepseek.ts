@@ -21,9 +21,55 @@
  */
 
 import { BaseAdapter } from './base'
+import type { CollectOptions, CollectResult } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class DeepSeekAdapter extends BaseAdapter {
+  /** 模拟用户点击（mousedown → mouseup → click，冒泡），兼容 React 合成事件 */
+  private simulateClick(el: HTMLElement): void {
+    const opts: MouseEventInit = { bubbles: true, cancelable: true, view: window }
+    el.dispatchEvent(new MouseEvent('mousedown', opts))
+    el.dispatchEvent(new MouseEvent('mouseup', opts))
+    el.dispatchEvent(new MouseEvent('click', opts))
+  }
+
+  /**
+   * 将 mermaid 代码块从"图表"tab 切换到"代码"tab，确保 pre 元素存在
+   * 返回需要恢复的 tab 按钮列表
+   */
+  private switchMermaidToCodeTab(): HTMLElement[] {
+    const switched: HTMLElement[] = []
+    document.querySelectorAll('.md-code-block .ds-segmented').forEach((seg) => {
+      const tabs = seg.querySelectorAll<HTMLElement>('[role="tab"]')
+      // tabs[0] = 图表, tabs[1] = 代码
+      if (tabs.length >= 2 && tabs[0].getAttribute('aria-selected') === 'true') {
+        this.simulateClick(tabs[1])
+        switched.push(tabs[0])
+      }
+    })
+    return switched
+  }
+
+  private restoreMermaidTabs(chartTabs: HTMLElement[]): void {
+    chartTabs.forEach((tab) => this.simulateClick(tab))
+  }
+
+  override async collect(options?: CollectOptions): Promise<CollectResult> {
+    const switched = this.switchMermaidToCodeTab()
+    if (switched.length) {
+      // 等待 React 重新渲染，让 pre 元素出现
+      await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 300)))
+    }
+
+    const result = super.collect(options)
+
+    if (switched.length) {
+      this.restoreMermaidTabs(switched)
+    }
+
+    return result
+  }
+
   private extractKatexTex(node: Element): string {
     const annotation = node.querySelector('annotation[encoding="application/x-tex"]')
     return (annotation?.textContent || node.textContent || '').trim()
@@ -47,7 +93,7 @@ export class DeepSeekAdapter extends BaseAdapter {
 
   /**
    * DeepSeek 专用预处理
-   * 处理 .md-code-block 代码块 + .ds-scroll-area 表格清理
+   * 处理 .md-code-block 代码块 + 表格转 Markdown
    */
   protected override preprocessClone(clone: Element): void {
     // 0. 还原 KaTeX 公式（优先从 MathML annotation 提取原始 TeX）
@@ -68,18 +114,66 @@ export class DeepSeekAdapter extends BaseAdapter {
 
     // 1. 处理 DeepSeek 代码块：.md-code-block 包含 banner(语言) + pre
     clone.querySelectorAll('.md-code-block').forEach((block) => {
+      // 检测 mermaid：带有 图表/代码 分栏 tab 的代码块
+      const isMermaid = !!block.querySelector('.ds-segmented')
+
       const langEl = block.querySelector('.d813de27')
-      const lang = langEl?.textContent?.trim().toLowerCase() || ''
-      block.querySelectorAll('.md-code-block-banner-wrap').forEach((b) => b.remove())
+      const lang = isMermaid ? 'mermaid' : langEl?.textContent?.trim().toLowerCase() || ''
+
+      // 提取代码文本：从 pre 获取（在移除其他元素之前）
       const pre = block.querySelector('pre')
-      const codeText = pre?.textContent || ''
-      block.replaceWith(`\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`)
+      let codeText = ''
+      if (pre) {
+        const lineSpans = pre.querySelectorAll(':scope > span')
+        if (lineSpans.length > 0) {
+          codeText = Array.from(lineSpans)
+            .map((s) => s.textContent || '')
+            .join('\n')
+        } else {
+          codeText = pre.textContent || ''
+        }
+      }
+
+      // 用纯文本替换整个代码块
+      const placeholder = clone.ownerDocument.createTextNode(
+        `\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`,
+      )
+      block.parentNode?.replaceChild(placeholder, block)
     })
 
-    // 2. 表格处理（DeepSeek 回复中常见）
-    clone.querySelectorAll('.ds-scroll-area table, table').forEach((table) => {
-      const scrollGutters = table.closest('.ds-scroll-area')?.querySelectorAll('.ds-scroll-area__gutters')
-      scrollGutters?.forEach((g) => g.remove())
+    // 2. 表格转 Markdown（DeepSeek 回复中常见）
+    clone.querySelectorAll('table').forEach((table) => {
+      // 清理滚动容器装饰元素
+      const scrollArea = table.closest('.ds-scroll-area')
+      scrollArea?.querySelectorAll('.ds-scroll-area__gutters').forEach((g) => g.remove())
+
+      const rows: string[][] = []
+      table.querySelectorAll('tr').forEach((tr) => {
+        const cells: string[] = []
+        tr.querySelectorAll('th, td').forEach((cell) => {
+          cells.push((cell.textContent || '').trim().replace(/\|/g, '\\|'))
+        })
+        if (cells.length > 0) rows.push(cells)
+      })
+
+      if (rows.length === 0) return
+
+      const colCount = Math.max(...rows.map((r) => r.length))
+      const mdLines: string[] = []
+
+      // 表头
+      const header = rows[0].concat(Array(Math.max(0, colCount - rows[0].length)).fill(''))
+      mdLines.push('| ' + header.join(' | ') + ' |')
+      mdLines.push('| ' + header.map(() => '---').join(' | ') + ' |')
+
+      // 数据行
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i].concat(Array(Math.max(0, colCount - rows[i].length)).fill(''))
+        mdLines.push('| ' + row.join(' | ') + ' |')
+      }
+
+      const target = scrollArea || table
+      target.replaceWith('\n' + mdLines.join('\n') + '\n')
     })
   }
 
