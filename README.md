@@ -10,7 +10,8 @@ Synapse is a browser extension built for your AI workflow — combining prompt m
 
 ### 📝 Prompt Management
 
-* Create, edit, categorize, and search for prompts in one place, with Markdown support
+* Create, edit, categorize, and search for prompts in one place
+* WYSIWYG Markdown editor with real-time preview
 * Automatically saves historical versions of your prompts, allowing you to review and restore them at any time
 * Inject prompts with a single click next to AI website input boxes (type `/p` or press `Alt + K`)
 * `Ctrl + Shift + S` to quickly save selected text / right-click context menu to save
@@ -21,13 +22,14 @@ Synapse is a browser extension built for your AI workflow — combining prompt m
 * One-click collection of AI platform conversations, supporting both manual and real-time sync modes
 * Supports 12+ platforms: ChatGPT, Claude, Gemini, AI Studio, DeepSeek, Kimi, Doubao, Tencent Yuanbao, Grok, Copilot, MiniMax, Zhipu ChatGLM, and more
 * Filter by platform, tags, and favorites; multi-dimensional sorting (updated time, created time, collected time, title, message count)
-* Conversation detail view with outline navigation for quick jumping
+* Conversation detail view with full code highlighting, KaTeX math formulas, and Mermaid diagram rendering
+* Outline navigation for quick jumping through long conversations
 * Export to JSON / Markdown / TXT / HTML / PDF formats
 
 ### 🧩 Code Snippet Management
 
 * Folder tree organization + tag-based categorization for flexible snippet management
-* Syntax highlighting for 13 languages: HTML, JavaScript, TypeScript, Python, Rust, Go, CSS, JSON, Markdown, SQL, Shell, YAML, Text
+* Syntax highlighting for 30+ languages: JavaScript, TypeScript, Python, Java, C/C++, C#, Go, Rust, Ruby, PHP, Swift, Kotlin, Dart, and more
 * Star, search, and multi-dimensional sorting to quickly locate frequently used snippets
 * One-click copy with automatic usage tracking
 
@@ -47,27 +49,35 @@ Synapse is a browser extension built for your AI workflow — combining prompt m
 
 ## 📸 Demo Screenshots
 
-### 1. Backend Outline Management
+### Prompt Management
 
-![Backend Outline Management](./demo/1.png)
+![Prompt List](./demo/prompt1.png)
+![Prompt Categorization](./demo/prompt2.png)
+![Prompt Selector](./demo/3.png)
 
-### 2. Add New Prompt
+### Prompt Selector Injection (AI Input Box)
 
-![Add New Prompt](./demo/2.png)
+![Prompt Editing](./demo/prompt_content1.png)
+![Prompt Preview](./demo/prompt_content2.png)
+![Version History](./demo/prompt_content3.png)
 
-### 3. Version Management
+### Chat Collection & Management
 
-![Version Management](./demo/3.png)
+![Chat List](./demo/chat1.png)
+![Chat Detail](./demo/chat2.png)
+![Chat Rendering](./demo/chat4.png)
+![Chat Export](./demo/chat3.png)
 
-### 4. Prompt Selector Injection (AI Input Box)
-
-![Prompt Selector](./demo/4.png)
-
-### 5. AI Website Outline Generation
+### AI Website Outline Generation
 
 ![AI Outline Generation 1](./demo/5.png)
 ![AI Outline Generation 2](./demo/6.png)
 ![AI Outline Generation 3](./demo/7.png)
+
+### Code Snippet Management
+
+![Snippet Editor](./demo/tool1.png)
+![Snippet Preview](./demo/tool2.png)
 
 ---
 
@@ -100,4 +110,4 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 
 ## 📜 License
 
-This project is licensed under the [MIT License](./LICENSE).
+This project is licensed under the [MIT License](./LICENSE)

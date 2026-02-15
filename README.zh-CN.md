@@ -8,7 +8,8 @@ Synapse 是一款围绕 AI 使用场景打造的浏览器扩展，集提示词�
 
 ### 📝 提示词管理
 
-* 集中创建、编辑、分类、搜索提示词，支持 Markdown，随时调用
+* 集中创建、编辑、分类、搜索提示词，随时调用
+* 所见即所得的 Markdown 编辑器，实时预览排版效果
 * 自动保存提示词的历史版本，随时回溯与恢复
 * 在 AI 网站输入框旁一键注入提示词（`/p` 或 `Alt + K` 呼出选择器）
 * `Ctrl + Shift + S` 快速保存选中文本 / 右键菜单直接保存
@@ -19,13 +20,14 @@ Synapse 是一款围绕 AI 使用场景打造的浏览器扩展，集提示词�
 * 一键采集 AI 平台对话记录，支持手动采集与实时同步两种模式
 * 支持 12+ 平台：ChatGPT、Claude、Gemini、AI Studio、DeepSeek、Kimi、豆包、腾讯元宝、Grok、Copilot、MiniMax、智谱清言等
 * 按平台、标签、收藏筛选，多维度排序（更新时间、创建时间、采集时间、标题、消息数）
-* 对话详情查看，支持大纲导航快速跳转
+* 对话详情查看，完整保留代码高亮、数学公式（KaTeX）、Mermaid 图表渲染
+* 支持大纲导航快速跳转
 * 支持导出为 JSON / Markdown / TXT / HTML / PDF 多种格式
 
 ### 🧩 代码片段管理
 
 * 文件夹树形组织 + 标签分类，灵活管理代码片段
-* 支持 13 种语言高亮：HTML、JavaScript、TypeScript、Python、Rust、Go、CSS、JSON、Markdown、SQL、Shell、YAML、Text
+* 支持 30+ 种语言高亮：JavaScript、TypeScript、Python、Java、C/C++、C#、Go、Rust、Ruby、PHP、Swift、Kotlin、Dart 等
 * 收藏、搜索、多维排序，快速定位常用片段
 * 一键复制并自动记录使用次数
 
@@ -45,27 +47,38 @@ Synapse 是一款围绕 AI 使用场景打造的浏览器扩展，集提示词�
 
 ## 📸 Demo 截图
 
-### 1. 后台大纲管理
 
-![后台大纲管理](./demo/1.png)
+### 提示词管理
 
-### 2. 新增提示词
+![提示词列表](./demo/prompt1.png)
+![提示词分类](./demo/prompt2.png)
+![提示词分类](./demo/3.png)
 
-![新增提示词](./demo/2.png)
+### 提示词选择器注入（AI 输入框）
 
-### 3. 版本管理
+![提示词编辑](./demo/prompt_content1.png)
+![提示词预览](./demo/prompt_content2.png)
+![版本历史](./demo/prompt_content3.png)
 
-![版本管理](./demo/3.png)
 
-### 4. 提示词选择器注入（AI 输入框）
+### 对话采集与管理
 
-![提示词选择器](./demo/4.png)
+![对话列表](./demo/chat1.png)
+![对话详情](./demo/chat2.png)
+![对话导出](./demo/chat4.png)
+![对话导出](./demo/chat3.png)
 
-### 5. AI 网站大纲生成
+### AI 网站大纲生成
 
 ![AI 大纲生成 1](./demo/5.png)
 ![AI 大纲生成 2](./demo/6.png)
 ![AI 大纲生成 3](./demo/7.png)
+
+### 代码片段管理
+
+![片段编辑器](./demo/tool1.png)
+![片段预览](./demo/tool2.png)
+
 
 ---
 

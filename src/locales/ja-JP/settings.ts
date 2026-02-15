@@ -3,12 +3,6 @@ import enSettings from "../en/settings";
 export default {
   ...enSettings,
   title: "設定",
-  sort: {
-    label: "並び替え",
-    updatedAt: "最近更新",
-    createdAt: "作成日時",
-    byTitle: "タイトル順",
-  },
   language: {
     title: "言語",
     localeNames: {
@@ -22,5 +16,79 @@ export default {
     },
     followSystem: "システムに従う",
     currentSystem: "現在のシステム言語: {lang}",
+  },
+  theme: {
+    title: "テーマ",
+    light: "ライト",
+    dark: "ダーク",
+    followSystem: "システムに従う",
+  },
+  sort: {
+    label: "並び替え",
+    updatedAt: "最近更新",
+    createdAt: "作成日時",
+    byTitle: "タイトル順",
+  },
+  sync: {
+    title: "クラウド同期",
+    status: {
+      enabled: "同期有効",
+      connected: "接続済み",
+      syncing: "同期中...",
+      syncNow: "今すぐ同期",
+      disconnect: "切断",
+      disconnecting: "切断中...",
+      lastSync: "最終同期: {time}",
+      justNow: "たった今",
+      minutesAgo: "{minutes} 分前",
+      hoursAgo: "{hours} 時間前",
+      daysAgo: "{days} 日前",
+      never: "なし",
+    },
+    toast: {
+      uploaded: "ローカルデータがクラウドにアップロードされました。",
+      downloaded: "最新データがクラウドから取得されました。",
+      upToDate: "ローカルとクラウドのデータは最新です。",
+      skippedEmpty: "同期するローカルデータがありません。空のバックアップの作成をスキップしました。",
+    },
+    enable: {
+      title: "インスピレーションの安全な保管場所",
+      description: "クラウド同期を有効にして、すべてのデバイスでシームレスに作業しましょう。",
+      button: "クラウド同期を有効化",
+      provider: "Google Driveで安全に管理",
+    },
+    confirmation: {
+      enable: "Googleにリダイレクトされ、SynapseがGoogle Driveにバックアップ用の専用フォルダを作成する権限を付与します。他のファイルにはアクセスしません。",
+      disconnect: "クラウド同期を切断しますか？データはクラウドに残りますが、このデバイスは同期されなくなります。",
+      restore: "このバージョンから復元しますか？このデバイスのすべてのデータが上書きされます。",
+      deleteBackup: "このクラウドバックアップを完全に削除しますか？この操作は元に戻せません。",
+    },
+  },
+  data: {
+    title: "データ保管庫",
+    backup: {
+      title: "クラウドタイムマシン",
+      description: "最新10件のクラウドバックアップです。いつでも任意のバージョンに復元できます。",
+      refresh: "リストを更新",
+      noHistory: "クラウドバックアップ履歴はまだありません。",
+      restore: "復元",
+      download: "ダウンロード",
+      delete: "削除",
+    },
+    local: {
+      title: "ローカルスナップショット",
+      description: "安心のためにローカルバックアップを作成できます。バックアップファイルからの復元も可能です。",
+      create: "スナップショットを作成",
+      import: "ファイルからインポート",
+      invalidFileError: "無効なバックアップファイル形式",
+    },
+    danger: {
+      title: "危険ゾーン",
+      description: "この操作はブラウザからすべてのローカルデータを削除し、元に戻すことはできません。",
+      button: "すべてのデータを消去",
+      confirm: "確認のため「DELETE」と入力してください",
+      confirmPlaceholder: "DELETEと入力して確認",
+      confirmButton: "完全に削除",
+    },
   },
 };
