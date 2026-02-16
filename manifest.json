@@ -111,7 +111,8 @@
     {
       "resources": [
         "assets/*",
-        "content.css"
+        "content.css",
+        "page-bridges/*.js"
       ],
       "matches": [
         "<all_urls>"

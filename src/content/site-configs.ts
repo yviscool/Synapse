@@ -88,7 +88,7 @@ export const platformMetaConfigs: Record<ChatPlatform, PlatformMetaConfig> = {
     id: 'qianwen',
     name: '千问',
     icon: 'i-carbon-chat-bot',
-    iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01uar8u91DHWktnF2fl_!!6000000000191-2-tps-110-110.png',
+    iconUrl: 'https://assets.alicdn.com/g/qwenweb/qwen-chat-fe/0.2.7/favicon.png',
     color: '#ff6a00',
   },
   yuanbao: {
@@ -102,7 +102,7 @@ export const platformMetaConfigs: Record<ChatPlatform, PlatformMetaConfig> = {
     id: 'grok',
     name: 'Grok',
     icon: 'i-simple-icons-x',
-    iconUrl: 'https://grok.com/images/favicon.ico',
+    iconUrl: 'https://grok.com/images/favicon.svg',
     color: '#000000',
   },
   copilot: {
@@ -224,7 +224,7 @@ export const siteConfigs: Record<string, SiteConfig> = {
     messageText: '.response-content-markdown .whitespace-pre-wrap',
     waitForElement: 'div.group.items-end[id^="response-"]',
     urlPattern: /grok\.com/,
-    conversationIdPattern: /\/chat\/([a-zA-Z0-9_-]+)/,
+    conversationIdPattern: /(?:\/(?:chat|c|conversation)\/|[?&](?:conversation(?:Id)?|chatId|threadId)=)([a-zA-Z0-9_-]+)/i,
   },
   'agent.minimaxi.com': {
     platform: 'minimax',
@@ -280,11 +280,12 @@ export const siteConfigs: Record<string, SiteConfig> = {
     urlPattern: /qianwen\.com/,
   },
   'chat.qwen.ai': {
-    platform: 'other',
+    platform: 'qianwen',
     observeTarget: '#chat-message-container',
-    userMessage: '.user-message',
-    messageText: '.user-message-content',
-    waitForElement: '.user-message',
+    scrollContainer: '#chat-messages-scroll-container',
+    userMessage: '.qwen-chat-message-user',
+    messageText: '.chat-user-message .user-message-content',
+    waitForElement: '.qwen-chat-message-user .user-message-content',
     urlPattern: /chat\.qwen\.ai/,
   },
   'copilot.microsoft.com': {

@@ -109,7 +109,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   /**
    * 执行同步
    */
-  async function doSync() {
+  async function doSync(isAutoSync = true) {
     if (syncState.value.status === 'syncing') return
 
     syncState.value.status = 'syncing'
@@ -121,7 +121,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         lastConversationId = platformInfo.conversationId
       }
 
-      const result = await collect({ isAutoSync: true })
+      const result = await collect({ isAutoSync })
 
       if (!result.success || !result.conversation) {
         throw new Error(result.error || '采集失败')
@@ -189,7 +189,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         data: {
           conversation: result.conversation,
           tags: [],
-          isAutoSync: true,
+          isAutoSync,
         },
       })
 
@@ -229,7 +229,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         retryTimer = window.setTimeout(() => {
           retryTimer = null
           if (syncState.value.enabled) {
-            void doSync()
+            void doSync(isAutoSync)
           }
         }, opts.debounceDelay * retryCount)
       } else {
@@ -328,7 +328,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     if (checkTimer) return
     checkTimer = window.setInterval(() => {
       if (syncState.value.enabled && syncState.value.status !== 'syncing') {
-        doSync()
+        doSync(true)
       }
     }, opts.checkInterval)
   }
@@ -346,7 +346,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     chrome.storage?.local?.set({ [STORAGE_KEY_SYNC_ENABLED]: true })
     startObserver()
     startCheckTimer()
-    doSync()
+    doSync(true)
   }
 
   function disable() {
@@ -365,7 +365,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   }
 
   async function manualSync() {
-    await doSync()
+    await doSync(false)
   }
 
   function checkUrlChange() {

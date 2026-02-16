@@ -17,10 +17,16 @@ import { GrokAdapter } from './adapters/grok'
 import { MiniMaxAdapter } from './adapters/minimax'
 import { ZAIAdapter } from './adapters/zai'
 import { QianwenAdapter } from './adapters/qianwen'
+import { QwenIntlAdapter } from './adapters/qwen-intl'
 import { YuanbaoAdapter } from './adapters/yuanbao'
 import { GenericAdapter } from './adapters/generic'
 import type { ChatPlatform } from '@/types/chat'
 import { detectPlatformFromUrl } from '@/content/site-configs'
+
+function isQwenIntlHost(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase()
+  return normalized === 'chat.qwen.ai' || normalized.endsWith('.chat.qwen.ai')
+}
 
 const adapterMap: Record<string, (config: SiteConfig) => PlatformAdapter> = {
   chatgpt: (c) => new ChatGPTAdapter(c),
@@ -30,7 +36,11 @@ const adapterMap: Record<string, (config: SiteConfig) => PlatformAdapter> = {
   aistudio: (c) => new AIStudioAdapter(c),
   kimi: (c) => new KimiAdapter(c),
   doubao: (c) => new DoubaoAdapter(c),
-  qianwen: (c) => new QianwenAdapter(c),
+  qianwen: (c) => (
+    isQwenIntlHost(window.location.hostname)
+      ? new QwenIntlAdapter(c)
+      : new QianwenAdapter(c)
+  ),
   yuanbao: (c) => new YuanbaoAdapter(c),
   grok: (c) => new GrokAdapter(c),
   minimax: (c) => new MiniMaxAdapter(c),
