@@ -13,11 +13,7 @@ import { collect, canCollect, getCurrentPlatformInfo } from '@/content/collect'
 import { getSiteConfig } from '@/content/site-configs'
 import { MSG } from '@/utils/messaging'
 import type { SyncState, ChatConversation, ChatMessage } from '@/types/chat'
-
-type NavigationApi = {
-  addEventListener: (type: 'navigatesuccess', listener: () => void) => void
-  removeEventListener: (type: 'navigatesuccess', listener: () => void) => void
-}
+import { getNavigationApi } from '@/types/navigation'
 
 export interface UseSyncEngineOptions {
   /** 防抖延迟 (ms) */
@@ -391,7 +387,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   // 生命周期：启动对话切换检测
   onMounted(() => {
     if ('navigation' in window) {
-      const navigation = (window as Window & { navigation?: NavigationApi }).navigation
+      const navigation = getNavigationApi()
       if (navigation) {
         navigationSuccessHandler = () => {
           if (navDelayTimer) clearTimeout(navDelayTimer)
@@ -417,7 +413,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       navDelayTimer = null
     }
 
-    const navigation = (window as Window & { navigation?: NavigationApi }).navigation
+    const navigation = getNavigationApi()
     if (navigation && navigationSuccessHandler) {
       navigation.removeEventListener('navigatesuccess', navigationSuccessHandler)
       navigationSuccessHandler = null

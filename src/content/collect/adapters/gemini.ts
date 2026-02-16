@@ -28,7 +28,7 @@
  *                                               └── span.math-inline[data-math]  ← KaTeX 公式
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { CollectResult, CollectOptions } from './base'
 import type { ChatMessage } from '@/types/chat'
 
@@ -39,7 +39,7 @@ const thinkingCache = new Map<string, string>()
 export class GeminiAdapter extends BaseAdapter {
   override getTitle(): string {
     const base = super.getTitle()
-    if (base !== '未命名对话') return base
+    if (base !== DEFAULT_TITLE) return base
 
     const pageTitle = document.title
       .replace(/\s*[-–—]\s*(Google\s+)?Gemini\s*$/i, '')
@@ -52,7 +52,7 @@ export class GeminiAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   /** 检测代码内容是否为 mermaid 图表语法 */
@@ -103,34 +103,12 @@ export class GeminiAdapter extends BaseAdapter {
 
     // 3. 表格转 Markdown（table-block 自定义元素内的 <table>）
     clone.querySelectorAll('table').forEach((table) => {
-      const rows: string[][] = []
-      table.querySelectorAll('tr').forEach((tr) => {
-        const cells: string[] = []
-        tr.querySelectorAll('th, td').forEach((cell) => {
-          cells.push((cell.textContent || '').trim().replace(/\|/g, '\\|'))
-        })
-        if (cells.length > 0) rows.push(cells)
-      })
-
-      if (rows.length === 0) return
-
-      const colCount = Math.max(...rows.map((r) => r.length))
-      const mdLines: string[] = []
-
-      // 表头
-      const header = rows[0].concat(Array(Math.max(0, colCount - rows[0].length)).fill(''))
-      mdLines.push('| ' + header.join(' | ') + ' |')
-      mdLines.push('| ' + header.map(() => '---').join(' | ') + ' |')
-
-      // 数据行
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i].concat(Array(Math.max(0, colCount - rows[i].length)).fill(''))
-        mdLines.push('| ' + row.join(' | ') + ' |')
-      }
+      const md = this.tableToMarkdown(table)
+      if (!md) return
 
       // 替换最外层包装容器（table-block / horizontal-scroll-wrapper）
       const wrapper = table.closest('table-block') || table.closest('.horizontal-scroll-wrapper') || table
-      wrapper.replaceWith('\n' + mdLines.join('\n') + '\n')
+      wrapper.replaceWith(md)
     })
 
     // 4. Gemini 生成图片（generated-image / single-image 自定义元素）

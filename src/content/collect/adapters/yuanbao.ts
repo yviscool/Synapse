@@ -15,7 +15,7 @@
  * 标题：document.title
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class YuanbaoAdapter extends BaseAdapter {
@@ -26,7 +26,7 @@ export class YuanbaoAdapter extends BaseAdapter {
       .trim()
 
     if (pageTitle && pageTitle.length > 1) return pageTitle
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   collectMessages(): ChatMessage[] {

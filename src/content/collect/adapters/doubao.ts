@@ -17,13 +17,13 @@
  *   代码块：.code-block-element-* > pre > code
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class DoubaoAdapter extends BaseAdapter {
   override getTitle(): string {
     const base = super.getTitle()
-    if (base !== '未命名对话') return base
+    if (base !== DEFAULT_TITLE) return base
 
     const pageTitle = document.title.replace(/\s*[-–—]\s*豆包\s*$/i, '').trim()
     if (pageTitle && pageTitle !== '豆包') return pageTitle
@@ -36,7 +36,7 @@ export class DoubaoAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   /**

@@ -65,7 +65,12 @@ import PromptSelector from "./components/PromptSelector.vue";
 import PromptComposerPanel from "./components/PromptComposerPanel.vue";
 import { canCollect } from "@/content/collect";
 import { detectPlatformFromUrl } from "@/content/site-configs";
-import { appendAtEnd, findActiveInput } from "@/utils/inputAdapter";
+import { findActiveInput } from "@/utils/inputAdapter";
+import {
+    createInsertTrace,
+    insertWithRetry,
+    type OpenerFingerprint,
+} from "./composables/usePromptInserter";
 import {
     MSG,
     type RequestMessage,
@@ -78,6 +83,7 @@ import type { FuseResultMatch } from "fuse.js";
 import { getCategoryNameById, isDefaultCategory } from "@/utils/categoryUtils";
 import type { LocalePreference } from "@/types/i18n";
 import { resolveLocalePreference } from "@/utils/locale";
+import { getNavigationApi } from "@/types/navigation";
 
 const INPUT_SELECTOR_HINTS = [
     "#prompt-textarea.ProseMirror[contenteditable='true']",
@@ -88,46 +94,10 @@ const INPUT_SELECTOR_HINTS = [
     'textarea[placeholder*="发送"]',
 ];
 
-const TRACE_PREFIX = "[SynapseTrace]";
-
-type InsertTraceFn = (step: string, payload?: Record<string, unknown>) => void;
 type ContentSettingsPayload = {
     locale: LocalePreference;
     theme?: "light" | "dark" | "system";
 };
-
-type NavigationApi = {
-    addEventListener: (type: "navigatesuccess", listener: () => void) => void;
-    removeEventListener: (
-        type: "navigatesuccess",
-        listener: () => void,
-    ) => void;
-};
-
-function createInsertTrace(meta: Record<string, unknown>): InsertTraceFn {
-    const traceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    const start = performance.now();
-    console.log(`${TRACE_PREFIX}[${traceId}] +0.00ms insert.begin`, meta);
-
-    return (step, payload = {}) => {
-        const elapsedMs = Number((performance.now() - start).toFixed(2));
-        console.log(`${TRACE_PREFIX}[${traceId}] +${elapsedMs}ms ${step}`, payload);
-    };
-}
-
-function describeTarget(target: ReturnType<typeof findActiveInput> | null) {
-    if (!target) return { exists: false };
-    const el = target.el;
-    return {
-        exists: true,
-        kind: target.kind,
-        id: el.id || "",
-        className: el.className || "",
-        isConnected: el.isConnected,
-        isEditable: target.kind === "textarea" ? !(el as HTMLTextAreaElement).readOnly : el.isContentEditable,
-        rectCount: el.getClientRects().length,
-    };
-}
 
 const outlineKey = ref(window.location.href);
 
@@ -146,7 +116,7 @@ const { showToast, hideToast } = useUI();
 const { t, locale } = useI18n();
 
 // --- SPA Navigation Handling ---
-const navigationApi = (window as Window & { navigation?: NavigationApi }).navigation;
+const navigationApi = getNavigationApi();
 const handleNavigateSuccess = () => {
     outlineKey.value = window.location.href;
 };
@@ -236,13 +206,6 @@ let opener: ReturnType<typeof findActiveInput> | null = null;
 /** 上一个活跃的元素，用于关闭面板后恢复焦点 */
 let lastActiveEl: HTMLElement | null = null;
 
-// 指纹接口定义
-interface OpenerFingerprint {
-    id: string;
-    className: string;
-    tagName: string;
-    selector?: string;
-}
 let openerFingerprint: OpenerFingerprint | null = null;
 
 // === 数据获取函数 ===
@@ -545,7 +508,7 @@ async function handleInsert() {
         // 获取目标输入元素（优先使用打开面板时记录的元素）
         const contentToInsert = editorContent.value || "";
         
-        const inserted = insertWithRetry(contentToInsert, trace);
+        const inserted = insertWithRetry(contentToInsert, opener, openerFingerprint, INPUT_SELECTOR_HINTS, trace);
         trace("insert.result", { inserted });
 
         // 如果没有找到输入元素，则复制到剪贴板
@@ -574,117 +537,6 @@ async function handleInsert() {
         trace("insert.finally.closePanel");
         closePanel();
     }
-}
-
-function isUsableTarget(target: ReturnType<typeof findActiveInput> | null): target is NonNullable<ReturnType<typeof findActiveInput>> {
-    if (!target) return false;
-    const el = target.el;
-    if (!el || !el.isConnected) return false;
-    if (target.kind === "textarea") {
-        const textarea = el as HTMLTextAreaElement;
-        if (textarea.disabled || textarea.readOnly) return false;
-    } else if (!el.isContentEditable) {
-        return false;
-    }
-    if (el.getClientRects().length === 0) return false;
-    return true;
-}
-
-function resolveInsertTarget(trace?: InsertTraceFn) {
-    trace?.("target.resolve.start", {
-        opener: describeTarget(opener),
-        fingerprint: openerFingerprint,
-    });
-
-    // 1. 尝试直接使用缓存的 opener (如果它还连接着)
-    if (isUsableTarget(opener)) {
-        trace?.("target.resolve.useOpener");
-        opener!.el.focus();
-        return opener;
-    }
-
-    // 2. 尝试“断线重连” (通过指纹找回 DOM)
-    if (openerFingerprint) {
-        const { id, className, tagName } = openerFingerprint;
-        let candidate: HTMLElement | null = null;
-
-        // 优先 ID 匹配
-        if (id) {
-            candidate = document.getElementById(id);
-        }
-        
-        // 其次 Class 匹配 (如果 ID 没找到或者没 ID)
-        if (!candidate && className) {
-             const selector = `${tagName}.${className.split(' ').filter(c => c.trim()).join('.')}`;
-             try {
-                candidate = document.querySelector(selector);
-             } catch (e) {
-                // Ignore invalid selector errors
-             }
-        }
-
-        // 验证候选人
-        if (candidate) {
-             const newTarget = candidate.tagName === 'TEXTAREA'
-                ? { kind: 'textarea' as const, el: candidate as HTMLTextAreaElement }
-                : { kind: 'contenteditable' as const, el: candidate };
-             if (isUsableTarget(newTarget)) {
-                 trace?.("target.resolve.reconnected", { id: candidate.id });
-                 newTarget.el.focus();
-                 return newTarget;
-             }
-        }
-    }
-
-    // 3. 启发式搜索 (Heuristic Search) - 兜底方案
-    // findActiveInput 会扫描所有可见的 textarea/contenteditable
-    // 我们传入 INPUT_SELECTOR_HINTS 以覆盖常见应用
-    const active = findActiveInput(INPUT_SELECTOR_HINTS);
-    if (isUsableTarget(active)) {
-        trace?.("target.resolve.heuristicFound");
-        active!.el.focus();
-        return active;
-    }
-
-    trace?.("target.resolve.none");
-    return null;
-}
-
-function appendToTarget(
-    target: ReturnType<typeof findActiveInput>,
-    content: string,
-    trace?: InsertTraceFn,
-) {
-    if (!target) {
-        trace?.("append.skip.noTarget");
-        return false;
-    }
-    trace?.("append.try", describeTarget(target));
-    const ok = appendAtEnd(target, content, { trace });
-    trace?.("append.done", { ok, target: describeTarget(target) });
-    return ok;
-}
-
-function insertWithRetry(content: string, trace?: InsertTraceFn) {
-    const primary = resolveInsertTarget(trace);
-    if (appendToTarget(primary, content, trace)) {
-        trace?.("insert.primary.ok");
-        return true;
-    }
-
-    const retryTarget = findActiveInput(INPUT_SELECTOR_HINTS);
-    trace?.("insert.retry.target", describeTarget(retryTarget));
-    if (!retryTarget) {
-        trace?.("insert.retry.miss");
-        return false;
-    }
-    if (primary && retryTarget.el === primary.el) {
-        trace?.("insert.retry.sameTarget");
-        return false;
-    }
-    const ok = appendToTarget(retryTarget, content, trace);
-    trace?.("insert.retry.done", { ok });
-    return ok;
 }
 
 /**

@@ -14,7 +14,7 @@
  *                             └── span + br (逐行代码)
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 const MERMAID_RE = /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|xychart|block-beta|packet-beta|architecture-beta|kanban)/i
@@ -22,7 +22,7 @@ const MERMAID_RE = /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDi
 export class ChatGPTAdapter extends BaseAdapter {
   override getTitle(): string {
     const base = super.getTitle()
-    if (base !== '未命名对话') return base
+    if (base !== DEFAULT_TITLE) return base
 
     const pageTitle = document.title.replace(' | ChatGPT', '').replace('ChatGPT', '').trim()
     if (pageTitle && pageTitle !== 'ChatGPT') return pageTitle
@@ -33,7 +33,7 @@ export class ChatGPTAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   protected override preprocessClone(clone: Element): void {
@@ -63,30 +63,11 @@ export class ChatGPTAdapter extends BaseAdapter {
 
     // 2. 表格转 Markdown
     clone.querySelectorAll('table').forEach((table) => {
-      const rows: string[][] = []
-      table.querySelectorAll('tr').forEach((tr) => {
-        const cells: string[] = []
-        tr.querySelectorAll('th, td').forEach((cell) => {
-          cells.push((cell.textContent || '').trim().replace(/\|/g, '\\|'))
-        })
-        if (cells.length > 0) rows.push(cells)
-      })
-
-      if (rows.length === 0) return
-
-      const colCount = Math.max(...rows.map((r) => r.length))
-      const mdLines: string[] = []
-      const header = rows[0].concat(Array(Math.max(0, colCount - rows[0].length)).fill(''))
-      mdLines.push('| ' + header.join(' | ') + ' |')
-      mdLines.push('| ' + header.map(() => '---').join(' | ') + ' |')
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i].concat(Array(Math.max(0, colCount - rows[i].length)).fill(''))
-        mdLines.push('| ' + row.join(' | ') + ' |')
-      }
-
+      const md = this.tableToMarkdown(table)
+      if (!md) return
       // 替换最外层表格容器，避免复制按钮文本泄漏
       const wrapper = table.closest('[class*="tableContainer"]') || table
-      wrapper.replaceWith('\n' + mdLines.join('\n') + '\n')
+      wrapper.replaceWith(md)
     })
   }
 

@@ -10,7 +10,7 @@
  *           └── .markdown-pc-special-class .qk-markdown       ← 主回复
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 const USER_ITEM_SELECTOR = '[class^="questionItem-"], [class*=" questionItem-"]'
@@ -33,7 +33,7 @@ export class QianwenAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   /**

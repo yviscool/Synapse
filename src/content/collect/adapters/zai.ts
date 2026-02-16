@@ -18,13 +18,13 @@
  *   对话 ID：URL 路径 /chat/{id}
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class ZAIAdapter extends BaseAdapter {
   override getTitle(): string {
     const base = super.getTitle()
-    if (base !== '未命名对话') return base
+    if (base !== DEFAULT_TITLE) return base
 
     const pageTitle = document.title.replace(/\s*[-–—]\s*智谱清言\s*$/i, '').trim()
     if (pageTitle && pageTitle !== '智谱清言') return pageTitle
@@ -35,7 +35,7 @@ export class ZAIAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   /**

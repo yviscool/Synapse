@@ -9,6 +9,9 @@
 import type { ChatMessage, ChatPlatform, ChatConversation } from '@/types/chat'
 import type { SiteConfig } from '../../site-configs'
 
+/** 默认对话标题（所有适配器共用） */
+export const DEFAULT_TITLE = '未命名对话'
+
 export interface CollectResult {
   success: boolean
   conversation?: Partial<ChatConversation>
@@ -81,7 +84,7 @@ export abstract class BaseAdapter implements PlatformAdapter {
       .trim()
     if (pageTitle && pageTitle.length > 2) return pageTitle
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   abstract collectMessages(): ChatMessage[]
@@ -116,6 +119,35 @@ export abstract class BaseAdapter implements PlatformAdapter {
    * 子类 override 此方法处理平台特有元素（如自定义代码块、KaTeX 公式等）
    */
   protected preprocessClone(_clone: Element): void {}
+
+  /**
+   * HTML table → Markdown table
+   * 通用实现，子类在 preprocessClone 中调用
+   */
+  protected tableToMarkdown(table: Element): string {
+    const rows: string[][] = []
+    table.querySelectorAll('tr').forEach((tr) => {
+      const cells: string[] = []
+      tr.querySelectorAll('th, td').forEach((cell) => {
+        cells.push((cell.textContent || '').trim().replace(/\|/g, '\\|'))
+      })
+      if (cells.length > 0) rows.push(cells)
+    })
+
+    if (rows.length === 0) return ''
+
+    const colCount = Math.max(...rows.map((r) => r.length))
+    const pad = (row: string[]) => row.concat(Array(Math.max(0, colCount - row.length)).fill(''))
+    const mdLines: string[] = []
+
+    mdLines.push('| ' + pad(rows[0]).join(' | ') + ' |')
+    mdLines.push('| ' + pad(rows[0]).map(() => '---').join(' | ') + ' |')
+    for (let i = 1; i < rows.length; i++) {
+      mdLines.push('| ' + pad(rows[i]).join(' | ') + ' |')
+    }
+
+    return '\n' + mdLines.join('\n') + '\n'
+  }
 
   /**
    * 提取 Markdown 格式内容（保留代码块等）
@@ -226,7 +258,7 @@ export abstract class BaseAdapter implements PlatformAdapter {
       const conversation: Partial<ChatConversation> = {
         platform: this.platform,
         externalId: this.getConversationId() || undefined,
-        title: this.getTitle() || '未命名对话',
+        title: this.getTitle() || DEFAULT_TITLE,
         link: window.location.href,
         messages,
         messageCount: Math.ceil(messages.length / 2),

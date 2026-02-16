@@ -30,15 +30,11 @@
 
 import { ref, onMounted, onUnmounted, Ref, watch } from 'vue';
 import { useScroll, useDebounceFn } from '@vueuse/core';
-// 导入配置文件的“类型”，而不是实体，这样 hook 保持纯净
+// 导入配置文件的"类型"，而不是实体，这样 hook 保持纯净
 import type { SiteConfig } from '../site-configs';
 import type { OutlineItem } from './types';
 import { smartTruncate, getIntelligentIcon } from './utils';
-
-type NavigationApi = {
-  addEventListener: (type: 'navigatesuccess', listener: () => void) => void;
-  removeEventListener: (type: 'navigatesuccess', listener: () => void) => void;
-};
+import { getNavigationApi } from '@/types/navigation';
 
 /**
  * useOutline - 驱动大纲功能的核心 Vue Composition API 钩子
@@ -324,7 +320,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     // 2. 【SPA 路由切换的“终极”监听方案】
     //    使用现代浏览器的 `Navigation API` 来监听“软导航”（即 SPA 内部的页面跳转）。
     if ('navigation' in window) {
-      const navigation = (window as Window & { navigation?: NavigationApi }).navigation;
+      const navigation = getNavigationApi();
       if (!navigation) {
         return;
       }
@@ -352,7 +348,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   onUnmounted(() => {
     stopObservers();
     if (emptyStateTimeout) clearTimeout(emptyStateTimeout);
-    const navigation = (window as Window & { navigation?: NavigationApi }).navigation;
+    const navigation = getNavigationApi();
     if (navigation && navigationSuccessHandler) {
       navigation.removeEventListener('navigatesuccess', navigationSuccessHandler);
       navigationSuccessHandler = null;

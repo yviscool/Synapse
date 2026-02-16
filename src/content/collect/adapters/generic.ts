@@ -3,7 +3,7 @@
  * 尝试通过通用选择器采集对话
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class GenericAdapter extends BaseAdapter {
@@ -66,7 +66,7 @@ export class GenericAdapter extends BaseAdapter {
       return pageTitle
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   collectMessages(): ChatMessage[] {
@@ -121,7 +121,6 @@ export class GenericAdapter extends BaseAdapter {
     if (this.AI_INDICATORS.some(i => className.includes(i))) return 'assistant'
 
     // 检查子元素
-    const text = element.textContent?.toLowerCase() || ''
     const hasUserAvatar = element.querySelector('[class*="user"], [class*="human"]')
     const hasAiAvatar = element.querySelector('[class*="assistant"], [class*="ai"], [class*="bot"]')
 

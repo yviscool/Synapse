@@ -20,7 +20,7 @@
  *   代码块：.md-code-block > .md-code-block-banner (.d813de27 = 语言) + pre
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { CollectOptions, CollectResult } from './base'
 import type { ChatMessage } from '@/types/chat'
 
@@ -77,7 +77,7 @@ export class DeepSeekAdapter extends BaseAdapter {
 
   override getTitle(): string {
     const base = super.getTitle()
-    if (base !== '未命名对话') return base
+    if (base !== DEFAULT_TITLE) return base
 
     const pageTitle = document.title.replace(/\s*[-–—]\s*DeepSeek\s*$/i, '').trim()
     if (pageTitle && pageTitle !== 'DeepSeek') return pageTitle
@@ -88,7 +88,7 @@ export class DeepSeekAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   /**
@@ -147,33 +147,11 @@ export class DeepSeekAdapter extends BaseAdapter {
       const scrollArea = table.closest('.ds-scroll-area')
       scrollArea?.querySelectorAll('.ds-scroll-area__gutters').forEach((g) => g.remove())
 
-      const rows: string[][] = []
-      table.querySelectorAll('tr').forEach((tr) => {
-        const cells: string[] = []
-        tr.querySelectorAll('th, td').forEach((cell) => {
-          cells.push((cell.textContent || '').trim().replace(/\|/g, '\\|'))
-        })
-        if (cells.length > 0) rows.push(cells)
-      })
-
-      if (rows.length === 0) return
-
-      const colCount = Math.max(...rows.map((r) => r.length))
-      const mdLines: string[] = []
-
-      // 表头
-      const header = rows[0].concat(Array(Math.max(0, colCount - rows[0].length)).fill(''))
-      mdLines.push('| ' + header.join(' | ') + ' |')
-      mdLines.push('| ' + header.map(() => '---').join(' | ') + ' |')
-
-      // 数据行
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i].concat(Array(Math.max(0, colCount - rows[i].length)).fill(''))
-        mdLines.push('| ' + row.join(' | ') + ' |')
-      }
+      const md = this.tableToMarkdown(table)
+      if (!md) return
 
       const target = scrollArea || table
-      target.replaceWith('\n' + mdLines.join('\n') + '\n')
+      target.replaceWith(md)
     })
   }
 

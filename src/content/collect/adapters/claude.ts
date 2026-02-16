@@ -2,13 +2,13 @@
  * Claude 平台适配器
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class ClaudeAdapter extends BaseAdapter {
   override getTitle(): string {
     const base = super.getTitle()
-    if (base !== '未命名对话') return base
+    if (base !== DEFAULT_TITLE) return base
 
     const pageTitle = document.title.replace(' - Claude', '').trim()
     if (pageTitle && pageTitle !== 'Claude') return pageTitle
@@ -19,7 +19,7 @@ export class ClaudeAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   collectMessages(): ChatMessage[] {

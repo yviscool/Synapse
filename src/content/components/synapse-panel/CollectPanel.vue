@@ -63,7 +63,7 @@
           class="toggle-btn"
           :class="{ active: isEnabled }"
           :disabled="!canSync"
-          @click="handleToggle"
+          @click="toggle"
         >
           <span class="toggle-track" :style="!isEnabled ? { background: 'var(--sp-toggle-bg)' } : {}">
             <span class="toggle-thumb"></span>
@@ -181,10 +181,6 @@ const lastSyncTime = computed(() => {
 })
 
 // 事件处理
-function handleToggle() {
-  toggle()
-}
-
 async function handleManualCollect() {
   await manualSync()
 }

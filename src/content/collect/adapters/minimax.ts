@@ -14,13 +14,13 @@
  *   代码块：.matrix-markdown pre > code
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class MiniMaxAdapter extends BaseAdapter {
   override getTitle(): string {
     const base = super.getTitle()
-    if (base !== '未命名对话') return base
+    if (base !== DEFAULT_TITLE) return base
 
     const pageTitle = document.title.replace(/\s*[-–—]\s*海螺AI\s*$/i, '').trim()
     if (pageTitle && pageTitle !== '海螺AI') return pageTitle
@@ -31,7 +31,7 @@ export class MiniMaxAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   /** MiniMax 的 getConversationId 从 query param 提取 */

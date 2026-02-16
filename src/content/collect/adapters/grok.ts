@@ -18,13 +18,13 @@
  *   代码块：pre > code（标准 shiki 高亮）
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class GrokAdapter extends BaseAdapter {
   override getTitle(): string {
     const base = super.getTitle()
-    if (base !== '未命名对话') return base
+    if (base !== DEFAULT_TITLE) return base
 
     const pageTitle = document.title.replace(/\s*[-–—]\s*Grok\s*$/i, '').trim()
     if (pageTitle && pageTitle !== 'Grok') return pageTitle
@@ -37,7 +37,7 @@ export class GrokAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   collectMessages(): ChatMessage[] {

@@ -24,13 +24,13 @@
  *   响应耗时：.model-run-time-pill
  */
 
-import { BaseAdapter } from './base'
+import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class AIStudioAdapter extends BaseAdapter {
   override getTitle(): string {
     const base = super.getTitle()
-    if (base !== '未命名对话') return base
+    if (base !== DEFAULT_TITLE) return base
 
     const pageTitle = document.title
       .replace(/\s*[-–—]\s*(Google\s+)?AI\s*Studio\s*$/i, '')
@@ -45,7 +45,7 @@ export class AIStudioAdapter extends BaseAdapter {
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
     }
 
-    return '未命名对话'
+    return DEFAULT_TITLE
   }
 
   /**
