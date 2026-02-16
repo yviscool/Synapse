@@ -24,6 +24,12 @@ import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { CollectOptions, CollectResult } from './base'
 import type { ChatMessage } from '@/types/chat'
 
+interface MermaidTabSwitch {
+  chartTab: HTMLElement
+  codeTab: HTMLElement
+  block: Element
+}
+
 export class DeepSeekAdapter extends BaseAdapter {
   /** 模拟用户点击（mousedown → mouseup → click，冒泡），兼容 React 合成事件 */
   private simulateClick(el: HTMLElement): void {
@@ -35,39 +41,79 @@ export class DeepSeekAdapter extends BaseAdapter {
 
   /**
    * 将 mermaid 代码块从"图表"tab 切换到"代码"tab，确保 pre 元素存在
-   * 返回需要恢复的 tab 按钮列表
+   * 返回需要恢复状态的切换上下文
    */
-  private switchMermaidToCodeTab(): HTMLElement[] {
-    const switched: HTMLElement[] = []
+  private switchMermaidToCodeTab(): MermaidTabSwitch[] {
+    const switched: MermaidTabSwitch[] = []
     document.querySelectorAll('.md-code-block .ds-segmented').forEach((seg) => {
-      const tabs = seg.querySelectorAll<HTMLElement>('[role="tab"]')
-      // tabs[0] = 图表, tabs[1] = 代码
-      if (tabs.length >= 2 && tabs[0].getAttribute('aria-selected') === 'true') {
-        this.simulateClick(tabs[1])
-        switched.push(tabs[0])
-      }
+      const tabs = Array.from(seg.querySelectorAll<HTMLElement>('[role="tab"]'))
+      if (tabs.length < 2) return
+
+      const chartTab = tabs.find((t) => /图表|chart/i.test((t.textContent || '').trim())) || tabs[0]
+      const codeTab = tabs.find((t) => /代码|code/i.test((t.textContent || '').trim())) || tabs[1]
+      if (!chartTab || !codeTab) return
+      if (this.isTabSelected(codeTab)) return
+
+      this.simulateClick(codeTab)
+      switched.push({
+        chartTab,
+        codeTab,
+        block: seg.closest('.md-code-block') || seg,
+      })
     })
     return switched
   }
 
-  private restoreMermaidTabs(chartTabs: HTMLElement[]): void {
-    chartTabs.forEach((tab) => this.simulateClick(tab))
+  private restoreMermaidTabs(switched: MermaidTabSwitch[]): void {
+    switched.forEach(({ chartTab }) => this.simulateClick(chartTab))
+  }
+
+  private isTabSelected(tab: HTMLElement): boolean {
+    const ariaSelected = tab.getAttribute('aria-selected')
+    const className = tab.className.toLowerCase()
+    return ariaSelected === 'true' || className.includes('active') || className.includes('selected')
+  }
+
+  /**
+   * 等待 mermaid 切换到“代码”tab 且 pre 文本可读。
+   * 失败时会重试点击 code tab，避免首轮采集拿到空代码块。
+   */
+  private async waitForMermaidCodeReady(switched: MermaidTabSwitch[], timeoutMs = 2000): Promise<void> {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      let ready = true
+
+      for (const item of switched) {
+        const selected = this.isTabSelected(item.codeTab)
+        const pre = item.block.querySelector('pre')
+        const hasCode = !!pre && !!(pre.textContent || '').trim()
+        if (!selected || !hasCode) {
+          ready = false
+          this.simulateClick(item.codeTab)
+          break
+        }
+      }
+
+      if (ready) return
+      await new Promise<void>((r) => setTimeout(r, 80))
+    }
   }
 
   override async collect(options?: CollectOptions): Promise<CollectResult> {
     const switched = this.switchMermaidToCodeTab()
-    if (switched.length) {
-      // 等待 React 重新渲染，让 pre 元素出现
-      await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 300)))
+    try {
+      if (switched.length) {
+        // 等待 React 重新渲染，让 pre 元素稳定可读
+        await this.waitForMermaidCodeReady(switched)
+        await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 50)))
+      }
+
+      return super.collect(options)
+    } finally {
+      if (switched.length) {
+        this.restoreMermaidTabs(switched)
+      }
     }
-
-    const result = super.collect(options)
-
-    if (switched.length) {
-      this.restoreMermaidTabs(switched)
-    }
-
-    return result
   }
 
   private extractKatexTex(node: Element): string {
@@ -130,8 +176,11 @@ export class DeepSeekAdapter extends BaseAdapter {
             .map((s) => s.textContent || '')
             .join('\n')
         } else {
-          codeText = pre.textContent || ''
+          codeText = pre.querySelector('code')?.textContent || pre.textContent || ''
         }
+      }
+      if (!codeText.trim()) {
+        codeText = block.querySelector('code')?.textContent || ''
       }
 
       // 用纯文本替换整个代码块
