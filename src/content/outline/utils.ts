@@ -10,7 +10,7 @@
 /* ===========================
    图标定义
    =========================== */
-export const ICONS = {
+const ICONS = {
   default:     'i-ph-chat-teardrop-text',
   question:    'i-ph-question',
   code:        'i-ph-code',

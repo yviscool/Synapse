@@ -54,7 +54,6 @@ function inferFromBackground(el: Element | null): ThemeMode | null {
   if (luminance >= 168) return 'light'
   return null
 }
-// PLACEHOLDER_DETECT_AND_SETUP
 
 function detectHostTheme(): ThemeMode | null {
   const html = document.documentElement
