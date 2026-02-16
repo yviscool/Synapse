@@ -346,7 +346,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onClickOutside, useTitle } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
@@ -357,6 +357,8 @@ import {
   generateHighlightedHtmlByQuery,
   generateHighlightedPreviewHtmlByQuery,
 } from '@/utils/highlighter'
+import { formatRelativeTime } from '@/utils/intl'
+import { useHorizontalScroll } from '@/composables/useHorizontalScroll'
 import {
   getAllPlatforms,
   getPlatformConfig,
@@ -375,7 +377,7 @@ const EmptyDetail = defineAsyncComponent(() => import('./chat/EmptyDetail.vue'))
 const ExportModal = defineAsyncComponent(() => import('./chat/ExportModal.vue'))
 const ChatOutline = defineAsyncComponent(() => import('./chat/ChatOutline.vue'))
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 useTitle(() => `${t('menu.chat')} - Synapse`)
 const { showToast, askConfirm } = useUI()
 
@@ -418,13 +420,9 @@ const showOutline = ref(true)
 
 const outlineActiveIndex = computed(() => activeMessageIndex.value)
 
-// Platform scroll state
+// Platform scroll refs (composable initialized after visiblePlatforms)
 const platformViewportRef = ref<HTMLElement | null>(null)
 const platformContentRef = ref<HTMLElement | null>(null)
-const platformScrollOffset = ref(0)
-const platformMaxScroll = ref(0)
-const canScrollPlatformLeft = computed(() => platformScrollOffset.value > 0)
-const canScrollPlatformRight = computed(() => platformScrollOffset.value < platformMaxScroll.value)
 
 // Close sort menu on outside click
 onClickOutside(sortRef, () => {
@@ -445,6 +443,16 @@ const visiblePlatforms = computed(() => {
     (p) => p.id !== 'other' && (platformCounts.value.get(p.id) || 0) > 0
   )
 })
+
+// Platform scroll composable (must be after visiblePlatforms)
+const {
+  scrollOffset: platformScrollOffset,
+  canScrollLeft: canScrollPlatformLeft,
+  canScrollRight: canScrollPlatformRight,
+  scroll: scrollPlatform,
+  handleWheel: handlePlatformScroll,
+  init: initPlatformScroll,
+} = useHorizontalScroll(platformViewportRef, platformContentRef, visiblePlatforms)
 
 const sortOptions = computed(() => [
   { value: 'updatedAt' as const, label: t('chat.list.sortOptions.updatedAt') },
@@ -509,25 +517,6 @@ function getHighlightedPreview(conv: ChatConversation): string {
   )
 }
 
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now()
-  const diff = now - timestamp
-  const minute = 60 * 1000
-  const hour = 60 * minute
-  const day = 24 * hour
-  const rtf = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
-
-  if (diff < minute) return rtf.format(0, 'minute')
-  if (diff < hour) return rtf.format(-Math.floor(diff / minute), 'minute')
-  if (diff < day) return rtf.format(-Math.floor(diff / hour), 'hour')
-  if (diff < 7 * day) return rtf.format(-Math.floor(diff / day), 'day')
-
-  return new Date(timestamp).toLocaleDateString(locale.value, {
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
 async function handleToggleStar(conv: ChatConversation) {
   const { ok } = await chatRepository.toggleStarred(conv.id)
   if (ok) {
@@ -581,45 +570,8 @@ function handleActiveIndexChange(index: number) {
   activeMessageIndex.value = index
 }
 
-// Platform scroll methods
-function updatePlatformDimensions() {
-  if (platformViewportRef.value && platformContentRef.value) {
-    const viewportWidth = platformViewportRef.value.offsetWidth
-    const contentWidth = platformContentRef.value.scrollWidth
-    platformMaxScroll.value = Math.max(0, contentWidth - viewportWidth)
-    if (platformScrollOffset.value > platformMaxScroll.value) {
-      platformScrollOffset.value = platformMaxScroll.value
-    }
-  }
-}
-
-function scrollPlatform(direction: 'left' | 'right') {
-  if (!platformViewportRef.value) return
-  const scrollAmount = platformViewportRef.value.offsetWidth * 0.8
-  if (direction === 'right') {
-    platformScrollOffset.value = Math.min(platformScrollOffset.value + scrollAmount, platformMaxScroll.value)
-  } else {
-    platformScrollOffset.value = Math.max(platformScrollOffset.value - scrollAmount, 0)
-  }
-}
-
-function handlePlatformScroll(event: WheelEvent) {
-  if (platformMaxScroll.value <= 0) return
-  event.preventDefault()
-  const scrollDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
-  if (scrollDelta === 0) return
-  platformScrollOffset.value = Math.max(0, Math.min(platformScrollOffset.value + scrollDelta, platformMaxScroll.value))
-}
-
-// Watch for platform changes to update scroll dimensions
-watch(visiblePlatforms, async () => {
-  await nextTick()
-  updatePlatformDimensions()
-})
-
 // Observers
 let observer: IntersectionObserver | null = null
-let platformObserver: ResizeObserver | null = null
 
 onMounted(async () => {
   await db.open()
@@ -641,16 +593,11 @@ onMounted(async () => {
 
   // Setup platform scroll observer
   await nextTick()
-  if (platformViewportRef.value) {
-    platformObserver = new ResizeObserver(updatePlatformDimensions)
-    platformObserver.observe(platformViewportRef.value)
-  }
-  updatePlatformDimensions()
+  initPlatformScroll()
 })
 
 onUnmounted(() => {
   observer?.disconnect()
-  platformObserver?.disconnect()
 })
 </script>
 

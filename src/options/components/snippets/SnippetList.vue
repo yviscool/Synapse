@@ -158,6 +158,8 @@ import {
   generateHighlightedHtmlByQuery,
   generateHighlightedPreviewHtmlByQuery,
 } from '@/utils/highlighter'
+import { formatRelativeTime } from '@/utils/intl'
+import { SNIPPET_LANGUAGES, LANGUAGE_COLORS } from '@/constants/snippetLanguages'
 
 type SortBy = "updatedAt" | "createdAt" | "title" | "usedAt" | "useCount"
 
@@ -205,39 +207,9 @@ const localSortBy = computed({
 })
 
 // Language options
-const languageOptions = computed(() => [
-  { value: 'html' as SnippetLanguage, label: t('tools.languages.html') },
-  { value: 'css' as SnippetLanguage, label: t('tools.languages.css') },
-  { value: 'scss' as SnippetLanguage, label: t('tools.languages.scss') },
-  { value: 'less' as SnippetLanguage, label: t('tools.languages.less') },
-  { value: 'javascript' as SnippetLanguage, label: t('tools.languages.javascript') },
-  { value: 'typescript' as SnippetLanguage, label: t('tools.languages.typescript') },
-  { value: 'python' as SnippetLanguage, label: t('tools.languages.python') },
-  { value: 'java' as SnippetLanguage, label: t('tools.languages.java') },
-  { value: 'c' as SnippetLanguage, label: t('tools.languages.c') },
-  { value: 'cpp' as SnippetLanguage, label: t('tools.languages.cpp') },
-  { value: 'csharp' as SnippetLanguage, label: t('tools.languages.csharp') },
-  { value: 'go' as SnippetLanguage, label: t('tools.languages.go') },
-  { value: 'rust' as SnippetLanguage, label: t('tools.languages.rust') },
-  { value: 'ruby' as SnippetLanguage, label: t('tools.languages.ruby') },
-  { value: 'php' as SnippetLanguage, label: t('tools.languages.php') },
-  { value: 'swift' as SnippetLanguage, label: t('tools.languages.swift') },
-  { value: 'kotlin' as SnippetLanguage, label: t('tools.languages.kotlin') },
-  { value: 'dart' as SnippetLanguage, label: t('tools.languages.dart') },
-  { value: 'lua' as SnippetLanguage, label: t('tools.languages.lua') },
-  { value: 'r' as SnippetLanguage, label: t('tools.languages.r') },
-  { value: 'scala' as SnippetLanguage, label: t('tools.languages.scala') },
-  { value: 'sql' as SnippetLanguage, label: t('tools.languages.sql') },
-  { value: 'shell' as SnippetLanguage, label: t('tools.languages.shell') },
-  { value: 'json' as SnippetLanguage, label: t('tools.languages.json') },
-  { value: 'yaml' as SnippetLanguage, label: t('tools.languages.yaml') },
-  { value: 'xml' as SnippetLanguage, label: t('tools.languages.xml') },
-  { value: 'markdown' as SnippetLanguage, label: t('tools.languages.markdown') },
-  { value: 'dockerfile' as SnippetLanguage, label: t('tools.languages.dockerfile') },
-  { value: 'graphql' as SnippetLanguage, label: t('tools.languages.graphql') },
-  { value: 'diff' as SnippetLanguage, label: t('tools.languages.diff') },
-  { value: 'text' as SnippetLanguage, label: t('tools.languages.text') },
-])
+const languageOptions = computed(() =>
+  SNIPPET_LANGUAGES.map(value => ({ value, label: t(`tools.languages.${value}`) }))
+)
 
 // Methods
 function selectSnippet(snippet: Snippet) {
@@ -288,40 +260,7 @@ function getLanguageLabel(language: SnippetLanguage): string {
 }
 
 function getLanguageColor(language: SnippetLanguage): string {
-  const colors: Partial<Record<SnippetLanguage, string>> = {
-    html: 'bg-orange-100 text-orange-700',
-    css: 'bg-purple-100 text-purple-700',
-    scss: 'bg-pink-100 text-pink-700',
-    less: 'bg-purple-100 text-purple-700',
-    javascript: 'bg-yellow-100 text-yellow-700',
-    typescript: 'bg-blue-100 text-blue-700',
-    python: 'bg-blue-100 text-blue-700',
-    java: 'bg-red-100 text-red-700',
-    c: 'bg-slate-100 text-slate-700',
-    cpp: 'bg-slate-100 text-slate-700',
-    csharp: 'bg-violet-100 text-violet-700',
-    go: 'bg-sky-100 text-sky-700',
-    rust: 'bg-orange-100 text-orange-800',
-    ruby: 'bg-red-100 text-red-700',
-    php: 'bg-indigo-100 text-indigo-700',
-    swift: 'bg-orange-100 text-orange-700',
-    kotlin: 'bg-violet-100 text-violet-700',
-    dart: 'bg-sky-100 text-sky-700',
-    lua: 'bg-blue-100 text-blue-800',
-    r: 'bg-blue-100 text-blue-700',
-    scala: 'bg-red-100 text-red-800',
-    sql: 'bg-indigo-100 text-indigo-700',
-    shell: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
-    json: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
-    yaml: 'bg-red-100 text-red-700',
-    xml: 'bg-orange-100 text-orange-700',
-    markdown: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
-    dockerfile: 'bg-sky-100 text-sky-700',
-    graphql: 'bg-pink-100 text-pink-700',
-    diff: 'bg-green-100 text-green-700',
-    text: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
-  }
-  return colors[language] || 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
+  return LANGUAGE_COLORS[language] || 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
 }
 
 function getHighlightedTitle(snippet: Snippet): string {
@@ -335,16 +274,7 @@ function getHighlightedPreview(content: string): string {
 }
 
 function formatTime(timestamp: number): string {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`
-
-  return date.toLocaleDateString()
+  return formatRelativeTime(timestamp)
 }
 
 // Click outside to close language filter

@@ -1,0 +1,30 @@
+{
+  "chatSaveEmpty": {
+    "message": "对话内容为空"
+  },
+  "chatUpdated": {
+    "message": "对话已更新！"
+  },
+  "chatCollected": {
+    "message": "已采集 $COUNT$ 条消息！",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "promptSaved": {
+    "message": "提示词已保存！"
+  },
+  "saveFailed": {
+    "message": "保存失败: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "contextMenuSaveAsPrompt": {
+    "message": "保存为提示词"
+  }
+}

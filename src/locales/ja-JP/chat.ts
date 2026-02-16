@@ -137,5 +137,6 @@ export default {
       search: "全文検索で素早くアクセス",
       export: "複数形式でエクスポート・共有",
     },
+    supportedPlatforms: "対応プラットフォーム:",
   },
 };

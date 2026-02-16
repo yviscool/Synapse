@@ -697,8 +697,7 @@ function formatFullTime(timestamp: number): string {
   border: 1px solid rgba(100, 116, 139, 0.16);
 }
 
-:global(.dark .user-bubble),
-:global([data-theme='dark'] .user-bubble) {
+:global(:is(.dark, [data-theme='dark']) .user-bubble) {
   background-color: rgba(59, 130, 246, 0.2) !important;
   border: 1px solid rgba(148, 163, 184, 0.28) !important;
   color: #dbeafe !important;
@@ -734,10 +733,8 @@ function formatFullTime(timestamp: number): string {
   content: none !important;
 }
 
-:global(.dark .message-text code),
-:global(.dark .thinking-content code),
-:global([data-theme='dark'] .message-text code),
-:global([data-theme='dark'] .thinking-content code) {
+:global(:is(.dark, [data-theme='dark']) .message-text code),
+:global(:is(.dark, [data-theme='dark']) .thinking-content code) {
   background: rgba(255, 255, 255, 0.14) !important;
 }
 
@@ -774,30 +771,7 @@ function formatFullTime(timestamp: number): string {
   text-decoration: underline;
 }
 
-:global(.dark .message-text h1),
-:global(.dark .message-text h2),
-:global(.dark .message-text h3),
-:global(.dark .message-text h4),
-:global(.dark .message-text h5),
-:global(.dark .message-text h6),
-:global(.dark .thinking-content h1),
-:global(.dark .thinking-content h2),
-:global(.dark .thinking-content h3),
-:global(.dark .thinking-content h4),
-:global(.dark .thinking-content h5),
-:global(.dark .thinking-content h6),
-:global([data-theme='dark'] .message-text h1),
-:global([data-theme='dark'] .message-text h2),
-:global([data-theme='dark'] .message-text h3),
-:global([data-theme='dark'] .message-text h4),
-:global([data-theme='dark'] .message-text h5),
-:global([data-theme='dark'] .message-text h6),
-:global([data-theme='dark'] .thinking-content h1),
-:global([data-theme='dark'] .thinking-content h2),
-:global([data-theme='dark'] .thinking-content h3),
-:global([data-theme='dark'] .thinking-content h4),
-:global([data-theme='dark'] .thinking-content h5),
-:global([data-theme='dark'] .thinking-content h6) {
+:global(:is(.dark, [data-theme='dark']) :is(.message-text, .thinking-content) :is(h1, h2, h3, h4, h5, h6)) {
   color: #f3f4f6 !important;
 }
 
@@ -817,28 +791,15 @@ function formatFullTime(timestamp: number): string {
   text-align: left;
 }
 
-:global(.dark .message-text pre),
-:global(.dark .thinking-content pre),
-:global([data-theme='dark'] .message-text pre),
-:global([data-theme='dark'] .thinking-content pre) {
+:global(:is(.dark, [data-theme='dark']) :is(.message-text, .thinking-content) pre) {
   border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
-:global(.dark .message-text table),
-:global(.dark .thinking-content table),
-:global([data-theme='dark'] .message-text table),
-:global([data-theme='dark'] .thinking-content table) {
+:global(:is(.dark, [data-theme='dark']) :is(.message-text, .thinking-content) table) {
   border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
-:global(.dark .message-text th),
-:global(.dark .message-text td),
-:global(.dark .thinking-content th),
-:global(.dark .thinking-content td),
-:global([data-theme='dark'] .message-text th),
-:global([data-theme='dark'] .message-text td),
-:global([data-theme='dark'] .thinking-content th),
-:global([data-theme='dark'] .thinking-content td) {
+:global(:is(.dark, [data-theme='dark']) :is(.message-text, .thinking-content) :is(th, td)) {
   border-color: rgba(255, 255, 255, 0.15) !important;
 }
 

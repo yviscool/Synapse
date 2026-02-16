@@ -1,8 +1,8 @@
-import { nanoid } from 'nanoid'
 import { db, getSettings } from '@/stores/db'
 import { queryPrompts } from '@/stores/promptSearch'
 import { repository } from '@/stores/repository'
 import { chatRepository } from '@/stores/chatRepository'
+import { getOriginalContent, type ChatMessage } from '@/types/chat'
 import {
   MSG,
   type RequestMessage,
@@ -44,63 +44,44 @@ async function getPromptLookupCache(forceRefresh = false): Promise<PromptLookupC
   return promptLookupCache
 }
 
-chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
+// Async message handlers — each returns a result that gets wrapped in { ok: true, ...result }
+const asyncHandlers: Partial<Record<string, (data: any) => Promise<any>>> = {
+  [MSG.GET_PROMPTS]: (d) => handleGetPrompts(d),
+  [MSG.GET_CATEGORIES]: () => db.categories.toArray().then(data => ({ data })),
+  [MSG.GET_SETTINGS]: () => getSettings().then(data => ({ data })),
+  [MSG.OPEN_OPTIONS]: (d) => openOptionsPage(d),
+  [MSG.CHAT_SAVE]: (d) => handleChatSave(d),
+}
+
+chrome.runtime.onMessage.addListener((msg: RequestMessage, _sender, sendResponse) => {
   const { type, data } = msg
 
-  if (type === MSG.GET_PROMPTS) {
-    handleGetPrompts(data as GetPromptsPayload | undefined)
+  // Async handlers: resolve → sendResponse, keep channel open
+  const handler = asyncHandlers[type]
+  if (handler) {
+    handler(data)
       .then(res => sendResponse({ ok: true, ...res }))
       .catch(e => sendResponse({ ok: false, error: e.message }))
-    return true // Keep the message channel open for async response
-  }
-
-  if (type === MSG.GET_CATEGORIES) {
-    db.categories.toArray()
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(e => sendResponse({ ok: false, error: e.message }))
     return true
   }
 
-  if (type === MSG.GET_SETTINGS) {
-    getSettings()
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(e => sendResponse({ ok: false, error: e.message }))
-    return true
-  }
-
-  if (type === MSG.OPEN_OPTIONS) {
-    openOptionsPage(data as OpenOptionsPayload | undefined)
-      .then(() => sendResponse({ ok: true }))
-      .catch(e => sendResponse({ ok: false, error: e.message }))
-    return true
-  }
-
+  // Sync / fire-and-forget handlers
   if (type === MSG.DATA_UPDATED) {
     const payload = data as DataUpdatedPayload | undefined
     if (!payload || payload.scope === 'all' || payload.scope === 'categories' || payload.scope === 'tags') {
       promptLookupCache = null
     }
-    // This is a generic update message; broadcast to open tabs.
     broadcastToTabs(msg as RequestMessage<DataUpdatedPayload>)
-    return false // No response needed
+    return false
   }
 
   if (type === MSG.UPDATE_PROMPT_LAST_USED) {
     const payload = data as { promptId?: string } | undefined
-    if (!payload?.promptId) {
-      return false
+    if (payload?.promptId) {
+      db.prompts.update(payload.promptId, { lastUsedAt: Date.now() })
+        .catch(e => console.error('Failed to update lastUsedAt:', e))
     }
-    db.prompts.update(payload.promptId, { lastUsedAt: Date.now() })
-      .catch(e => console.error('Failed to update lastUsedAt:', e))
-    return false // No need to wait
-  }
-
-  // Chat Collection: Save conversation
-  if (type === MSG.CHAT_SAVE) {
-    handleChatSave(data as ChatSavePayload)
-      .then(res => sendResponse(res))
-      .catch(e => sendResponse({ ok: false, error: e.message }))
-    return true
+    return false
   }
 })
 
@@ -162,74 +143,72 @@ async function openOptionsPage(payload?: OpenOptionsPayload): Promise<void> {
 
 // --- Chat Collection ---
 
-/**
- * 保存采集的对话
- */
+/** Merge new messages with existing, handling lazy-load partial re-collection */
+function mergeMessages(
+  existingMessages: ChatMessage[],
+  newMessages: ChatMessage[],
+): { merged: ChatMessage[]; unchanged: boolean } {
+  if (existingMessages.length <= newMessages.length) {
+    return { merged: newMessages, unchanged: false }
+  }
+
+  const offset = existingMessages.length - newMessages.length
+  const existingTail = existingMessages.slice(offset)
+  const tailUnchanged = existingTail.every((msg, i) =>
+    getOriginalContent(msg).slice(0, 200) === getOriginalContent(newMessages[i]).slice(0, 200),
+  )
+
+  if (tailUnchanged) {
+    return { merged: existingMessages, unchanged: true }
+  }
+
+  return { merged: [...existingMessages.slice(0, offset), ...newMessages], unchanged: false }
+}
+
+/** Preserve thinking from existing messages that may be missing in re-collected ones */
+function preserveThinking(
+  messages: ChatMessage[],
+  existingMessages: ChatMessage[],
+): ChatMessage[] {
+  const thinkingByContent = new Map<string, string>()
+  for (const msg of existingMessages) {
+    if (msg.role === 'assistant' && msg.thinking) {
+      thinkingByContent.set(getOriginalContent(msg).slice(0, 200), msg.thinking)
+    }
+  }
+  if (thinkingByContent.size === 0) return messages
+
+  return messages.map(msg => {
+    if (msg.role === 'assistant' && !msg.thinking) {
+      const cached = thinkingByContent.get(getOriginalContent(msg).slice(0, 200))
+      if (cached) return { ...msg, thinking: cached }
+    }
+    return msg
+  })
+}
+
 async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; error?: string }> {
   const { conversation, tags = [] } = payload
 
-  if (!conversation || !conversation.messages || conversation.messages.length === 0) {
-    return { ok: false, error: '对话内容为空' }
+  if (!conversation?.messages?.length) {
+    return { ok: false, error: chrome.i18n.getMessage('chatSaveEmpty') }
   }
 
-  // 检查是否已存在相同的对话（通过 externalId）
   if (conversation.externalId && conversation.platform) {
     const existing = await chatRepository.getConversationByExternalId(
       conversation.platform,
-      conversation.externalId
+      conversation.externalId,
     )
     if (existing) {
-      // 合并消息：某些平台（如 Gemini）懒加载只显示最新 N 条，
-      // 新采集的消息可能少于已保存的。保留旧消息中不在新批次里的部分。
-      let mergedMessages = conversation.messages!
-      const newCount = conversation.messages!.length
-      const oldCount = existing.messages.length
+      const { merged, unchanged } = mergeMessages(existing.messages, conversation.messages)
+      if (unchanged) return { ok: true }
 
-      if (oldCount > newCount) {
-        // 新采集的是尾部子集 — 检查尾部内容是否一致，一致则跳过更新
-        const existingTail = existing.messages.slice(oldCount - newCount)
-        const tailUnchanged = existingTail.length === newCount && existingTail.every((msg, i) => {
-          const oldText = typeof msg.content === 'string' ? msg.content : (msg.content.original || '')
-          const newText = typeof conversation.messages![i].content === 'string'
-            ? conversation.messages![i].content as string
-            : ((conversation.messages![i].content as { original?: string }).original || '')
-          return oldText.slice(0, 200) === newText.slice(0, 200)
-        })
-        if (tailUnchanged) {
-          // 懒加载重入，已有数据更完整，跳过
-          return { ok: true }
-        }
-        // 内容有变化，保留旧的头部 + 新的尾部
-        const headToKeep = existing.messages.slice(0, oldCount - newCount)
-        mergedMessages = [...headToKeep, ...conversation.messages]
-      }
+      const finalMessages = preserveThinking(merged, existing.messages)
 
-      // 保留已有消息中的 thinking（自动同步时 thinking 折叠无 DOM，新消息不含 thinking）
-      if (existing.messages) {
-        const thinkingByContent = new Map<string, string>()
-        for (const msg of existing.messages) {
-          if (msg.role === 'assistant' && msg.thinking) {
-            const key = (typeof msg.content === 'string' ? msg.content : (msg.content.original || '')).slice(0, 200)
-            thinkingByContent.set(key, msg.thinking)
-          }
-        }
-        if (thinkingByContent.size > 0) {
-          mergedMessages = mergedMessages.map(msg => {
-            if (msg.role === 'assistant' && !msg.thinking) {
-              const key = (typeof msg.content === 'string' ? msg.content : (msg.content.original || '')).slice(0, 200)
-              const cached = thinkingByContent.get(key)
-              if (cached) return { ...msg, thinking: cached }
-            }
-            return msg
-          })
-        }
-      }
-
-      // 更新现有对话
       const { ok, error } = await chatRepository.updateConversation(existing.id, {
         ...conversation,
-        messages: mergedMessages,
-        messageCount: Math.ceil((mergedMessages?.length ?? conversation.messages?.length ?? 0) / 2),
+        messages: finalMessages,
+        messageCount: finalMessages.length,
         updatedAt: Date.now(),
       })
       if (ok) {
@@ -237,14 +216,13 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
           type: 'basic',
           iconUrl: 'icons/icon-128.png',
           title: 'Synapse',
-          message: '对话已更新！',
+          message: chrome.i18n.getMessage('chatUpdated'),
         })
       }
       return { ok, error: error?.message }
     }
   }
 
-  // 创建新对话
   const { ok, error } = await chatRepository.saveConversation(conversation, tags)
 
   if (ok) {
@@ -252,7 +230,7 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
       type: 'basic',
       iconUrl: 'icons/icon-128.png',
       title: 'Synapse',
-      message: `已采集 ${conversation.messageCount || conversation.messages?.length || 0} 条消息！`,
+      message: chrome.i18n.getMessage('chatCollected', [String(conversation.messageCount || conversation.messages?.length || 0)]),
     })
   }
 
@@ -261,46 +239,28 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
 
 // --- 快捷保存功能 ---
 
-/**
- * 将选中的文本作为新的提示词保存
- * @param text - 选中的文本内容
- */
 async function saveSelectionAsPrompt(text: string) {
-  // 如果文本为空或只有空白，则不执行任何操作
-  if (!text || !text.trim())
-    return
+  if (!text?.trim()) return
 
-  // 从文本内容生成一个简短的标题
-  const title = text.trim().slice(0, 30) + (text.trim().length > 30 ? '...' : '')
-
-  // 调用 repository 中的 savePrompt 方法来保存新的提示词
-  // 注意：repository 中并没有 addPrompt 方法，正确的方法是 savePrompt
-  // savePrompt 用于创建和更新提示词，当不提供 id 时，它会创建一个新的。
-  // 第二个参数是标签名称数组，快捷保存时默认为空。
-  const { ok, error } = await repository.savePrompt({
-    title,
-    content: text,
-  }, [])
+  const trimmed = text.trim()
+  const title = trimmed.slice(0, 30) + (trimmed.length > 30 ? '...' : '')
+  const { ok, error } = await repository.savePrompt({ title, content: text }, [])
 
   if (ok) {
-    // 保存成功，创建桌面通知提醒用户
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon-128.png',
       title: 'Synapse',
-      message: '提示词已保存！',
+      message: chrome.i18n.getMessage('promptSaved'),
     })
-    // repository 的 `withCommitNotification` 包装器会自动处理 DATA_UPDATED 消息的广播
-    // 所以这里不再需要手动发送消息。
   }
   else {
-    // 保存失败，记录错误并创建通知提醒用户
     console.error('Failed to save prompt from selection:', error)
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon-128.png',
       title: 'Synapse',
-      message: `保存失败: ${(error as Error).message}`,
+      message: chrome.i18n.getMessage('saveFailed', [(error as Error).message]),
     })
   }
 }
@@ -309,7 +269,7 @@ async function saveSelectionAsPrompt(text: string) {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: 'save-selection-as-prompt',
-    title: '保存为提示词',
+    title: chrome.i18n.getMessage('contextMenuSaveAsPrompt'),
     contexts: ['selection'],
   })
 })

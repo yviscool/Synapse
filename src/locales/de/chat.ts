@@ -137,5 +137,6 @@ export default {
       search: "Volltextsuche für schnellen Zugriff",
       export: "Export und Teilen in mehreren Formaten",
     },
+    supportedPlatforms: "Unterstützte Plattformen:",
   },
 };

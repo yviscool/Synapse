@@ -192,6 +192,7 @@ import { useUI } from '@/stores/ui'
 import CodeEditor from './CodeEditor.vue'
 import HtmlPreview from './HtmlPreview.vue'
 import type { Snippet, SnippetFolder, SnippetLanguage } from '@/types/snippet'
+import { SNIPPET_LANGUAGES, LANGUAGE_EXTENSIONS } from '@/constants/snippetLanguages'
 
 const props = defineProps<{
   snippet: Snippet | null
@@ -231,39 +232,9 @@ const originalTags = ref<string[]>([])
 const originalStarred = ref(false)
 
 // Language options
-const languageOptions = computed(() => [
-  { value: 'html', label: t('tools.languages.html') },
-  { value: 'css', label: t('tools.languages.css') },
-  { value: 'scss', label: t('tools.languages.scss') },
-  { value: 'less', label: t('tools.languages.less') },
-  { value: 'javascript', label: t('tools.languages.javascript') },
-  { value: 'typescript', label: t('tools.languages.typescript') },
-  { value: 'python', label: t('tools.languages.python') },
-  { value: 'java', label: t('tools.languages.java') },
-  { value: 'c', label: t('tools.languages.c') },
-  { value: 'cpp', label: t('tools.languages.cpp') },
-  { value: 'csharp', label: t('tools.languages.csharp') },
-  { value: 'go', label: t('tools.languages.go') },
-  { value: 'rust', label: t('tools.languages.rust') },
-  { value: 'ruby', label: t('tools.languages.ruby') },
-  { value: 'php', label: t('tools.languages.php') },
-  { value: 'swift', label: t('tools.languages.swift') },
-  { value: 'kotlin', label: t('tools.languages.kotlin') },
-  { value: 'dart', label: t('tools.languages.dart') },
-  { value: 'lua', label: t('tools.languages.lua') },
-  { value: 'r', label: t('tools.languages.r') },
-  { value: 'scala', label: t('tools.languages.scala') },
-  { value: 'sql', label: t('tools.languages.sql') },
-  { value: 'shell', label: t('tools.languages.shell') },
-  { value: 'json', label: t('tools.languages.json') },
-  { value: 'yaml', label: t('tools.languages.yaml') },
-  { value: 'xml', label: t('tools.languages.xml') },
-  { value: 'markdown', label: t('tools.languages.markdown') },
-  { value: 'dockerfile', label: t('tools.languages.dockerfile') },
-  { value: 'graphql', label: t('tools.languages.graphql') },
-  { value: 'diff', label: t('tools.languages.diff') },
-  { value: 'text', label: t('tools.languages.text') },
-])
+const languageOptions = computed(() =>
+  SNIPPET_LANGUAGES.map(value => ({ value, label: t(`tools.languages.${value}`) }))
+)
 
 // Flatten folders for select
 const flatFolders = computed(() => {
@@ -380,24 +351,7 @@ function copyContent() {
 function downloadFile() {
   if (!localContent.value) return
 
-  // Determine file extension based on language
-  const extensionMap: Record<SnippetLanguage, string> = {
-    html: 'html',
-    javascript: 'js',
-    typescript: 'ts',
-    python: 'py',
-    rust: 'rs',
-    go: 'go',
-    css: 'css',
-    json: 'json',
-    markdown: 'md',
-    sql: 'sql',
-    shell: 'sh',
-    yaml: 'yaml',
-    text: 'txt',
-  }
-
-  const ext = extensionMap[localLanguage.value] || 'txt'
+  const ext = LANGUAGE_EXTENSIONS[localLanguage.value] || 'txt'
   const filename = localTitle.value
     ? `${localTitle.value.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '_')}.${ext}`
     : `snippet.${ext}`

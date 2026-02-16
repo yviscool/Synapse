@@ -541,6 +541,7 @@ import { db } from "@/stores/db";
 import { type PromptWithMatches } from "@/stores/promptSearch";
 import { repository } from "@/stores/repository";
 import type { Prompt, Category, Tag, PromptVersion } from "@/types/prompt";
+import { useHorizontalScroll } from "@/composables/useHorizontalScroll";
 import {
     generateHighlightedHtml,
     generateHighlightedPreviewHtml,
@@ -749,59 +750,19 @@ const availableCategories = computed(() => {
 // --- Category Shelf Pagination ---
 const shelfViewportRef = ref<HTMLElement | null>(null);
 const shelfContentRef = ref<HTMLElement | null>(null);
-const scrollOffset = ref(0);
-const maxScroll = ref(0);
-const canScrollLeft = computed(() => scrollOffset.value > 0);
-const canScrollRight = computed(() => scrollOffset.value < maxScroll.value);
-let shelfObserver: ResizeObserver | null = null;
-
-function updateShelfDimensions() {
-    if (shelfViewportRef.value && shelfContentRef.value) {
-        const viewportWidth = shelfViewportRef.value.offsetWidth;
-        const contentWidth = shelfContentRef.value.scrollWidth;
-        maxScroll.value = Math.max(0, contentWidth - viewportWidth);
-        if (scrollOffset.value > maxScroll.value) {
-            scrollOffset.value = maxScroll.value;
-        }
-    }
-}
-
-function scrollShelf(direction: "left" | "right") {
-    if (!shelfViewportRef.value) return;
-    const scrollAmount = shelfViewportRef.value.offsetWidth * 0.8;
-    if (direction === "right") {
-        scrollOffset.value = Math.min(
-            scrollOffset.value + scrollAmount,
-            maxScroll.value,
-        );
-    } else {
-        scrollOffset.value = Math.max(scrollOffset.value - scrollAmount, 0);
-    }
-}
-
-function handleShelfScroll(event: WheelEvent) {
-    if (maxScroll.value <= 0) return;
-    event.preventDefault();
-    const scrollDelta =
-        Math.abs(event.deltaX) > Math.abs(event.deltaY)
-            ? event.deltaX
-            : event.deltaY;
-    if (scrollDelta === 0) return;
-    scrollOffset.value = Math.max(
-        0,
-        Math.min(scrollOffset.value + scrollDelta, maxScroll.value),
-    );
-}
+const {
+    scrollOffset,
+    canScrollLeft,
+    canScrollRight,
+    scroll: scrollShelf,
+    handleWheel: handleShelfScroll,
+    init: initShelfScroll,
+} = useHorizontalScroll(shelfViewportRef, shelfContentRef, availableCategories);
 
 function changeSortBy(value: "updatedAt" | "createdAt" | "title") {
     setSortBy(value);
     showSortMenu.value = false;
 }
-
-watch(availableCategories, async () => {
-    await nextTick();
-    updateShelfDimensions();
-});
 // --- End Pagination ---
 
 async function loadInitialData() {
@@ -864,10 +825,6 @@ function forkPrompt(prompt: Prompt) {
     baseVersionForEdit.value = null;
 }
 
-async function triggerRefetch() {
-    await refetchFromFirstPage();
-}
-
 async function toggleFavorite(prompt: Prompt) {
     const newFavoriteState = !prompt.favorite;
     const { ok } = await repository.updatePrompt(prompt.id, {
@@ -905,7 +862,7 @@ async function savePrompt(modelFromEditor?: Partial<Prompt>) {
         );
 
         if (ok) {
-            await triggerRefetch();
+            await refetchFromFirstPage();
             await loadTags();
             closeEditor();
             showToast(t("common.toast.saveSuccess"), "success");
@@ -927,7 +884,7 @@ async function deletePrompt(id: string) {
 
     const { ok } = await repository.deletePrompt(id);
     if (ok) {
-        await triggerRefetch();
+        await refetchFromFirstPage();
         showToast(t("common.toast.deleteSuccess"), "success");
     } else {
         showToast(t("common.toast.deleteFailed"), "error");
@@ -996,7 +953,7 @@ function handleEditFromPreview() {
 async function reloadAndReEditCurrentPrompt() {
     if (!editingPrompt.value?.id) return;
     const promptId = editingPrompt.value.id;
-    await triggerRefetch();
+    await refetchFromFirstPage();
     const updatedPrompt = prompts.value.find((p) => p.id === promptId);
     if (updatedPrompt) {
         editPrompt(updatedPrompt);
@@ -1028,13 +985,13 @@ function formatDate(timestamp: number): string {
 }
 
 async function handleMergeSuccess() {
-    await triggerRefetch();
+    await refetchFromFirstPage();
     await loadTags();
 }
 
 async function handleCategoryDeletion() {
     await loadCategories();
-    await triggerRefetch();
+    await refetchFromFirstPage();
 }
 
 watch(() => route.query.action, (action) => {
@@ -1042,11 +999,6 @@ watch(() => route.query.action, (action) => {
         createNewPrompt();
     }
 });
-
-// 监听自定义事件以处理重复点击
-function handleCreateNewPrompt() {
-    createNewPrompt();
-}
 
 onMounted(async () => {
     try {
@@ -1070,18 +1022,11 @@ onMounted(async () => {
         }
 
         await nextTick();
-        if (shelfViewportRef.value) {
-            shelfObserver = new ResizeObserver(updateShelfDimensions);
-            shelfObserver.observe(shelfViewportRef.value);
-        }
-        updateShelfDimensions();
+        initShelfScroll();
 
         if (route.query.action === "new") {
             createNewPrompt();
         }
-
-        // 添加自定义事件监听器
-        window.addEventListener('create-new-prompt', handleCreateNewPrompt);
     } catch (error) {
         console.error("Failed to open database:", error);
         showToast(t("common.toast.dbConnectionFailed"), "error");
@@ -1090,9 +1035,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
     if (listObserver) listObserver.disconnect();
-    if (shelfObserver) shelfObserver.disconnect();
-    // 移除自定义事件监听器
-    window.removeEventListener('create-new-prompt', handleCreateNewPrompt);
 });
 </script>
 

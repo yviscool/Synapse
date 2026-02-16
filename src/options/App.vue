@@ -260,14 +260,12 @@ useModal(showSettings, () => {
     showSettings.value = false;
 });
 
-function createNewPrompt() {
-    // 如果已经在 prompts 页面且 action 是 new，则直接创建新 prompt
+async function createNewPrompt() {
     if (router.currentRoute.value.name === 'prompts' && router.currentRoute.value.query.action === 'new') {
-        // 触发一个事件让 Prompts 组件知道要创建新 prompt
-        window.dispatchEvent(new CustomEvent('create-new-prompt'));
-    } else {
-        router.push({ name: 'prompts', query: { action: 'new' } });
+        // Clear query first, then re-set it to re-trigger the route watcher
+        await router.replace({ name: 'prompts', query: {} });
     }
+    router.push({ name: 'prompts', query: { action: 'new' } });
 }
 
 onMounted(async () => {

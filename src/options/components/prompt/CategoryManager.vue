@@ -202,145 +202,58 @@ const orderedCategories = computed(() =>
 )
 
 const icons = ref<string[]>([
-    'i-carbon-code', 'i-carbon-book', 'i-carbon-pen', 'i-carbon-idea', 'i-carbon-presentation-file', 'i-carbon-home', 'i-carbon-search', 'i-carbon-folder', 'i-carbon-settings', 'i-carbon-star',
-    'i-carbon-favorite', 'i-carbon-time', 'i-carbon-calendar', 'i-carbon-download', 'i-carbon-upload', 'i-carbon-cloud', 'i-carbon-document', 'i-carbon-bot', 'i-carbon-terminal',
-    'i-carbon-tools', 'i-carbon-phone', 'i-carbon-email', 'i-carbon-chat', 'i-carbon-user', 'i-carbon-user-multiple', 'i-carbon-location', 'i-carbon-map', 'i-carbon-globe',
-    'i-carbon-translate', 'i-carbon-locked', 'i-carbon-unlocked', 'i-carbon-warning', 'i-carbon-information', 'i-carbon-help', 'i-carbon-camera', 'i-carbon-video', 'i-carbon-music', 'i-carbon-game-console',
     // --- 核心通用 (Core & General) ---
-    'i-carbon-idea',               // 想法
-    'i-carbon-chat',               // 对话/聊天
-    'i-carbon-text-creation',      // 文本创作
-    'i-carbon-folder',             // 文件夹/分类
-    'i-carbon-star',               // 收藏
-    'i-carbon-save',               // 保存
-    'i-carbon-search',             // 搜索
-    'i-carbon-list',               // 列表
-    'i-carbon-settings',           // 设置
-    'i-carbon-bot',                // 机器人/助手
-    'i-ph-brain-duotone',          // 大脑/思考
-    'i-carbon-favorite',           // 喜欢
-    'i-carbon-tag',                // 标签
-    'i-carbon-archive',            // 归档
-    'i-carbon-rocket',             // 启动/高效
+    'i-carbon-idea', 'i-carbon-chat', 'i-carbon-text-creation', 'i-carbon-folder', 'i-carbon-star',
+    'i-carbon-save', 'i-carbon-search', 'i-carbon-list', 'i-carbon-settings', 'i-carbon-bot',
+    'i-ph-brain-duotone', 'i-carbon-favorite', 'i-carbon-tag', 'i-carbon-archive', 'i-carbon-rocket',
+    'i-carbon-tools', 'i-carbon-phone', 'i-carbon-location', 'i-carbon-map',
+    'i-carbon-locked', 'i-carbon-unlocked', 'i-carbon-warning', 'i-carbon-information', 'i-carbon-help',
+    'i-carbon-download', 'i-carbon-upload',
 
     // --- 写作 & 内容创作 (Writing & Content) ---
-    'i-carbon-pen',                // 写作/笔
-    'i-carbon-edit',               // 编辑
-    'i-carbon-book',               // 书籍/长文
-    'i-carbon-document',           // 文档
-    'i-carbon-email',              // 邮件
-    'i-carbon-bullhorn',           // 公告/营销文案
-    'i-mdi-post-outline',          // 社交媒体帖子
-    'i-ph-newspaper-clipping-duotone', // 新闻稿/文章
-    'i-carbon-closed-caption',     // 字幕/脚本
-    'i-carbon-paragraph',          // 段落/润色
-    'i-carbon-quotes',             // 引用
-    'i-simple-icons:x',            // X / Twitter
-    'i-simple-icons:medium',       // Medium
-    'i-simple-icons:wordpress',    // WordPress
+    'i-carbon-pen', 'i-carbon-edit', 'i-carbon-book', 'i-carbon-document', 'i-carbon-email',
+    'i-carbon-bullhorn', 'i-mdi-post-outline', 'i-ph-newspaper-clipping-duotone',
+    'i-carbon-closed-caption', 'i-carbon-paragraph', 'i-carbon-quotes',
+    'i-simple-icons:x', 'i-simple-icons:medium', 'i-simple-icons:wordpress',
 
     // --- 编程 & 开发 (Coding & Development) ---
-    'i-carbon-code',               // 代码
-    'i-carbon-terminal',           // 终端/命令行
-    'i-mdi-bug-outline',                // Debug
-    'i-mdi-database-outline',           // 数据库
-    'i-carbon-cloud',              // 云服务/部署
-    'i-carbon-network-4',          // API/网络
-    'i-carbon-box',                // 组件/模块
-    'i-carbon-function',           // 函数
-    'i-mdi-git',                   // Git 版本控制
-    'i-carbon-data-structured',    // 数据结构
-    'i-ph-selection-background-duotone',// 前端/UI
-    'i-simple-icons:javascript',   // JavaScript
-    'i-simple-icons:typescript',   // TypeScript
-    'i-simple-icons:python',       // Python
-    'i-simple-icons:java',         // Java
-    'i-simple-icons:rust',         // Rust
-    'i-simple-icons:go',           // Go
-    'i-simple-icons:csharp',       // C#
-    'i-simple-icons:react',        // React
-    'i-simple-icons:vuedotjs',     // Vue.js
-    'i-simple-icons:docker',       // Docker
-    'i-simple-icons:github',       // GitHub
-    'i-simple-icons:visualstudiocode', // VS Code
+    'i-carbon-code', 'i-carbon-terminal', 'i-mdi-bug-outline', 'i-mdi-database-outline',
+    'i-carbon-cloud', 'i-carbon-network-4', 'i-carbon-box', 'i-carbon-function',
+    'i-mdi-git', 'i-carbon-data-structured', 'i-ph-selection-background-duotone',
+    'i-simple-icons:javascript', 'i-simple-icons:typescript', 'i-simple-icons:python',
+    'i-simple-icons:java', 'i-simple-icons:rust', 'i-simple-icons:go', 'i-simple-icons:csharp',
+    'i-simple-icons:react', 'i-simple-icons:vuedotjs', 'i-simple-icons:docker',
+    'i-simple-icons:github', 'i-simple-icons:visualstudiocode',
 
     // --- 商业 & 市场 (Business & Marketing) ---
-    'i-carbon-briefcase',          // 商业/公文包
-    'i-carbon-chart-bar',          // 数据分析/图表
-    'i-carbon-chart-line',         // 趋势分析
-    'i-carbon-chart-pie',          // 市场份额
-    'i-mdi-target-arrow',          // 市场目标
-    'i-carbon-currency-dollar',    // 金融/货币
-    'i-carbon-shopping-cart',      // 电商
-    'i-mdi-lightbulb-on-outline',  // 市场策略/点子
-    'i-carbon-search-locate-2',    // SEO/定位
-    'i-carbon-presentation-file',  // 报告/PPT
-    'i-carbon-user-speaker',       // 客户画像 (Persona)
-    'i-carbon-growth',             // 增长
+    'i-carbon-briefcase', 'i-carbon-chart-bar', 'i-carbon-chart-line', 'i-carbon-chart-pie',
+    'i-mdi-target-arrow', 'i-carbon-currency-dollar', 'i-carbon-shopping-cart',
+    'i-mdi-lightbulb-on-outline', 'i-carbon-search-locate-2', 'i-carbon-presentation-file',
+    'i-carbon-user-speaker', 'i-carbon-growth',
 
     // --- 学习 & 教育 (Learning & Education) ---
-    'i-carbon-education',          // 学位帽/教育
-    'i-ph-books-duotone',          // 书本/知识
-    'i-carbon-translate',          // 翻译
-    'i-carbon-globe',              // 语言/地理
-    'i-carbon-atom',               // 科学
-    'i-carbon-flask',              // 化学/实验
-    'i-carbon-calculator',         // 数学
-    'i-mdi-compass-rose',          // 历史/地理
-    'i-carbon-summary-kpi',        // 总结/摘要
-    'i-carbon-spell-check',        // 拼写检查
-    'i-carbon-notebook',           // 笔记
-    'i-mdi-school-outline',        // 学校/课程
+    'i-carbon-education', 'i-ph-books-duotone', 'i-carbon-translate', 'i-carbon-globe',
+    'i-carbon-atom', 'i-carbon-flask', 'i-carbon-calculator', 'i-mdi-compass-rose',
+    'i-carbon-summary-kpi', 'i-carbon-spell-check', 'i-carbon-notebook', 'i-mdi-school-outline',
 
     // --- 创意 & 设计 (Creative & Design) ---
-    'i-carbon-color-palette',      // 调色板/设计
-    'i-carbon-pen-fountain',       // 艺术/绘画
-    'i-carbon-camera',             // 摄影
-    'i-carbon-video',              // 视频
-    'i-carbon-music',              // 音乐
-    'i-ph-magic-wand-duotone',     // 创意生成
-    'i-carbon-image',              // 图片/Midjourney
-    'i-carbon-cube',               // 3D/模型
-    'i-carbon-layers',             // 图层/设计稿
-    'i-carbon-crop',               // 裁剪/构图
-    'i-mdi-palette-swatch-outline',// 色板
-    'i-simple-icons:figma',        // Figma
-    'i-simple-icons:adobephotoshop', // Photoshop
-    'i-simple-icons:dribbble',     // Dribbble
+    'i-carbon-color-palette', 'i-carbon-pen-fountain', 'i-carbon-camera', 'i-carbon-video',
+    'i-carbon-music', 'i-ph-magic-wand-duotone', 'i-carbon-image', 'i-carbon-cube',
+    'i-carbon-layers', 'i-carbon-crop', 'i-mdi-palette-swatch-outline',
+    'i-simple-icons:figma', 'i-simple-icons:adobephotoshop', 'i-simple-icons:dribbble',
 
     // --- 数据 & 分析 (Data & Analysis) ---
-    'i-carbon-table',              // 表格
-    'i-mdi-function-variant',      // 公式/函数
-    'i-carbon-filter',             // 筛选
-    'i-mdi-google-spreadsheet',    // 电子表格
-    'i-carbon-ai-results',         // AI 分析结果
-    'i-carbon-analytics',          // 分析
-    'i-carbon-json',               // JSON
-    'i-carbon-sql',                // SQL
+    'i-carbon-table', 'i-mdi-function-variant', 'i-carbon-filter', 'i-mdi-google-spreadsheet',
+    'i-carbon-ai-results', 'i-carbon-analytics', 'i-carbon-json', 'i-carbon-sql',
 
     // --- 效率 & 生活 (Productivity & Life) ---
-    'i-carbon-calendar',           // 日历/计划
-    'i-carbon-time',               // 时间管理
-    'i-carbon-checkbox-checked',   // 待办事项
-    'i-carbon-plane',              // 旅行
-    'i-carbon-restaurant',         // 餐饮/食谱
-    'i-carbon-home',               // 生活/日常
-    'i-carbon-chart-relationship', // 人际关系
-    'i-carbon-game-console',       // 游戏/娱乐
-    'i-carbon-health-cross',       // 健康/医疗
-    'i-mdi-scale-balance',         // 法律/权衡
-    'i-carbon-scooter',            // 交通
-    'i-carbon-finance',            // 理财
+    'i-carbon-calendar', 'i-carbon-time', 'i-carbon-checkbox-checked', 'i-carbon-plane',
+    'i-carbon-restaurant', 'i-carbon-home', 'i-carbon-chart-relationship', 'i-carbon-game-console',
+    'i-carbon-health-cross', 'i-mdi-scale-balance', 'i-carbon-scooter', 'i-carbon-finance',
 
     // --- 人物 & 角色 (People & Roles) ---
-    'i-carbon-user',               // 用户/个人
-    'i-carbon-user-multiple',      // 团队/多人
-    'i-carbon-user-avatar',        // 角色扮演
-    'i-carbon-health-worker',      // 医生/心理学家
-    'i-mdi-gavel',                 // 律师/法官
-    'i-mdi-account-school-outline',// 老师/学生
-    'i-mdi-account-tie',           // 经理/顾问
-    'i-carbon-user-admin',         // 管理员
+    'i-carbon-user', 'i-carbon-user-multiple', 'i-carbon-user-avatar', 'i-carbon-health-worker',
+    'i-mdi-gavel', 'i-mdi-account-school-outline', 'i-mdi-account-tie', 'i-carbon-user-admin',
 ]);
 
 const filteredIcons = computed(() => {

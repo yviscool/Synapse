@@ -137,5 +137,6 @@ export default {
       search: "전문 검색으로 빠른 접근",
       export: "다양한 형식으로 내보내기 및 공유",
     },
+    supportedPlatforms: "지원 플랫폼:",
   },
 };

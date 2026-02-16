@@ -14,10 +14,10 @@
             :total-snippets="totalSnippets"
             :starred-count="starredCount"
             :recent-count="recentCount"
-            @select-folder="handleSelectFolder"
-            @select-special-folder="handleSelectSpecialFolder"
-            @toggle-tag="handleToggleTag"
-            @clear-all-tags="handleClearAllTags"
+            @select-folder="selectFolder"
+            @select-special-folder="selectSpecialFolder"
+            @toggle-tag="toggleTag"
+            @clear-all-tags="clearTagSelection"
             @create-folder="handleCreateFolder"
             @rename-folder="handleRenameFolder"
             @delete-folder="handleDeleteFolder"
@@ -165,22 +165,6 @@ watch([snippets, folders], () => {
 })
 
 // Handlers
-function handleSelectFolder(folderId: string | null) {
-  selectFolder(folderId)
-}
-
-function handleSelectSpecialFolder(type: 'all' | 'starred' | 'recent' | 'uncategorized') {
-  selectSpecialFolder(type)
-}
-
-function handleToggleTag(tagId: string) {
-  toggleTag(tagId)
-}
-
-function handleClearAllTags() {
-  clearTagSelection()
-}
-
 async function handleCreateFolder(name: string, parentId: string | null) {
   const result = await snippetRepository.createFolder({ name, parentId })
   if (result.ok) {

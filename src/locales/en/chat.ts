@@ -144,5 +144,6 @@ export default {
       search: "Full-text search for quick access",
       export: "Multi-format export and sharing",
     },
+    supportedPlatforms: "Supported platforms:",
   },
 };

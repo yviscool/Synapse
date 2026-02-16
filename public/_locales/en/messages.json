@@ -1,0 +1,30 @@
+{
+  "chatSaveEmpty": {
+    "message": "Conversation is empty"
+  },
+  "chatUpdated": {
+    "message": "Conversation updated!"
+  },
+  "chatCollected": {
+    "message": "Collected $COUNT$ messages!",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "promptSaved": {
+    "message": "Prompt saved!"
+  },
+  "saveFailed": {
+    "message": "Save failed: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "contextMenuSaveAsPrompt": {
+    "message": "Save as Prompt"
+  }
+}

@@ -52,7 +52,7 @@
 
     <!-- 支持的平台 -->
     <div class="mt-8 flex items-center gap-3">
-      <span class="text-xs text-gray-400 dark:text-gray-500">支持平台:</span>
+      <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('chat.empty.supportedPlatforms') }}</span>
       <div class="flex items-center gap-2">
         <div class="w-7 h-7 rounded-lg bg-[#10a37f]/10 flex items-center justify-center" title="ChatGPT">
           <div class="i-simple-icons-openai text-[#10a37f]"></div>

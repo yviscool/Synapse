@@ -144,5 +144,6 @@ export default {
       search: "全文搜索快速定位",
       export: "多格式导出分享",
     },
+    supportedPlatforms: "支持平台:",
   },
 };

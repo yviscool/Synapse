@@ -160,6 +160,7 @@ import { useI18n } from 'vue-i18n'
 import { useUI } from '@/stores/ui'
 import type { PromptVersion } from '@/types/prompt'
 import { handleMarkdownCodeCopyClick, handleMermaidBlockClick, renderMermaidInElement, reRenderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
+import { formatRelativeTime } from '@/utils/intl'
 import {
   getVersionHistory,
   compareVersions,
@@ -372,33 +373,6 @@ function formatDate(timestamp: number): string {
     minute: '2-digit',
     second: '2-digit'
   }).format(new Date(timestamp))
-}
-
-function formatRelativeTime(timestamp: number): string {
-  if (!timestamp) return ''
-  const now = new Date()
-  const past = new Date(timestamp)
-  const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000)
-
-  const units: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] = [
-    { unit: 'year', seconds: 31536000 },
-    { unit: 'month', seconds: 2592000 },
-    { unit: 'week', seconds: 604800 },
-    { unit: 'day', seconds: 86400 },
-    { unit: 'hour', seconds: 3600 },
-    { unit: 'minute', seconds: 60 },
-    { unit: 'second', seconds: 1 }
-  ]
-
-  const rtf = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
-
-  for (const { unit, seconds } of units) {
-    const interval = diffInSeconds / seconds
-    if (interval >= 1) {
-      return rtf.format(-Math.floor(interval), unit)
-    }
-  }
-  return '刚刚'
 }
 
 const handleEsc = (e: KeyboardEvent) => {
