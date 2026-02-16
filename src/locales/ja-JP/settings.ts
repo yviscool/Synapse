@@ -25,6 +25,7 @@ export default {
   },
   sort: {
     label: "並び替え",
+    relevance: "関連度",
     updatedAt: "最近更新",
     createdAt: "作成日時",
     byTitle: "タイトル順",

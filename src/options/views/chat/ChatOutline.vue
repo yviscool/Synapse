@@ -1,5 +1,9 @@
 <template>
-  <div class="outline-nav fixed right-14 top-1/2 -translate-y-1/2 z-30 w-52 max-h-[80vh] flex flex-col">
+  <div
+    :class="embedded
+      ? 'outline-embedded h-full w-full flex flex-col'
+      : 'outline-nav fixed right-14 top-1/2 -translate-y-1/2 z-30 w-52 max-h-[80vh] flex flex-col'"
+  >
     <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700/80 overflow-hidden flex flex-col">
       <!-- 标题栏 -->
       <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800/80 flex items-center gap-2">
@@ -45,7 +49,10 @@ const { t } = useI18n()
 const props = defineProps<{
   messages: ChatMessage[]
   activeIndex: number
+  embedded?: boolean
 }>()
+
+const embedded = computed(() => !!props.embedded)
 
 defineEmits<{
   jump: [index: number]

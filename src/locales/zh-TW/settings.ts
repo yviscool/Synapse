@@ -20,6 +20,7 @@ export default {
   },
   sort: {
     label: "排序方式",
+    relevance: "相關度",
     updatedAt: "最近更新",
     createdAt: "建立時間",
     byTitle: "標題排序",

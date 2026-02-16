@@ -7,6 +7,7 @@ import { db, getSettings } from '@/stores/db'
 import { rebuildPromptSearchIndex } from '@/stores/promptSearch'
 import { rebuildSnippetSearchIndex } from '@/stores/snippetSearch'
 import { rebuildChatSearchIndex } from '@/stores/chatSearch'
+import { rebuildChatMessageSearchIndex } from '@/stores/chatMessageSearch'
 import { getDefaultCategories } from '@/utils/categoryUtils'
 import { repository } from '@/stores/repository'
 import * as gdrive from '@/utils/googleDriveApi'
@@ -287,7 +288,7 @@ class SyncManager {
       db.prompts, db.prompt_versions, db.categories, db.tags,
       db.settings, db.prompt_search_index,
       db.snippets, db.snippet_folders, db.snippet_tags, db.snippet_search_index,
-      db.chat_conversations, db.chat_tags, db.chat_search_index,
+      db.chat_conversations, db.chat_tags, db.chat_search_index, db.chat_message_search_index,
     ], async () => {
       // --- Prompts ---
       await db.prompts.clear()
@@ -312,6 +313,7 @@ class SyncManager {
       if (chatConversations.length > 0) await db.chat_conversations.bulkPut(chatConversations)
       await db.chat_tags.clear()
       if (chatTags.length > 0) await db.chat_tags.bulkPut(chatTags)
+      await db.chat_message_search_index.clear()
 
       // --- Settings ---
       const currentSettings = await getSettings();
@@ -328,6 +330,7 @@ class SyncManager {
       await rebuildPromptSearchIndex()
       await rebuildSnippetSearchIndex()
       await rebuildChatSearchIndex()
+      await rebuildChatMessageSearchIndex()
     })
   }
 

@@ -1,6 +1,11 @@
 import { db } from "./db";
 import { createEventBus, createCommitNotifier } from "./repositoryHelpers";
 import {
+  queryChatMessageHits,
+  upsertChatMessageSearchIndex,
+  removeChatMessageSearchIndex,
+} from "./chatMessageSearch";
+import {
   fetchTagNameMap as fetchTagNameMapGeneric,
   buildSearchIndexRecord,
 } from "@/utils/searchIndexUtils";
@@ -11,6 +16,8 @@ import type {
   ChatPlatform,
   QueryChatsParams,
   QueryChatsResult,
+  QueryChatMessageHitsParams,
+  QueryChatMessageHitsResult,
 } from "@/types/chat";
 import { compareLocalizedText } from "@/utils/intl";
 
@@ -41,7 +48,7 @@ function buildChatSearchIndexRecord(
   tagNameMap: Map<string, string>
 ): ChatSearchIndex {
   const messageContent = conversation.messages
-    .map((m) => m.content)
+    .map((m) => (typeof m.content === "string" ? m.content : m.content.original))
     .join(" ")
     .slice(0, 8000);
 
@@ -187,7 +194,7 @@ export const chatRepository = {
     tagNames: string[] = []
   ): Promise<{ ok: boolean; data?: ChatConversation; error?: Error }> {
     return withCommitNotification(
-      ["chat_conversations", "chat_tags", "chat_search_index"],
+      ["chat_conversations", "chat_tags", "chat_search_index", "chat_message_search_index"],
       async () => {
         // 1. Resolve Tags
         const tagIds: string[] = [];
@@ -228,6 +235,7 @@ export const chatRepository = {
         // 4. Save
         await db.chat_conversations.put(safeConversation);
         await upsertChatSearchIndex(safeConversation);
+        await upsertChatMessageSearchIndex(safeConversation);
 
         return safeConversation;
       },
@@ -247,13 +255,22 @@ export const chatRepository = {
       sanitizedPatch.messageCount = Math.ceil(sanitizedPatch.messages.length / 2);
     }
     return withCommitNotification(
-      ["chat_conversations", "chat_tags", "chat_search_index"],
+      ["chat_conversations", "chat_tags", "chat_search_index", "chat_message_search_index"],
       async () => {
         await db.chat_conversations.update(id, sanitizedPatch);
-        if (sanitizedPatch.title || sanitizedPatch.messages || sanitizedPatch.tagIds) {
+        if (
+          sanitizedPatch.title
+          || sanitizedPatch.messages
+          || sanitizedPatch.tagIds
+          || typeof sanitizedPatch.starred === "boolean"
+          || sanitizedPatch.createdAt
+          || sanitizedPatch.collectedAt
+          || sanitizedPatch.platform
+        ) {
           const updated = await db.chat_conversations.get(id);
           if (updated) {
             await upsertChatSearchIndex(updated);
+            await upsertChatMessageSearchIndex(updated);
           }
         }
       },
@@ -263,10 +280,11 @@ export const chatRepository = {
 
   async deleteConversation(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
-      ["chat_conversations", "chat_search_index"],
+      ["chat_conversations", "chat_search_index", "chat_message_search_index"],
       async () => {
         await db.chat_conversations.delete(id);
         await removeChatSearchIndex(id);
+        await removeChatMessageSearchIndex(id);
       },
       "chatsChanged"
     );
@@ -275,10 +293,11 @@ export const chatRepository = {
   async deleteConversations(ids: string[]): Promise<{ ok: boolean; error?: Error }> {
     if (ids.length === 0) return { ok: true };
     return withCommitNotification(
-      ["chat_conversations", "chat_search_index"],
+      ["chat_conversations", "chat_search_index", "chat_message_search_index"],
       async () => {
         await db.chat_conversations.bulkDelete(ids);
         await removeChatSearchIndex(ids);
+        await removeChatMessageSearchIndex(ids);
       },
       "chatsChanged"
     );
@@ -286,12 +305,18 @@ export const chatRepository = {
 
   async toggleStarred(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
-      ["chat_conversations"],
+      ["chat_conversations", "chat_message_search_index"],
       async () => {
         const conversation = await db.chat_conversations.get(id);
         if (conversation) {
+          const nextStarred = !conversation.starred;
           await db.chat_conversations.update(id, {
-            starred: !conversation.starred,
+            starred: nextStarred,
+            updatedAt: Date.now(),
+          });
+          await upsertChatMessageSearchIndex({
+            ...conversation,
+            starred: nextStarred,
             updatedAt: Date.now(),
           });
         }
@@ -317,7 +342,7 @@ export const chatRepository = {
 
   async deleteTag(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
-      ["chat_tags", "chat_conversations", "chat_search_index"],
+      ["chat_tags", "chat_conversations", "chat_search_index", "chat_message_search_index"],
       async () => {
         // Remove tag from all conversations
         const conversationsWithTag = await db.chat_conversations
@@ -328,6 +353,7 @@ export const chatRepository = {
           const newTagIds = conv.tagIds.filter((t) => t !== id);
           await db.chat_conversations.update(conv.id, { tagIds: newTagIds });
           await upsertChatSearchIndex({ ...conv, tagIds: newTagIds });
+          await upsertChatMessageSearchIndex({ ...conv, tagIds: newTagIds });
         }
         await db.chat_tags.delete(id);
       },
@@ -434,6 +460,12 @@ export const chatRepository = {
     const paginatedConversations = conversations.slice(offset, offset + limit);
 
     return { conversations: paginatedConversations, total };
+  },
+
+  async queryMessageHits(
+    params: QueryChatMessageHitsParams
+  ): Promise<QueryChatMessageHitsResult> {
+    return queryChatMessageHits(params);
   },
 
   async getPlatformCounts(): Promise<Map<ChatPlatform, number>> {

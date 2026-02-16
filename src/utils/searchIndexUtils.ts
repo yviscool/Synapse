@@ -8,7 +8,8 @@ import type { Table } from "dexie";
 export const SEARCH_MAX_SOURCE_LENGTH = 12000;
 export const SEARCH_MAX_TOKENS = 1200;
 
-const WORD_RE = /[\p{L}\p{N}]+/gu;
+// 允许技术关键词保留符号，例如 c++、c#、node.js、next.js、foo_bar
+const WORD_RE = /[\p{L}\p{N}][\p{L}\p{N}._#+-]*/gu;
 const CJK_SEGMENT_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+/gu;
 
 export function normalizeSearchText(text: string): string {

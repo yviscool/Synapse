@@ -666,6 +666,7 @@ let listObserver: IntersectionObserver | null = null;
 
 // --- Computed Properties ---
 const sortOptions = computed(() => [
+    { value: "relevance" as const, text: t("settings.sort.relevance") },
     { value: "updatedAt" as const, text: t("settings.sort.updatedAt") },
     { value: "createdAt" as const, text: t("settings.sort.createdAt") },
     { value: "title" as const, text: t("settings.sort.byTitle") },
@@ -759,7 +760,7 @@ const {
     init: initShelfScroll,
 } = useHorizontalScroll(shelfViewportRef, shelfContentRef, availableCategories);
 
-function changeSortBy(value: "updatedAt" | "createdAt" | "title") {
+function changeSortBy(value: "relevance" | "updatedAt" | "createdAt" | "title") {
     setSortBy(value);
     showSortMenu.value = false;
 }

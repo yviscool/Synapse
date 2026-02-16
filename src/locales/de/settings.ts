@@ -26,6 +26,7 @@ export default {
   },
   sort: {
     label: "Sortieren nach",
+    relevance: "Relevanz",
     updatedAt: "Zuletzt aktualisiert",
     createdAt: "Erstellungsdatum",
     byTitle: "Titel",

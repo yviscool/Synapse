@@ -15,6 +15,7 @@ const SEARCH_MAX_QUERY_TOKENS = 12;
 const SEARCH_MAX_CANDIDATES = 500;
 const CJK_TOKEN_RE = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+$/u;
 const SEARCH_SCORE_BY_MATCH_LEVEL = [0, 3, 6, 8] as const;
+const PROMPT_INDEX_TOKENIZER_VERSION = 2;
 
 let ensureSearchIndexPromise: Promise<void> | null = null;
 let hasVerifiedSearchIndex = false;
@@ -36,15 +37,18 @@ export function buildPromptSearchIndexRecord(
   prompt: Prompt,
   tagNameMap: Map<string, string>,
 ): PromptSearchIndex {
-  return buildSearchIndexRecord({
-    id: prompt.id,
-    idField: "promptId",
-    title: prompt.title,
-    content: prompt.content,
-    tagIds: prompt.tagIds,
-    tagNameMap,
-    updatedAt: prompt.updatedAt || Date.now(),
-  }) as unknown as PromptSearchIndex;
+  return {
+    ...(buildSearchIndexRecord({
+      id: prompt.id,
+      idField: "promptId",
+      title: prompt.title,
+      content: prompt.content,
+      tagIds: prompt.tagIds,
+      tagNameMap,
+      updatedAt: prompt.updatedAt || Date.now(),
+    }) as unknown as PromptSearchIndex),
+    tokenizerVersion: PROMPT_INDEX_TOKENIZER_VERSION,
+  };
 }
 
 async function fetchPromptTagNameMap(tagIds?: string[]): Promise<Map<string, string>> {
@@ -62,9 +66,10 @@ async function ensurePromptSearchIndexReady(): Promise<void> {
   }
 
   ensureSearchIndexPromise = (async () => {
-    const [promptCount, indexCount] = await Promise.all([
+    const [promptCount, indexCount, sampleRecord] = await Promise.all([
       db.prompts.count(),
       db.prompt_search_index.count(),
+      db.prompt_search_index.limit(1).first(),
     ]);
 
     if (promptCount === 0) {
@@ -75,7 +80,8 @@ async function ensurePromptSearchIndexReady(): Promise<void> {
       return;
     }
 
-    if (indexCount !== promptCount) {
+    const indexVersionMatches = sampleRecord?.tokenizerVersion === PROMPT_INDEX_TOKENIZER_VERSION;
+    if (indexCount !== promptCount || !indexVersionMatches) {
       await rebuildPromptSearchIndex();
     }
 
@@ -281,8 +287,12 @@ async function resolveCategoryIds(
 
 function sortPromptsInMemory(
   prompts: PromptWithMatches[],
-  sortBy: "updatedAt" | "createdAt" | "title",
+  sortBy: "updatedAt" | "createdAt" | "title" | "relevance",
 ): PromptWithMatches[] {
+  if (sortBy === "relevance") {
+    return prompts.slice();
+  }
+
   const sorted = prompts.slice();
 
   sorted.sort((a, b) => {
@@ -408,6 +418,36 @@ async function fetchPromptsWithoutSearch(
   return collection.toArray();
 }
 
+async function searchPromptsBySubstring(
+  normalizedQuery: string,
+): Promise<Prompt[]> {
+  if (!normalizedQuery) return [];
+
+  const prompts = await db.prompts.toArray();
+  return prompts.filter((prompt) => {
+    const title = normalizeSearchText(prompt.title);
+    const content = normalizeSearchText(prompt.content);
+    return title.includes(normalizedQuery) || content.includes(normalizedQuery);
+  });
+}
+
+async function resolveTagIdsByNames(tagNames: string[]): Promise<string[]> {
+  const normalizedNames = [...new Set(
+    tagNames
+      .map((name) => normalizeSearchText(name))
+      .filter(Boolean),
+  )];
+  if (normalizedNames.length === 0) return [];
+
+  const tags = await db.tags.toArray();
+  const nameSet = new Set(normalizedNames);
+  const tagIds = tags
+    .filter((tag) => nameSet.has(normalizeSearchText(tag.name)))
+    .map((tag) => tag.id);
+
+  return tagIds.length > 0 ? [...new Set(tagIds)] : [];
+}
+
 // ============================================
 // Public Types & Query API
 // ============================================
@@ -419,7 +459,7 @@ export interface QueryPromptsParams {
   categoryNames?: string[];
   tagNames?: string[];
   favoriteOnly?: boolean;
-  sortBy?: "updatedAt" | "createdAt" | "title";
+  sortBy?: "updatedAt" | "createdAt" | "title" | "relevance";
   page?: number;
   limit?: number;
 }
@@ -466,12 +506,16 @@ export async function queryPrompts(
 
   let tagIds: string[] | undefined;
   if (resolvedTagNames.length > 0) {
-    const tags = await db.tags.where("name").anyOf(resolvedTagNames).toArray();
-    tagIds = tags.map((item) => item.id);
+    tagIds = await resolveTagIdsByNames(resolvedTagNames);
     if (tagIds.length === 0) {
       return { prompts: [], total: 0 };
     }
   }
+
+  const databaseSortBy: "updatedAt" | "createdAt" | "title" =
+    sortBy === "relevance"
+      ? "updatedAt"
+      : sortBy;
 
   // 常见热路径：无搜索、无其他过滤时直接走数据库分页，避免全表加载后再切片
   if (
@@ -480,8 +524,8 @@ export async function queryPrompts(
     (!categoryIds || categoryIds.length === 0) &&
     (!tagIds || tagIds.length === 0)
   ) {
-    let collection = db.prompts.orderBy(sortBy);
-    if (sortBy === "updatedAt" || sortBy === "createdAt") {
+    let collection = db.prompts.orderBy(databaseSortBy);
+    if (databaseSortBy === "updatedAt" || databaseSortBy === "createdAt") {
       collection = collection.reverse();
     }
 
@@ -494,8 +538,10 @@ export async function queryPrompts(
   }
 
   let filteredPrompts = searchQuery
-    ? (await searchPromptsByIndex(normalizedSearchQuery, queryTokens) as PromptWithMatches[])
-    : await fetchPromptsWithoutSearch(sortBy, categoryIds, tagIds);
+    ? (queryTokens.length > 0
+      ? (await searchPromptsByIndex(normalizedSearchQuery, queryTokens) as PromptWithMatches[])
+      : (await searchPromptsBySubstring(normalizedSearchQuery) as PromptWithMatches[]))
+    : await fetchPromptsWithoutSearch(databaseSortBy, categoryIds, tagIds);
 
   const filterConditions: ((p: Prompt) => boolean)[] = [];
   if (favoriteOnly) {
@@ -518,10 +564,14 @@ export async function queryPrompts(
     );
   }
 
+  if (searchQuery && sortBy !== "relevance") {
+    filteredPrompts = sortPromptsInMemory(filteredPrompts, sortBy);
+  }
+
   const total = filteredPrompts.length;
   let paginatedPrompts = filteredPrompts.slice(offset, offset + limit);
 
-  if (searchQuery && normalizedSearchQuery && queryTokens.length > 0) {
+  if (searchQuery && normalizedSearchQuery) {
     paginatedPrompts = paginatedPrompts.map((prompt) => ({
       ...prompt,
       matches: buildPromptMatches(prompt, normalizedSearchQuery, queryTokens),

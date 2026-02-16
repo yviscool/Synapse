@@ -77,7 +77,7 @@
                   <div class="i-carbon-chat-bot"></div>
                   <span>{{ t('chat.sidebar.all') }}</span>
                   <span class="ml-1 px-1.5 py-0.5 text-xs rounded" :class="selectedPlatforms.length === 0 ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'">
-                    {{ totalConversations }}
+                    {{ listTotalCount }}
                   </span>
                 </button>
 
@@ -192,17 +192,14 @@
       <div class="flex gap-6 min-h-[calc(100vh-320px)]">
         <!-- 左侧：对话列表 -->
         <aside class="w-[320px] flex-shrink-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700/50 flex flex-col overflow-hidden">
-          <!-- 列表头部 -->
           <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
             <span class="text-sm text-gray-500 dark:text-gray-400 font-medium">
-              {{ t('chat.sidebar.conversations', { count: totalConversations }) }}
+              {{ t('chat.sidebar.conversations', { count: listTotalCount }) }}
             </span>
           </div>
 
-          <!-- 对话列表 -->
           <div class="flex-1 overflow-y-auto p-2" ref="listRef">
-            <!-- 空状态 -->
-            <div v-if="conversations.length === 0 && !isLoading" class="flex flex-col items-center justify-center py-16 text-center">
+            <div v-if="(isSearchMode ? messageHits.length === 0 : conversations.length === 0) && !isLoading" class="flex flex-col items-center justify-center py-16 text-center">
               <div class="mb-4">
                 <div class="i-carbon-chat text-5xl text-gray-300"></div>
               </div>
@@ -210,87 +207,138 @@
               <p class="text-sm text-gray-400 dark:text-gray-500">{{ t('chat.list.emptyHint') }}</p>
             </div>
 
-            <!-- 对话项 -->
-            <div
-              v-for="(conv, idx) in conversations"
-              :key="conv.id"
-              @click="selectConversation(conv)"
-              class="relative flex gap-3 p-3 rounded-lg cursor-pointer transition-all mb-1"
-              :class="[
-                  selectedId === conv.id
-                  ? 'bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-blue-600/60'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'
-              ]"
-            >
-              <!-- 编号 -->
-              <span
-                class="absolute top-1.5 right-2 text-[10px] font-mono"
-                :class="selectedId === conv.id ? 'text-blue-400 dark:text-blue-300' : 'text-gray-300 dark:text-gray-600'"
-              >
-                {{ idx + 1 }}
-              </span>
-
-              <!-- 平台标识 -->
+            <template v-if="isSearchMode">
               <div
-                class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                :style="{ backgroundColor: getPlatformConfig(conv.platform).color + '15' }"
+                v-for="(hit, idx) in messageHits"
+                :key="hit.id"
+                @click="selectMessageHit(hit)"
+                class="relative flex gap-3 p-3 rounded-lg cursor-pointer transition-all mb-1"
+                :class="[
+                    selectedId === hit.conversationId
+                    ? 'bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-blue-600/60'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'
+                ]"
               >
-                <img
-                  v-if="getIconUrl(conv.platform)"
-                  :src="getIconUrl(conv.platform) || ''"
-                  alt=""
-                  class="w-5 h-5 rounded object-cover"
-                />
+                <span
+                  class="absolute top-1.5 right-2 text-[10px] font-mono"
+                  :class="selectedId === hit.conversationId ? 'text-blue-400 dark:text-blue-300' : 'text-gray-300 dark:text-gray-600'"
+                >
+                  {{ idx + 1 }}
+                </span>
+
                 <div
-                  v-else
-                  :class="getPlatformConfig(conv.platform).icon"
-                  class="text-lg"
-                  :style="{ color: getPlatformConfig(conv.platform).color }"
-                ></div>
-              </div>
+                  class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                  :style="{ backgroundColor: getPlatformConfig(hit.platform).color + '15' }"
+                >
+                  <img
+                    v-if="getIconUrl(hit.platform)"
+                    :src="getIconUrl(hit.platform) || ''"
+                    alt=""
+                    class="w-5 h-5 rounded object-cover"
+                  />
+                  <div
+                    v-else
+                    :class="getPlatformConfig(hit.platform).icon"
+                    class="text-lg"
+                    :style="{ color: getPlatformConfig(hit.platform).color }"
+                  ></div>
+                </div>
 
-              <!-- 内容 -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-start justify-between gap-2 mb-1">
+                <div class="flex-1 min-w-0">
                   <h4
-                    class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"
-                    v-html="getHighlightedTitle(conv)"
+                    class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1"
+                    v-html="getHighlightedHitTitle(hit)"
                   ></h4>
-                  <button
-                    @click.stop="handleToggleStar(conv)"
-                    class="flex-shrink-0 p-1 rounded transition-colors"
-                    :class="conv.starred ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-500 opacity-0 group-hover:opacity-100'"
-                  >
-                    <div :class="conv.starred ? 'i-carbon-star-filled' : 'i-carbon-star'" class="text-sm"></div>
-                  </button>
+                  <div class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 mb-1.5">
+                    <span>{{ getPlatformConfig(hit.platform).name }}</span>
+                    <span>·</span>
+                    <span>{{ formatRelativeTime(hit.collectedAt || hit.createdAt) }}</span>
+                  </div>
+                  <p
+                    class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2"
+                    v-html="getHighlightedHitPreview(hit)"
+                  ></p>
                 </div>
-                <div class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 mb-1.5">
-                  <span>{{ getPlatformConfig(conv.platform).name }}</span>
-                  <span>·</span>
-                  <span>{{ conv.messageCount }}条</span>
-                  <span>·</span>
-                  <span>{{ formatRelativeTime(conv.collectedAt || conv.createdAt) }}</span>
-                </div>
-                <p
-                  class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2"
-                  v-html="getHighlightedPreview(conv)"
-                ></p>
               </div>
-            </div>
+            </template>
 
-            <!-- 加载更多 -->
+            <template v-else>
+              <div
+                v-for="(conv, idx) in conversations"
+                :key="conv.id"
+                @click="selectConversation(conv)"
+                class="relative flex gap-3 p-3 rounded-lg cursor-pointer transition-all mb-1"
+                :class="[
+                    selectedId === conv.id
+                    ? 'bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-blue-600/60'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'
+                ]"
+              >
+                <span
+                  class="absolute top-1.5 right-2 text-[10px] font-mono"
+                  :class="selectedId === conv.id ? 'text-blue-400 dark:text-blue-300' : 'text-gray-300 dark:text-gray-600'"
+                >
+                  {{ idx + 1 }}
+                </span>
+
+                <div
+                  class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                  :style="{ backgroundColor: getPlatformConfig(conv.platform).color + '15' }"
+                >
+                  <img
+                    v-if="getIconUrl(conv.platform)"
+                    :src="getIconUrl(conv.platform) || ''"
+                    alt=""
+                    class="w-5 h-5 rounded object-cover"
+                  />
+                  <div
+                    v-else
+                    :class="getPlatformConfig(conv.platform).icon"
+                    class="text-lg"
+                    :style="{ color: getPlatformConfig(conv.platform).color }"
+                  ></div>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-2 mb-1">
+                    <h4
+                      class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"
+                      v-html="getHighlightedTitle(conv)"
+                    ></h4>
+                    <button
+                      @click.stop="handleToggleStar(conv)"
+                      class="flex-shrink-0 p-1 rounded transition-colors"
+                      :class="conv.starred ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-500 opacity-0 group-hover:opacity-100'"
+                    >
+                      <div :class="conv.starred ? 'i-carbon-star-filled' : 'i-carbon-star'" class="text-sm"></div>
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 mb-1.5">
+                    <span>{{ getPlatformConfig(conv.platform).name }}</span>
+                    <span>·</span>
+                    <span>{{ conv.messageCount }}条</span>
+                    <span>·</span>
+                    <span>{{ formatRelativeTime(conv.collectedAt || conv.createdAt) }}</span>
+                  </div>
+                  <p
+                    class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2"
+                    v-html="getHighlightedPreview(conv)"
+                  ></p>
+                </div>
+              </div>
+            </template>
+
             <div ref="loaderRef" class="py-4 flex justify-center">
               <div v-if="isLoading" class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                 <div class="i-carbon-circle-dash w-5 h-5 animate-spin"></div>
               </div>
-              <span v-else-if="!hasMore && conversations.length > 0" class="text-xs text-gray-400 dark:text-gray-500">
+              <span v-else-if="!hasMore && (isSearchMode ? messageHits.length > 0 : conversations.length > 0)" class="text-xs text-gray-400 dark:text-gray-500">
                 --- {{ t('common.allLoaded') }} ---
               </span>
             </div>
           </div>
         </aside>
 
-        <!-- 右侧：对话详情 -->
         <section class="flex-1 min-w-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-hidden flex flex-col">
           <ConversationDetail
             v-if="selectedConversation"
@@ -364,7 +412,7 @@ import {
   getPlatformConfig,
   getPlatformIconUrl,
 } from '@/content/site-configs'
-import type { ChatConversation, ChatPlatform, PlatformConfig } from '@/types/chat'
+import type { ChatConversation, ChatMessageHit, ChatPlatform, PlatformConfig } from '@/types/chat'
 
 // 开发环境加载调试工具
 if (import.meta.env.DEV) {
@@ -384,15 +432,18 @@ const { showToast, askConfirm } = useUI()
 // Query composable
 const {
   conversations,
+  messageHits,
   tags,
   platformCounts,
   searchQuery,
   searchQueryDebounced,
+  isSearchMode,
   selectedPlatforms,
   selectedTagIds,
   showStarredOnly,
   sortBy,
   totalConversations,
+  totalMessageHits,
   isLoading,
   hasMore,
   refreshAll,
@@ -408,6 +459,7 @@ const {
 
 // Local state
 const selectedId = ref<string | null>(null)
+const selectedConversationCache = ref<ChatConversation | null>(null)
 const showExportModal = ref(false)
 const exportingConversation = ref<ChatConversation | null>(null)
 const showSortMenu = ref(false)
@@ -432,7 +484,18 @@ onClickOutside(sortRef, () => {
 // Computed
 const selectedConversation = computed(() => {
   if (!selectedId.value) return null
-  return conversations.value.find((c) => c.id === selectedId.value) || null
+  const inCurrentPage = conversations.value.find((c) => c.id === selectedId.value)
+  if (inCurrentPage) {
+    return inCurrentPage
+  }
+  if (selectedConversationCache.value?.id === selectedId.value) {
+    return selectedConversationCache.value
+  }
+  return null
+})
+
+const listTotalCount = computed(() => {
+  return isSearchMode.value ? totalMessageHits.value : totalConversations.value
 })
 
 const allPlatforms = computed(() => getAllPlatforms())
@@ -490,8 +553,44 @@ function handleSortChange(value: typeof sortBy.value) {
 }
 
 function selectConversation(conv: ChatConversation) {
-  selectedId.value = conv.id
-  activeMessageIndex.value = getFirstUserMessageIndex(conv)
+  void selectConversationById(conv.id)
+}
+
+async function selectConversationById(
+  conversationId: string,
+  targetMessageIndex?: number,
+) {
+  selectedId.value = conversationId
+
+  const fromCurrentPage = conversations.value.find((c) => c.id === conversationId)
+  if (fromCurrentPage) {
+    selectedConversationCache.value = null
+    activeMessageIndex.value = typeof targetMessageIndex === 'number'
+      ? targetMessageIndex
+      : getFirstUserMessageIndex(fromCurrentPage)
+    await nextTick()
+    if (typeof targetMessageIndex === 'number') {
+      detailRef.value?.scrollToMessage(targetMessageIndex)
+    }
+    return
+  }
+
+  const fetched = await chatRepository.getConversationById(conversationId)
+  if (!fetched || selectedId.value !== conversationId) return
+
+  selectedConversationCache.value = fetched
+  activeMessageIndex.value = typeof targetMessageIndex === 'number'
+    ? targetMessageIndex
+    : getFirstUserMessageIndex(fetched)
+
+  await nextTick()
+  if (typeof targetMessageIndex === 'number') {
+    detailRef.value?.scrollToMessage(targetMessageIndex)
+  }
+}
+
+function selectMessageHit(hit: ChatMessageHit) {
+  void selectConversationById(hit.conversationId, hit.messageIndex)
 }
 
 function getFirstUserMessageIndex(conv: ChatConversation): number {
@@ -514,6 +613,18 @@ function getHighlightedPreview(conv: ChatConversation): string {
     getLastMessageText(conv),
     searchQueryDebounced.value,
     80,
+  )
+}
+
+function getHighlightedHitTitle(hit: ChatMessageHit): string {
+  return generateHighlightedHtmlByQuery(hit.title, searchQueryDebounced.value)
+}
+
+function getHighlightedHitPreview(hit: ChatMessageHit): string {
+  return generateHighlightedPreviewHtmlByQuery(
+    hit.content,
+    searchQueryDebounced.value,
+    120,
   )
 }
 
@@ -541,6 +652,13 @@ async function handleUpdateConversation(
   } else {
     await chatRepository.updateConversation(id, patch)
   }
+
+  if (selectedConversationCache.value?.id === id) {
+    const refreshed = await chatRepository.getConversationById(id)
+    if (refreshed) {
+      selectedConversationCache.value = refreshed
+    }
+  }
 }
 
 async function handleDeleteConversation(id: string) {
@@ -552,6 +670,7 @@ async function handleDeleteConversation(id: string) {
     showToast(t('chat.toast.deleteSuccess'), 'success')
     if (selectedId.value === id) {
       selectedId.value = null
+      selectedConversationCache.value = null
     }
   }
 }
@@ -600,23 +719,3 @@ onUnmounted(() => {
   observer?.disconnect()
 })
 </script>
-
-<style scoped>
-/* 响应式布局 */
-@media (max-width: 1200px) {
-  .w-\[320px\] {
-    width: 280px;
-  }
-}
-
-@media (max-width: 900px) {
-  .flex.gap-6.min-h-\[calc\(100vh-320px\)\] {
-    flex-direction: column;
-  }
-
-  .w-\[320px\] {
-    width: 100%;
-    max-height: 400px;
-  }
-}
-</style>

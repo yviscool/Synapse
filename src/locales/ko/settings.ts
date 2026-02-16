@@ -26,6 +26,7 @@ export default {
   },
   sort: {
     label: "정렬",
+    relevance: "관련도",
     updatedAt: "최근 업데이트",
     createdAt: "생성 날짜",
     byTitle: "제목순",

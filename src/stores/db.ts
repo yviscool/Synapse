@@ -1,7 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import type { Prompt, PromptVersion, Category, Tag, Settings } from "@/types/prompt";
 import type { Snippet, SnippetFolder, SnippetTag, SnippetSearchIndex } from "@/types/snippet";
-import type { ChatConversation, ChatTag, ChatSearchIndex } from "@/types/chat";
+import type { ChatConversation, ChatTag, ChatSearchIndex, ChatMessageSearchIndex } from "@/types/chat";
 import { getDefaultCategories } from "@/utils/categoryUtils";
 import { resolveSystemLocale } from "@/utils/locale";
 
@@ -11,6 +11,7 @@ export interface PromptSearchIndex {
   titleTokens: string[];
   tagTokens: string[];
   updatedAt: number;
+  tokenizerVersion?: number;
 }
 
 export class APMDB extends Dexie {
@@ -29,6 +30,7 @@ export class APMDB extends Dexie {
   chat_conversations!: Table<ChatConversation, string>;
   chat_tags!: Table<ChatTag, string>;
   chat_search_index!: Table<ChatSearchIndex, string>;
+  chat_message_search_index!: Table<ChatMessageSearchIndex, string>;
 
   constructor() {
     super("apm");
@@ -82,6 +84,24 @@ export class APMDB extends Dexie {
       chat_conversations: "id, platform, externalId, title, *tagIds, starred, updatedAt, createdAt, collectedAt, messageCount",
       chat_tags: "id, name",
       chat_search_index: "&conversationId, *tokens, *titleTokens, *tagTokens, updatedAt",
+    });
+    // Version 6: Add chat message search index
+    this.version(6).stores({
+      prompts:
+        "id, title, *categoryIds, *tagIds, updatedAt, favorite, createdAt",
+      prompt_versions: "id, promptId, createdAt",
+      categories: "id, name, sort, icon",
+      tags: "id, name",
+      settings: "id",
+      prompt_search_index: "&promptId, *tokens, *titleTokens, *tagTokens, updatedAt",
+      snippets: "id, title, language, folderId, *tagIds, starred, updatedAt, createdAt, usedAt, useCount",
+      snippet_folders: "id, name, parentId, order, createdAt",
+      snippet_tags: "id, name",
+      snippet_search_index: "&snippetId, *tokens, *titleTokens, *tagTokens, updatedAt",
+      chat_conversations: "id, platform, externalId, title, *tagIds, starred, updatedAt, createdAt, collectedAt, messageCount",
+      chat_tags: "id, name",
+      chat_search_index: "&conversationId, *tokens, *titleTokens, *tagTokens, updatedAt",
+      chat_message_search_index: "&id, conversationId, platform, role, messageIndex, *tokens, *tagIds, starred, updatedAt, createdAt, collectedAt",
     });
   }
 }

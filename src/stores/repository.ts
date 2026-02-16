@@ -11,6 +11,7 @@ import {
 } from "./promptSearch";
 import { rebuildSnippetSearchIndex } from "./snippetSearch";
 import { rebuildChatSearchIndex } from "./chatSearch";
+import { rebuildChatMessageSearchIndex } from "./chatMessageSearch";
 import { createEventBus, createCommitNotifier } from "./repositoryHelpers";
 import type {
   Prompt,
@@ -555,6 +556,7 @@ export const repository = {
         db.chat_conversations,
         db.chat_tags,
         db.chat_search_index,
+        db.chat_message_search_index,
       ],
       async () => {
         const currentSettings = await db.settings.get("global");
@@ -597,6 +599,7 @@ export const repository = {
         await db.chat_conversations.clear();
         await db.chat_tags.clear();
         await db.chat_search_index.clear();
+        await db.chat_message_search_index.clear();
         if (Array.isArray(importedData.chat_conversations)) {
           await db.chat_conversations.bulkPut(importedData.chat_conversations as ChatConversation[]);
         }
@@ -622,6 +625,7 @@ export const repository = {
         await rebuildPromptSearchIndex();
         await rebuildSnippetSearchIndex();
         await rebuildChatSearchIndex();
+        await rebuildChatMessageSearchIndex();
       },
       "allChanged",
     );
@@ -643,6 +647,7 @@ export const repository = {
         db.chat_conversations,
         db.chat_tags,
         db.chat_search_index,
+        db.chat_message_search_index,
       ],
       async () => {
         const currentSettings = await db.settings.get("global");
@@ -664,6 +669,7 @@ export const repository = {
         await db.chat_conversations.clear();
         await db.chat_tags.clear();
         await db.chat_search_index.clear();
+        await db.chat_message_search_index.clear();
 
         // --- Settings ---
         await db.settings.clear();

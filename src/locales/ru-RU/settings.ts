@@ -25,6 +25,7 @@ export default {
   },
   sort: {
     label: "Сортировка",
+    relevance: "По релевантности",
     updatedAt: "Последнее обновление",
     createdAt: "Дата создания",
     byTitle: "По заголовку",

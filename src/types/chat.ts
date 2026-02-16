@@ -115,6 +115,26 @@ export interface ChatSearchIndex {
   updatedAt: number
 }
 
+/** 消息级搜索索引 */
+export interface ChatMessageSearchIndex {
+  id: string
+  conversationId: string
+  platform: ChatPlatform
+  role: MessageRole
+  messageIndex: number
+  messageId?: string
+  title: string
+  content: string
+  normalizedTitle: string
+  normalizedContent: string
+  tokens: string[]
+  tagIds: string[]
+  starred: boolean
+  createdAt: number
+  updatedAt: number
+  collectedAt: number
+}
+
 /** 查询参数 */
 export interface QueryChatsParams {
   searchQuery?: string
@@ -133,6 +153,43 @@ export interface QueryChatsParams {
 /** 查询结果 */
 export interface QueryChatsResult {
   conversations: ChatConversation[]
+  total: number
+}
+
+/** 消息级搜索参数 */
+export interface QueryChatMessageHitsParams {
+  searchQuery: string
+  platforms?: ChatPlatform[]
+  tagIds?: string[]
+  starredOnly?: boolean
+  dateRange?: {
+    start?: number
+    end?: number
+  }
+  page?: number
+  limit?: number
+}
+
+/** 消息级命中项 */
+export interface ChatMessageHit {
+  id: string
+  conversationId: string
+  platform: ChatPlatform
+  role: MessageRole
+  messageIndex: number
+  title: string
+  content: string
+  tagIds: string[]
+  starred: boolean
+  createdAt: number
+  updatedAt: number
+  collectedAt: number
+  score: number
+}
+
+/** 消息级搜索结果 */
+export interface QueryChatMessageHitsResult {
+  hits: ChatMessageHit[]
   total: number
 }
 

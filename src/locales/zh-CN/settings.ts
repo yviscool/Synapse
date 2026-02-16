@@ -2,6 +2,7 @@ export default {
   title: "设置",
   sort: {
     label: "排序方式",
+    relevance: "相关度",
     updatedAt: "最近更新",
     createdAt: "创建时间",
     byTitle: "标题排序",

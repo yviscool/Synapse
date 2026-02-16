@@ -3,6 +3,7 @@ import { refDebounced } from "@vueuse/core";
 import { chatRepository } from "@/stores/chatRepository";
 import type {
   ChatConversation,
+  ChatMessageHit,
   ChatTag,
   ChatPlatform,
 } from "@/types/chat";
@@ -20,6 +21,7 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
 
   // Data
   const conversations = ref<ChatConversation[]>([]);
+  const messageHits = ref<ChatMessageHit[]>([]);
   const tags = ref<Array<ChatTag & { count: number }>>([]);
   const platformCounts = ref<Map<ChatPlatform, number>>(new Map());
 
@@ -34,9 +36,16 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
 
   // Pagination
   const totalConversations = ref(0);
+  const totalMessageHits = ref(0);
   const currentPage = ref(1);
   const isLoading = ref(false);
-  const hasMore = computed(() => conversations.value.length < totalConversations.value);
+  const isSearchMode = computed(() => !!searchQueryDebounced.value.trim());
+  const hasMore = computed(() => {
+    if (isSearchMode.value) {
+      return messageHits.value.length < totalMessageHits.value;
+    }
+    return conversations.value.length < totalConversations.value;
+  });
 
   let hasPendingRefetch = false;
 
@@ -44,6 +53,7 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
   function buildFetchStateKey() {
     return JSON.stringify({
       page: currentPage.value,
+      mode: isSearchMode.value ? "message" : "conversation",
       sortBy: sortBy.value,
       starredOnly: showStarredOnly.value,
       searchQuery: searchQueryDebounced.value,
@@ -63,12 +73,36 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
     const fetchStateKey = buildFetchStateKey();
 
     try {
+      if (isSearchMode.value) {
+        const result = await chatRepository.queryMessageHits({
+          page: currentPage.value,
+          limit: PAGE_SIZE,
+          searchQuery: searchQueryDebounced.value,
+          starredOnly: showStarredOnly.value,
+          platforms: selectedPlatforms.value.length > 0 ? selectedPlatforms.value : undefined,
+          tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
+          dateRange: (dateRange.value.start || dateRange.value.end) ? dateRange.value : undefined,
+        });
+
+        if (fetchStateKey !== buildFetchStateKey()) {
+          hasPendingRefetch = true;
+          return;
+        }
+
+        if (currentPage.value === 1) {
+          messageHits.value = result.hits;
+        } else {
+          messageHits.value.push(...result.hits);
+        }
+        totalMessageHits.value = result.total;
+        return;
+      }
+
       const result = await chatRepository.queryConversations({
         page: currentPage.value,
         limit: PAGE_SIZE,
         sortBy: sortBy.value,
         starredOnly: showStarredOnly.value,
-        searchQuery: searchQueryDebounced.value || undefined,
         platforms: selectedPlatforms.value.length > 0 ? selectedPlatforms.value : undefined,
         tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
         dateRange: (dateRange.value.start || dateRange.value.end) ? dateRange.value : undefined,
@@ -81,10 +115,12 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
 
       if (currentPage.value === 1) {
         conversations.value = result.conversations;
+        messageHits.value = [];
       } else {
         conversations.value.push(...result.conversations);
       }
       totalConversations.value = result.total;
+      totalMessageHits.value = 0;
     } catch (error) {
       console.error("Failed to fetch conversations:", error);
       onLoadError?.();
@@ -100,7 +136,9 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
   async function refetchFromFirstPage() {
     currentPage.value = 1;
     totalConversations.value = 0;
+    totalMessageHits.value = 0;
     conversations.value = [];
+    messageHits.value = [];
     await fetchConversations();
   }
 
@@ -212,6 +250,7 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
   return {
     // Data
     conversations,
+    messageHits,
     tags,
     platformCounts,
 
@@ -223,9 +262,11 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
     showStarredOnly,
     sortBy,
     dateRange,
+    isSearchMode,
 
     // Pagination
     totalConversations,
+    totalMessageHits,
     currentPage,
     isLoading,
     hasMore,

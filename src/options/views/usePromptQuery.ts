@@ -5,7 +5,7 @@ import { queryPrompts, type PromptWithMatches } from "@/stores/promptSearch";
 import type { Tag } from "@/types/prompt";
 import { parseQuery } from "@/utils/queryParser";
 
-type SortBy = "updatedAt" | "createdAt" | "title";
+type SortBy = "relevance" | "updatedAt" | "createdAt" | "title";
 
 const PAGE_SIZE = 20;
 
