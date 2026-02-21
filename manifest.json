@@ -34,7 +34,8 @@
     "https://longcat.chat/*",
     "https://chat.inceptionlabs.ai/*",
     "https://grok.com/*",
-    "https://agent.minimaxi.com/*"
+    "https://agent.minimaxi.com/*",
+    "https://*.web-sandbox.oaiusercontent.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -67,6 +68,17 @@
       "js": [
         "content.js"
       ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.web-sandbox.oaiusercontent.com/*"
+      ],
+      "js": [
+        "page-bridges/frame-dom-bridge.js"
+      ],
+      "all_frames": true,
+      "match_about_blank": true,
       "run_at": "document_idle"
     }
   ],

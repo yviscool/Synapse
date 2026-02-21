@@ -45,21 +45,22 @@ async function getPromptLookupCache(forceRefresh = false): Promise<PromptLookupC
 }
 
 // Async message handlers — each returns a result that gets wrapped in { ok: true, ...result }
-const asyncHandlers: Partial<Record<string, (data: any) => Promise<any>>> = {
+const asyncHandlers: Partial<Record<string, (data: any, sender: chrome.runtime.MessageSender) => Promise<any>>> = {
   [MSG.GET_PROMPTS]: (d) => handleGetPrompts(d),
   [MSG.GET_CATEGORIES]: () => db.categories.toArray().then(data => ({ data })),
   [MSG.GET_SETTINGS]: () => getSettings().then(data => ({ data })),
   [MSG.OPEN_OPTIONS]: (d) => openOptionsPage(d),
   [MSG.CHAT_SAVE]: (d) => handleChatSave(d),
+  [MSG.CHAT_COLLECT_FRAME_SNAPSHOTS]: (_d, sender) => handleCollectFrameSnapshots(sender),
 }
 
-chrome.runtime.onMessage.addListener((msg: RequestMessage, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse) => {
   const { type, data } = msg
 
   // Async handlers: resolve → sendResponse, keep channel open
   const handler = asyncHandlers[type]
   if (handler) {
-    handler(data)
+    handler(data, sender)
       .then(res => sendResponse({ ok: true, ...res }))
       .catch(e => sendResponse({ ok: false, error: e.message }))
     return true
@@ -84,6 +85,98 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, _sender, sendResponse
     return false
   }
 })
+
+type FrameSnapshot = {
+  url: string
+  title: string
+  content: string
+  html?: string
+}
+
+async function handleCollectFrameSnapshots(sender: chrome.runtime.MessageSender): Promise<{ data: FrameSnapshot[] }> {
+  const tabId = sender.tab?.id
+  if (!tabId) return { data: [] }
+
+  const results = await new Promise<chrome.scripting.InjectionResult<FrameSnapshot | null>[]>((resolve, reject) => {
+    chrome.scripting.executeScript(
+      {
+        target: { tabId, allFrames: true },
+        func: () => {
+          const host = window.location.hostname
+          if (!host.endsWith('.web-sandbox.oaiusercontent.com')) {
+            return null
+          }
+
+          const selectors = [
+            '#extended-response-markdown-content',
+            '[data-test-id="message-content"] .markdown-main-panel',
+            'main article',
+            'article',
+            'main',
+          ]
+
+          let root: Element | null = null
+          for (const selector of selectors) {
+            root = document.querySelector(selector)
+            if (root) break
+          }
+          if (!root) root = document.body
+
+          const clone = root.cloneNode(true) as Element
+          clone.querySelectorAll('script, style, noscript, template, svg, canvas, button').forEach((el) => el.remove())
+
+          const normalize = (text: string): string => {
+            return text
+              .replace(/\u200B/g, '')
+              .replace(/\u00A0/g, ' ')
+              .replace(/\r\n?/g, '\n')
+              .replace(/[ \t]+\n/g, '\n')
+              .replace(/\n{3,}/g, '\n\n')
+              .trim()
+          }
+
+          const content = normalize(clone.textContent || '').slice(0, 200000)
+          if (!content) return null
+
+          let html = String(clone.innerHTML || '').trim()
+          if (html.length > 400000) html = html.slice(0, 400000)
+
+          const title = normalize(
+            document.querySelector('h1, h2, h3')?.textContent
+            || document.title
+            || '',
+          ).slice(0, 400)
+
+          return {
+            url: window.location.href,
+            title,
+            content,
+            html,
+          }
+        },
+      },
+      (injectionResults) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message))
+          return
+        }
+        resolve(injectionResults || [])
+      },
+    )
+  })
+
+  const data = results
+    .map(item => item.result)
+    .filter((item): item is FrameSnapshot => !!item && !!item.content)
+
+  console.debug('[Background] frame snapshots', {
+    tabId,
+    injectedFrames: results.length,
+    capturedFrames: data.length,
+  })
+
+  return { data }
+}
 
 async function handleGetPrompts(
   payload?: GetPromptsPayload,
