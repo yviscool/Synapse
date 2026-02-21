@@ -118,6 +118,22 @@ function normalizeLang(lang?: string): string {
   return (lang || '').trim().split(/\s+/, 1)[0].toLowerCase()
 }
 
+function looksLikeMermaidSource(source: string): boolean {
+  const trimmed = source.trim()
+  return /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|xychart|block-beta|packet-beta|architecture-beta|kanban)/i.test(trimmed)
+}
+
+function normalizeMermaidSource(source: string): string {
+  return source
+    .replace(/<\/?span\b[^>]*>/gi, '')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, '\'')
+    .trim()
+}
+
 function getCodeLangLabel(lang: string): string {
   if (!lang) return 'Text'
   const known = CODE_LANG_LABELS[lang]
@@ -206,7 +222,14 @@ export const markedWithHighlight = new Marked(
     langPrefix: 'hljs language-',
     highlight(code, lang) {
       const normalizedLang = normalizeLang(lang)
+      const maybeMermaid = looksLikeMermaidSource(normalizeMermaidSource(code))
       if (MERMAID_LANGS.has(normalizedLang)) {
+        return code
+      }
+      if (
+        (!normalizedLang || normalizedLang === 'text' || normalizedLang === 'plaintext')
+        && maybeMermaid
+      ) {
         return code
       }
       if (normalizedLang && hljs.getLanguage(normalizedLang)) {
@@ -222,8 +245,15 @@ export const markedWithHighlight = new Marked(
     renderer: {
       code({ text, lang, escaped }) {
         const normalizedLang = normalizeLang(lang)
-        if (MERMAID_LANGS.has(normalizedLang)) {
-          const source = escapeHtml(text).trim()
+        const normalizedMermaidSource = normalizeMermaidSource(text)
+        const shouldRenderMermaid = MERMAID_LANGS.has(normalizedLang)
+          || (
+            (!normalizedLang || normalizedLang === 'text' || normalizedLang === 'plaintext')
+            && looksLikeMermaidSource(normalizedMermaidSource)
+          )
+
+        if (shouldRenderMermaid) {
+          const source = escapeHtml(normalizedMermaidSource)
           return `<div class="md-mermaid-block">
   <div class="md-mermaid-banner">
     <div class="md-mermaid-tabs">

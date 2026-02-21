@@ -292,7 +292,7 @@ export const siteConfigs: Record<string, SiteConfig> = {
   },
   'copilot.microsoft.com': {
     platform: 'copilot',
-    observeTarget: '[data-testid="highlighted-chats"]',
+    observeTarget: '[data-content="conversation"]',
     userMessage: '[role="article"][class*="group/user-message"]',
     messageText: '[data-content="user-message"]',
     waitForElement: '[data-content="user-message"]',

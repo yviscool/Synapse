@@ -17,6 +17,34 @@ import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class CopilotAdapter extends BaseAdapter {
+  private resolveConversationRoot(): ParentNode {
+    const candidates = Array.from(
+      document.querySelectorAll('main, [role="main"], [data-testid="highlighted-chats"]'),
+    )
+
+    if (candidates.length === 0) return document
+
+    let best: Element = candidates[0]
+    let bestScore = -1
+
+    for (const candidate of candidates) {
+      const score = candidate.querySelectorAll(
+        '[role="article"][class*="group/user-message"], [role="article"][class*="group/ai-message"]',
+      ).length
+      if (score > bestScore) {
+        best = candidate
+        bestScore = score
+      }
+    }
+
+    return best
+  }
+
+  private isMermaidContent(code: string): boolean {
+    const trimmed = code.trim()
+    return /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|xychart|block-beta|packet-beta|architecture-beta|kanban)/i.test(trimmed)
+  }
+
   override isConversationPage(): boolean {
     if (!super.isConversationPage()) return false
     return !!document.querySelector('[data-content="user-message"], [data-content="ai-message"]')
@@ -77,7 +105,8 @@ export class CopilotAdapter extends BaseAdapter {
       if (!md) return
 
       const wrapper = table.closest('.horizontal-scrollbar') || table
-      wrapper.replaceWith(md)
+      // 额外补一个空行，避免后续段落被 Markdown 解析器并入表格
+      wrapper.replaceWith(`\n${md.trim()}\n\n`)
     })
 
     // 2) 代码块
@@ -90,14 +119,28 @@ export class CopilotAdapter extends BaseAdapter {
       const codeText = codeEl.textContent || ''
       const classLang = codeEl.className.match(/\blanguage-([a-z0-9#+-]+)/i)?.[1] || ''
 
-      const codeCard = pre.closest('div.rounded-xl, div[class*="rounded-xl"]')
-      const hasCopyButton = !!codeCard?.querySelector('button[title*="复制代码"]')
-      const cardLang = hasCopyButton
-        ? (codeCard?.querySelector('span.capitalize')?.textContent || '').trim().toLowerCase()
-        : ''
+      // 向上回溯寻找“完整代码卡片”（含语言/复制工具栏），避免仅替换 pre 导致工具栏文本残留
+      let codeCard: Element | null = null
+      let cursor: Element | null = pre
+      while (cursor && cursor !== clone) {
+        const hasCode = !!cursor.querySelector('pre code')
+        const hasCopy = !!cursor.querySelector(
+          'button[title*="复制代码"], button[title*="Copy code"], button[aria-label*="复制代码"], button[aria-label*="Copy code"]',
+        )
+        const hasLangTag = !!cursor.querySelector('span.capitalize')
+        if (hasCode && (hasCopy || hasLangTag)) {
+          codeCard = cursor
+          break
+        }
+        cursor = cursor.parentElement
+      }
 
-      const lang = (classLang || cardLang).trim().toLowerCase()
-      const fenced = `\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`
+      const cardLang = (codeCard?.querySelector('span.capitalize')?.textContent || '').trim().toLowerCase()
+      const rawLang = (classLang || cardLang).trim().toLowerCase()
+      const lang = this.isMermaidContent(codeText)
+        ? 'mermaid'
+        : (rawLang === 'text' ? '' : rawLang)
+      const fenced = `\n\`\`\`${lang}\n${codeText}\n\`\`\`\n\n`
 
       if (codeCard && codeCard.contains(pre)) {
         codeCard.replaceWith(fenced)
@@ -105,17 +148,39 @@ export class CopilotAdapter extends BaseAdapter {
         pre.replaceWith(fenced)
       }
     })
+
+    // 3) 清理可能残留的代码工具栏文案
+    clone
+      .querySelectorAll(
+        'button[title*="复制代码"], button[title*="Copy code"], button[title*="折叠代码片段"], button[title*="Collapse"]',
+      )
+      .forEach((btn) => btn.remove())
+    clone.querySelectorAll('span.capitalize').forEach((el) => {
+      const parent = el.closest('div')
+      if (parent?.querySelector('pre code, button[title*="复制代码"], button[title*="Copy code"]')) {
+        el.remove()
+      }
+    })
   }
 
   collectMessages(): ChatMessage[] {
     const messages: ChatMessage[] = []
-    const root = document.querySelector(this.config.observeTarget) || document
+    const root = this.resolveConversationRoot()
     const articles = root.querySelectorAll('[role="article"]')
 
     for (const article of Array.from(articles)) {
+      const className = article.getAttribute('class') || ''
+      const dataContent = article.getAttribute('data-content') || ''
+      const dataTestId = article.getAttribute('data-testid') || ''
+      const isUserArticle = className.includes('group/user-message') || dataContent === 'user-message'
+      const isAiArticle = className.includes('group/ai-message')
+        || dataContent === 'ai-message'
+        || dataTestId === 'ai-message'
+
       // ── 用户消息 ──
-      const userEl = article.querySelector('[data-content="user-message"]')
-      if (userEl) {
+      if (isUserArticle) {
+        const userEl = article.querySelector('[data-content="user-message"]')
+        if (!userEl) continue
         const text = this.extractText(userEl)
         if (text) {
           messages.push({
@@ -129,10 +194,11 @@ export class CopilotAdapter extends BaseAdapter {
       }
 
       // ── AI 回复 ──
-      const isAi = article.matches('[data-content="ai-message"], [data-testid="ai-message"]')
-      if (!isAi) continue
+      if (!isAiArticle) continue
 
-      const itemNodes = article.querySelectorAll('.group\\/ai-message-item, [class*="group/ai-message-item"]')
+      const itemNodes = article.querySelectorAll(
+        ':scope .group\\/ai-message-item, :scope [class*="group/ai-message-item"]',
+      )
       const parts: string[] = []
       const seen = new Set<string>()
 
@@ -142,6 +208,15 @@ export class CopilotAdapter extends BaseAdapter {
         seen.add(content)
         parts.push(content)
       })
+
+      // 兜底：有些版本 class 命名变化，直接取 AI article 主体文本区
+      if (parts.length === 0) {
+        const body = article.querySelector(':scope > .space-y-3, :scope .space-y-3.mt-3')
+        if (body) {
+          const content = this.extractMarkdown(body).trim()
+          if (content) parts.push(content)
+        }
+      }
 
       const merged = parts.join('\n\n').trim()
       if (merged) {
