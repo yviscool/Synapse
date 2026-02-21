@@ -28,7 +28,6 @@ export function usePromptQuery({
   const selectedCategories = ref<string[]>([]);
   const selectedTags = ref<string[]>([]);
   const showFavoriteOnly = ref(false);
-  const sortBy = ref<SortBy>("updatedAt");
   const totalPrompts = ref(0);
   const currentPage = ref(1);
   const isLoading = ref(false);
@@ -51,7 +50,6 @@ export function usePromptQuery({
     const { categoryIds, categoryNames, tagNames } = resolveActiveFilters();
     return JSON.stringify({
       page: currentPage.value,
-      sortBy: sortBy.value,
       favoriteOnly: showFavoriteOnly.value,
       searchQuery: plainSearchQuery.value,
       categoryIds,
@@ -69,12 +67,15 @@ export function usePromptQuery({
     isLoading.value = true;
     const fetchStateKey = buildFetchStateKey();
     const { categoryIds, categoryNames, tagNames } = resolveActiveFilters();
+    const activeSortBy: SortBy = plainSearchQuery.value
+      ? "relevance"
+      : "updatedAt";
 
     try {
       const { prompts: newPrompts, total } = await queryPrompts({
         page: currentPage.value,
         limit: PAGE_SIZE,
-        sortBy: sortBy.value,
+        sortBy: activeSortBy,
         favoriteOnly: showFavoriteOnly.value,
         searchQuery: plainSearchQuery.value,
         categoryIds,
@@ -169,10 +170,6 @@ export function usePromptQuery({
     }
   }
 
-  function changeSortBy(value: SortBy) {
-    sortBy.value = value;
-  }
-
   watch(searchQueryDebounced, (newQuery) => {
     const { text, categoryNames, tagNames } = parseQuery(newQuery);
     plainSearchQuery.value = text;
@@ -195,7 +192,6 @@ export function usePromptQuery({
       parsedCategoryNames,
       parsedTagNames,
       showFavoriteOnly,
-      sortBy,
     ],
     () => {
       refetchFromFirstPage();
@@ -225,7 +221,6 @@ export function usePromptQuery({
     selectedCategories,
     selectedTags,
     showFavoriteOnly,
-    sortBy,
     currentPage,
     isLoading,
     hasMore,
@@ -233,6 +228,5 @@ export function usePromptQuery({
     refetchFromFirstPage,
     toggleCategory,
     toggleTag,
-    changeSortBy,
   };
 }

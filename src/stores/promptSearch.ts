@@ -24,13 +24,24 @@ function isCjkToken(token: string): boolean {
   return CJK_TOKEN_RE.test(token);
 }
 
-function extractQueryTokens(query: string): string[] {
+function extractQueryTokens(
+  query: string,
+  options: { includeSingleCjk?: boolean } = {},
+): string[] {
   const normalizedQuery = normalizeSearchText(query);
   const rawTokens = collectSearchTokens(query, SEARCH_MAX_QUERY_TOKENS);
   if (normalizedQuery.length === 1) {
     return [...new Set(rawTokens)].filter(Boolean);
   }
-  return rawTokens.filter((token) => isCjkToken(token) || token.length >= 2);
+
+  const includeSingleCjk = options.includeSingleCjk ?? false;
+  return rawTokens.filter((token) => {
+    if (!token) return false;
+    if (isCjkToken(token)) {
+      return includeSingleCjk || token.length >= 2;
+    }
+    return token.length >= 2;
+  });
 }
 
 export function buildPromptSearchIndexRecord(
@@ -482,17 +493,20 @@ export async function queryPrompts(
     categoryNames: initialCategoryNames,
     tagNames,
     favoriteOnly,
-    sortBy = "updatedAt",
+    sortBy,
     page = 1,
     limit = 20,
   } = params;
 
   const offset = (page - 1) * limit;
   const normalizedSearchQuery = searchQuery ? normalizeSearchText(searchQuery) : "";
-  const queryTokens = searchQuery ? extractQueryTokens(searchQuery) : [];
+  const hasSearchQuery = normalizedSearchQuery.length > 0;
+  let queryTokens = searchQuery ? extractQueryTokens(searchQuery) : [];
   const resolvedCategoryNames = normalizeCategoryNames(category, initialCategoryNames);
   const resolvedTagNames =
     tagNames?.map((name) => name.trim()).filter(Boolean) || [];
+  const effectiveSortBy: "updatedAt" | "createdAt" | "title" | "relevance" =
+    sortBy ?? (hasSearchQuery ? "relevance" : "updatedAt");
 
   const categoryIds = await resolveCategoryIds(
     resolvedCategoryNames,
@@ -513,9 +527,9 @@ export async function queryPrompts(
   }
 
   const databaseSortBy: "updatedAt" | "createdAt" | "title" =
-    sortBy === "relevance"
+    effectiveSortBy === "relevance"
       ? "updatedAt"
-      : sortBy;
+      : effectiveSortBy;
 
   // 常见热路径：无搜索、无其他过滤时直接走数据库分页，避免全表加载后再切片
   if (
@@ -537,11 +551,36 @@ export async function queryPrompts(
     return { prompts, total };
   }
 
-  let filteredPrompts = searchQuery
-    ? (queryTokens.length > 0
-      ? (await searchPromptsByIndex(normalizedSearchQuery, queryTokens) as PromptWithMatches[])
-      : (await searchPromptsBySubstring(normalizedSearchQuery) as PromptWithMatches[]))
-    : await fetchPromptsWithoutSearch(databaseSortBy, categoryIds, tagIds);
+  let filteredPrompts: PromptWithMatches[] = [];
+  if (hasSearchQuery) {
+    if (queryTokens.length > 0) {
+      filteredPrompts = await searchPromptsByIndex(
+        normalizedSearchQuery,
+        queryTokens,
+      ) as PromptWithMatches[];
+
+      if (filteredPrompts.length === 0 && normalizedSearchQuery.length > 1 && searchQuery) {
+        const fallbackTokens = extractQueryTokens(searchQuery, {
+          includeSingleCjk: true,
+        });
+        const hasDifferentFallback =
+          fallbackTokens.length > 0 &&
+          fallbackTokens.join("\u0000") !== queryTokens.join("\u0000");
+
+        if (hasDifferentFallback) {
+          filteredPrompts = await searchPromptsByIndex(
+            normalizedSearchQuery,
+            fallbackTokens,
+          ) as PromptWithMatches[];
+          queryTokens = fallbackTokens;
+        }
+      }
+    } else {
+      filteredPrompts = await searchPromptsBySubstring(normalizedSearchQuery) as PromptWithMatches[];
+    }
+  } else {
+    filteredPrompts = await fetchPromptsWithoutSearch(databaseSortBy, categoryIds, tagIds);
+  }
 
   const filterConditions: ((p: Prompt) => boolean)[] = [];
   if (favoriteOnly) {
@@ -564,14 +603,14 @@ export async function queryPrompts(
     );
   }
 
-  if (searchQuery && sortBy !== "relevance") {
-    filteredPrompts = sortPromptsInMemory(filteredPrompts, sortBy);
+  if (hasSearchQuery && effectiveSortBy !== "relevance") {
+    filteredPrompts = sortPromptsInMemory(filteredPrompts, effectiveSortBy);
   }
 
   const total = filteredPrompts.length;
   let paginatedPrompts = filteredPrompts.slice(offset, offset + limit);
 
-  if (searchQuery && normalizedSearchQuery) {
+  if (hasSearchQuery && normalizedSearchQuery) {
     paginatedPrompts = paginatedPrompts.map((prompt) => ({
       ...prompt,
       matches: buildPromptMatches(prompt, normalizedSearchQuery, queryTokens),

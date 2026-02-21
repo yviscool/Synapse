@@ -454,7 +454,7 @@ whenever(keys.Escape, () => {
 
 // Tab键：切换到下一个分类
 whenever(keys.Tab, () => {
-    if (!visible.value || editorVisible.value) return;
+    if (!visible.value || editorVisible.value || !!searchQueryDebounced.value.trim()) return;
     const idx = categoryOptions.value.indexOf(selectedCategory.value);
     const next =
         (idx + 1 + categoryOptions.value.length) % categoryOptions.value.length;
@@ -463,7 +463,7 @@ whenever(keys.Tab, () => {
 
 // Shift+Tab：切换到上一个分类
 whenever(keys["Shift+Tab"], () => {
-    if (!visible.value || editorVisible.value) return;
+    if (!visible.value || editorVisible.value || !!searchQueryDebounced.value.trim()) return;
     const idx = categoryOptions.value.indexOf(selectedCategory.value);
     const next =
         (idx - 1 + categoryOptions.value.length) % categoryOptions.value.length;

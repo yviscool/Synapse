@@ -26,6 +26,16 @@
  *                                               ├── generated-image     ← AI 生成图片
  *                                               │     └── single-image > .image-container > img.image
  *                                               └── span.math-inline[data-math]  ← KaTeX 公式
+ *
+ *   深度调研报告（Deep Research）：
+ *   immersive-panel
+ *     └── deep-research-immersive-panel
+ *           ├── structured-content-container[data-test-id="message-content"]
+ *           │     └── #extended-response-markdown-content
+ *           └── thinking-panel
+ *                 └── thought-item
+ *                       ├── [data-test-id="thought-header"]
+ *                       └── [data-test-id="thought-body"]
  */
 
 import { BaseAdapter, DEFAULT_TITLE } from './base'
@@ -37,6 +47,10 @@ import type { ChatMessage } from '@/types/chat'
 const thinkingCache = new Map<string, string>()
 
 export class GeminiAdapter extends BaseAdapter {
+  private isDeepResearchImmersiveMode(): boolean {
+    return !!document.querySelector('deep-research-immersive-panel, immersive-panel deep-research-immersive-panel')
+  }
+
   override getTitle(): string {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
@@ -50,6 +64,13 @@ export class GeminiAdapter extends BaseAdapter {
     if (firstQuery) {
       const text = this.extractText(firstQuery)
       return text.slice(0, 50) + (text.length > 50 ? '...' : '')
+    }
+
+    const deepResearchH1 = document.querySelector('#extended-response-markdown-content h1')
+      || document.querySelector('deep-research-immersive-panel .markdown-main-panel h1')
+    if (deepResearchH1) {
+      const text = this.extractText(deepResearchH1)
+      if (text) return text.slice(0, 80) + (text.length > 80 ? '...' : '')
     }
 
     return DEFAULT_TITLE
@@ -75,6 +96,21 @@ export class GeminiAdapter extends BaseAdapter {
       const tex = math.getAttribute('data-math') || math.textContent || ''
       math.replaceWith(`$$${tex}$$`)
     })
+
+    // 1.1 深度调研引用组件：脚注索引改写为文本标记，避免被 response-element 清理吞掉
+    clone.querySelectorAll('source-footnote').forEach((footnote) => {
+      const idx =
+        footnote.querySelector('sup')?.getAttribute('data-turn-source-index')
+        || footnote.querySelector('.superscript')?.getAttribute('data-turn-source-index')
+      footnote.replaceWith(idx ? `[^${idx}]` : '')
+    })
+
+    // 1.2 深度调研来源轮播/交互组件：采集正文时直接降噪移除
+    clone
+      .querySelectorAll(
+        'sources-carousel-inline, sources-carousel, deep-research-source-lists, collapsible-button',
+      )
+      .forEach((el) => el.remove())
 
     // 2. Gemini code-block 自定义元素
     clone.querySelectorAll('code-block').forEach((block) => {
@@ -130,6 +166,65 @@ export class GeminiAdapter extends BaseAdapter {
     })
   }
 
+  private collectDeepResearchThinking(): string | undefined {
+    const blocks: string[] = []
+    const seen = new Set<string>()
+
+    const thoughtItems = document.querySelectorAll(
+      'deep-research-immersive-panel thinking-panel thought-item, immersive-panel thinking-panel thought-item',
+    )
+
+    thoughtItems.forEach((item) => {
+      const header = this.extractText(
+        item.querySelector('[data-test-id="thought-header"], .thought-header'),
+      )
+      const bodyEl = item.querySelector('[data-test-id="thought-body"], .thought-body')
+      const body = bodyEl ? this.extractMarkdown(bodyEl).trim() : ''
+
+      const merged = header && body
+        ? `### ${header}\n${body}`
+        : (body || header)
+      const normalized = merged.trim()
+      if (!normalized || seen.has(normalized)) return
+
+      seen.add(normalized)
+      blocks.push(normalized)
+    })
+
+    return blocks.length > 0 ? blocks.join('\n\n') : undefined
+  }
+
+  private collectDeepResearchMessages(): ChatMessage[] {
+    const responseEl
+      = document.querySelector('#extended-response-markdown-content')
+        || document.querySelector(
+          'deep-research-immersive-panel [data-test-id="message-content"] .markdown-main-panel',
+        )
+        || document.querySelector(
+          'immersive-panel [data-test-id="message-content"] .markdown-main-panel',
+        )
+
+    const content = responseEl ? this.extractMarkdown(responseEl).trim() : ''
+    const thinking = this.collectDeepResearchThinking()
+
+    if (!content && !thinking) {
+      return []
+    }
+
+    return [
+      {
+        id: this.generateMessageId(),
+        role: 'assistant',
+        content: content || '',
+        timestamp: Date.now(),
+        ...(thinking ? { thinking } : {}),
+        metadata: {
+          mode: 'deep-research',
+        },
+      },
+    ]
+  }
+
   /**
    * 只展开尚未缓存的折叠思考区域
    * 已缓存的跳过 → 首次短暂闪烁一次，之后零闪烁
@@ -180,6 +275,10 @@ export class GeminiAdapter extends BaseAdapter {
   }
 
   collectMessages(): ChatMessage[] {
+    if (this.isDeepResearchImmersiveMode()) {
+      return this.collectDeepResearchMessages()
+    }
+
     const messages: ChatMessage[] = []
 
     const containers = document.querySelectorAll('.conversation-container')

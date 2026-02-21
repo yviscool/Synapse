@@ -36,7 +36,10 @@
       </div>
 
       <!-- Categories -->
-      <div class="px-5 pb-2 pt-2 flex-shrink-0 bg-white/60 dark:bg-[#09090b]/60 backdrop-blur-sm overflow-x-auto no-scrollbar mask-gradient-right">
+      <div
+        v-if="!isSearchMode"
+        class="px-5 pb-2 pt-2 flex-shrink-0 bg-white/60 dark:bg-[#09090b]/60 backdrop-blur-sm overflow-x-auto no-scrollbar mask-gradient-right"
+      >
         <div class="flex gap-2">
           <button
             v-for="c in categories"
@@ -118,7 +121,7 @@
       <footer class="synapse-footer px-5 py-2 bg-white dark:bg-[#09090b] border-t border-neutral-100 dark:border-white/5 text-[10px] font-medium flex justify-between items-center select-none overflow-hidden">
         <div class="flex gap-4 whitespace-nowrap synapse-footer-text opacity-50">
            <span><b class="font-bold">↑↓</b> {{ t('content.navTip') }}</span>
-           <span v-if="!props.isComposerVisible"><b class="font-bold">Tab</b> {{ t('content.categoryTip') }}</span>
+           <span v-if="!props.isComposerVisible && !isSearchMode"><b class="font-bold">Tab</b> {{ t('content.categoryTip') }}</span>
         </div>
         <div class="flex-shrink-0 synapse-footer-text opacity-40 font-mono">
            {{ t('content.total', { total: totalPrompts }) }}
@@ -166,6 +169,7 @@ useFocus(searchInput, { initialValue: true })
 
 const query = useVModel(props, 'searchQuery', emit)
 const selectedCategoryModel = useVModel(props, 'selectedCategory', emit)
+const isSearchMode = computed(() => query.value.trim().length > 0)
 
 type PromptCardView = PromptDTO & {
   matches?: readonly FuseResultMatch[]

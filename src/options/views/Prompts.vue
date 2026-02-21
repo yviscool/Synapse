@@ -14,73 +14,15 @@
                             type="text"
                             :aria-label="t('prompts.search')"
                             :placeholder="t('prompts.searchPlaceholder')"
-                            class="w-full pl-12 pr-40 py-4 text-lg border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-900/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                            class="w-full pl-12 pr-12 py-4 text-lg border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-900/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                         />
                         <button
                             v-if="searchQuery"
                             @click="searchQuery = ''"
-                            class="absolute right-32 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 p-1"
+                            class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 p-1"
                         >
                             <div class="i-carbon-close"></div>
                         </button>
-                        <div
-                            class="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center"
-                        >
-                            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700/80 mr-3"></div>
-                            <!-- 排序方式下拉菜单 -->
-                            <div class="relative" ref="sortMenuRef">
-                                <button
-                                    @click="showSortMenu = !showSortMenu"
-                                    class="flex items-center gap-2 text-base text-gray-600 dark:text-gray-300 font-medium hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-                                >
-                                    <span>{{ currentSortText }}</span>
-                                    <i
-                                        class="i-carbon-chevron-down text-sm transition-transform"
-                                        :class="{ 'rotate-180': showSortMenu }"
-                                    ></i>
-                                </button>
-                                <!-- 下拉选项 -->
-                                <transition
-                                    enter-active-class="transition ease-out duration-100"
-                                    enter-from-class="transform opacity-0 scale-95"
-                                    enter-to-class="transform opacity-100 scale-100"
-                                    leave-active-class="transition ease-in duration-75"
-                                    leave-from-class="transform opacity-100 scale-100"
-                                    leave-to-class="transform opacity-0 scale-95"
-                                >
-                                    <div
-                                        v-if="showSortMenu"
-                                        class="absolute z-30 top-full right-0 mt-2 w-32 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700/80"
-                                    >
-                                        <div class="py-1">
-                                            <button
-                                                v-for="option in sortOptions"
-                                                :key="option.value"
-                                                @click="
-                                                    changeSortBy(option.value)
-                                                "
-                                                class="w-full text-left px-4 py-2 text-sm flex items-center gap-2"
-                                                :class="[
-                                                    sortBy === option.value
-                                                        ? 'font-semibold text-blue-600 dark:text-blue-200 bg-blue-50 dark:bg-slate-800'
-                                                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700',
-                                                ]"
-                                            >
-                                                <i
-                                                    class="i-carbon-checkmark text-transparent"
-                                                    :class="{
-                                                        '!text-blue-600':
-                                                            sortBy ===
-                                                            option.value,
-                                                    }"
-                                                ></i>
-                                                <span>{{ option.text }}</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </transition>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -590,7 +532,6 @@ const {
     selectedCategories,
     selectedTags,
     showFavoriteOnly,
-    sortBy,
     currentPage,
     isLoading,
     hasMore,
@@ -598,7 +539,6 @@ const {
     refetchFromFirstPage,
     toggleCategory,
     toggleTag,
-    changeSortBy: setSortBy,
 } = usePromptQuery({
     tags,
     onLoadError: () => showToast(t("common.toast.loadPromptsFailed"), "error"),
@@ -615,8 +555,6 @@ const hasContentChanged = ref(false); // 编辑器中的内容是否已发生变
 const menuOpenId = ref<string | null>(null); // 当前打开的 Prompt 卡片菜单ID
 const isCategorySettingsOpen = ref(false); // 分类设置下拉菜单是否打开
 const categorySettingsRef = ref(null); // 分类设置按钮的模板引用，用于点击外部关闭
-const showSortMenu = ref(false); // 排序下拉菜单是否打开
-const sortMenuRef = ref(null); // 排序菜单的模板引用，用于点击外部关闭
 
 useModal(showCategoryManager, () => {
     showCategoryManager.value = false;
@@ -633,7 +571,6 @@ onClickOutside(
     categorySettingsRef,
     () => (isCategorySettingsOpen.value = false),
 );
-onClickOutside(sortMenuRef, () => (showSortMenu.value = false));
 
 // 快捷键定位搜索栏
 const { Ctrl_K, Meta_K } = useMagicKeys({
@@ -665,20 +602,6 @@ const baseVersionForEdit = ref<{
 let listObserver: IntersectionObserver | null = null;
 
 // --- Computed Properties ---
-const sortOptions = computed(() => [
-    { value: "relevance" as const, text: t("settings.sort.relevance") },
-    { value: "updatedAt" as const, text: t("settings.sort.updatedAt") },
-    { value: "createdAt" as const, text: t("settings.sort.createdAt") },
-    { value: "title" as const, text: t("settings.sort.byTitle") },
-]);
-
-const currentSortText = computed(() => {
-    return (
-        sortOptions.value.find((o) => o.value === sortBy.value)?.text ||
-        t("settings.sort.label")
-    );
-});
-
 type PromptCardView = PromptWithMatches & {
     highlightedTitle: string;
     highlightedContent: string;
@@ -759,11 +682,6 @@ const {
     handleWheel: handleShelfScroll,
     init: initShelfScroll,
 } = useHorizontalScroll(shelfViewportRef, shelfContentRef, availableCategories);
-
-function changeSortBy(value: "relevance" | "updatedAt" | "createdAt" | "title") {
-    setSortBy(value);
-    showSortMenu.value = false;
-}
 // --- End Pagination ---
 
 async function loadInitialData() {
