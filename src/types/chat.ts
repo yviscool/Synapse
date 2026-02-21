@@ -218,12 +218,6 @@ export interface ExportOptions {
 // 统一面板相关类型
 // ============================================
 
-/** 面板 Tab 类型 */
-export type PanelTab = 'outline' | 'collect' | 'settings'
-
-/** 采集模式 */
-export type CollectMode = 'manual' | 'realtime'
-
 /** 同步状态 */
 export interface SyncState {
   enabled: boolean            // 是否启用实时同步
@@ -231,19 +225,4 @@ export interface SyncState {
   lastSyncAt?: number         // 最后同步时间
   messageCount: number        // 已采集消息数
   error?: string              // 错误信息
-}
-
-/** 面板状态 */
-export interface PanelState {
-  isCollapsed: boolean        // 是否折叠
-  activeTab: PanelTab         // 当前激活的 Tab
-  position: { x: number; y: number }  // 面板位置
-}
-
-/** 采集设置 */
-export interface CollectSettings {
-  defaultMode: CollectMode    // 默认采集模式
-  autoSyncInterval: number    // 自动同步间隔 (ms)
-  debounceDelay: number       // 防抖延迟 (ms)
-  maxRetries: number          // 最大重试次数
 }

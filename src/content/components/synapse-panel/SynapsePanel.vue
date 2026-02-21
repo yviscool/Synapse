@@ -466,7 +466,7 @@ onMounted(async () => {
   containerRef.value?.classList.add('animate-slide-in-right')
   injectGlobalStyles()
 
-  // 默认模式：优先大纲
+  // 默认入口策略（产品约定）：有大纲能力时始终优先大纲，否则进入采集
   if (props.outlineConfig) {
     activeMode.value = 'outline'
   } else if (isAIPlatform.value) {
