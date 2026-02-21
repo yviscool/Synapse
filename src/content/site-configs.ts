@@ -42,6 +42,7 @@ export const platformMetaConfigs: Record<ChatPlatform, PlatformMetaConfig> = {
     id: 'chatgpt',
     name: 'ChatGPT',
     icon: 'i-simple-icons-openai',
+    iconUrl: 'https://chatgpt.com/favicon.ico',
     color: '#10a37f',
   },
   claude: {
@@ -109,6 +110,7 @@ export const platformMetaConfigs: Record<ChatPlatform, PlatformMetaConfig> = {
     id: 'copilot',
     name: 'Copilot',
     icon: 'i-simple-icons-microsoft',
+    iconUrl: 'https://copilot.microsoft.com/static/cmc/favicon.ico',
     color: '#0078d4',
   },
   minimax: {
@@ -290,11 +292,12 @@ export const siteConfigs: Record<string, SiteConfig> = {
   },
   'copilot.microsoft.com': {
     platform: 'copilot',
-    observeTarget: '[data-content="conversation"]',
-    userMessage: '[data-content="user-message"]',
-    messageText: 'div[class*="whitespace-pre-wrap"]',
+    observeTarget: '[data-testid="highlighted-chats"]',
+    userMessage: '[role="article"][class*="group/user-message"]',
+    messageText: '[data-content="user-message"]',
     waitForElement: '[data-content="user-message"]',
     urlPattern: /copilot\.microsoft\.com/,
+    conversationIdPattern: /\/(?:chats|chat|conversation|conversations)\/([a-zA-Z0-9-]+)/i,
   },
   'chat.mistral.ai': {
     platform: 'other',

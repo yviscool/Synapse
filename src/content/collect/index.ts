@@ -19,6 +19,7 @@ import { ZAIAdapter } from './adapters/zai'
 import { QianwenAdapter } from './adapters/qianwen'
 import { QwenIntlAdapter } from './adapters/qwen-intl'
 import { YuanbaoAdapter } from './adapters/yuanbao'
+import { CopilotAdapter } from './adapters/copilot'
 import { GenericAdapter } from './adapters/generic'
 import type { ChatPlatform } from '@/types/chat'
 import { detectPlatformFromUrl } from '@/content/site-configs'
@@ -45,6 +46,7 @@ const adapterMap: Record<string, (config: SiteConfig) => PlatformAdapter> = {
   grok: (c) => new GrokAdapter(c),
   minimax: (c) => new MiniMaxAdapter(c),
   zai: (c) => new ZAIAdapter(c),
+  copilot: (c) => new CopilotAdapter(c),
 }
 
 /**
