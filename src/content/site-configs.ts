@@ -65,6 +65,13 @@ export const platformMetaConfigs: Record<ChatPlatform, PlatformMetaConfig> = {
     iconUrl: 'https://www.gstatic.com/aistudio/ai_studio_favicon_2_32x32.png',
     color: '#4285f4',
   },
+  inception: {
+    id: 'inception',
+    name: 'Inception',
+    icon: 'i-carbon-chat-bot',
+    iconUrl: 'https://chat.inceptionlabs.ai/static/logo.png',
+    color: '#111827',
+  },
   deepseek: {
     id: 'deepseek',
     name: 'DeepSeek',
@@ -103,7 +110,7 @@ export const platformMetaConfigs: Record<ChatPlatform, PlatformMetaConfig> = {
     id: 'grok',
     name: 'Grok',
     icon: 'i-simple-icons-x',
-    iconUrl: 'https://grok.com/images/favicon.svg',
+    iconUrl: 'https://grok.com/images/favicon.ico',
     color: '#000000',
   },
   copilot: {
@@ -326,10 +333,10 @@ export const siteConfigs: Record<string, SiteConfig> = {
     urlPattern: /longcat\.chat/,
   },
   'chat.inceptionlabs.ai': {
-    platform: 'other',
-    observeTarget: '#messages-container',
-    userMessage: '.user-message',
-    messageText: '.user-message p',
+    platform: 'inception',
+    observeTarget: '#messages-container, section[aria-labelledby="chat-conversation"] ul[role="log"]',
+    userMessage: 'ul[role="log"] > [role="listitem"] .user-message',
+    messageText: '.chat-user .rounded-3xl p, .chat-user p',
     waitForElement: '.user-message',
     urlPattern: /chat\.inceptionlabs\.ai/,
   },

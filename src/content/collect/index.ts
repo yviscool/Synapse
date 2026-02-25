@@ -11,6 +11,7 @@ import { ClaudeAdapter } from './adapters/claude'
 import { DeepSeekAdapter } from './adapters/deepseek'
 import { GeminiAdapter } from './adapters/gemini'
 import { AIStudioAdapter } from './adapters/aistudio'
+import { InceptionAdapter } from './adapters/inception'
 import { KimiAdapter } from './adapters/kimi'
 import { DoubaoAdapter } from './adapters/doubao'
 import { GrokAdapter } from './adapters/grok'
@@ -35,6 +36,7 @@ const adapterMap: Record<string, (config: SiteConfig) => PlatformAdapter> = {
   deepseek: (c) => new DeepSeekAdapter(c),
   gemini: (c) => new GeminiAdapter(c),
   aistudio: (c) => new AIStudioAdapter(c),
+  inception: (c) => new InceptionAdapter(c),
   kimi: (c) => new KimiAdapter(c),
   doubao: (c) => new DoubaoAdapter(c),
   qianwen: (c) => (

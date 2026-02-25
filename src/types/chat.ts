@@ -9,6 +9,7 @@ export type ChatPlatform =
   | 'claude'
   | 'gemini'
   | 'aistudio'
+  | 'inception'
   | 'deepseek'
   | 'kimi'
   | 'doubao'

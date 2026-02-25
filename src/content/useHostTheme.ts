@@ -45,11 +45,58 @@ function inferFromColorScheme(value: string | null | undefined): ThemeMode | nul
   return null
 }
 
+function inferFromThemeClassNames(classNameText: string): ThemeMode | null {
+  const classes = classNameText
+    .toLowerCase()
+    .split(/\s+/g)
+    .filter(Boolean)
+
+  let hasDark = false
+  let hasLight = false
+
+  for (const cls of classes) {
+    // 忽略 Tailwind 等变体类（如 dark:bg-black），避免误判。
+    if (cls.includes(':')) continue
+
+    if (cls === 'dark' || cls === 'night' || cls === 'dim') {
+      hasDark = true
+      continue
+    }
+    if (cls === 'light' || cls === 'day') {
+      hasLight = true
+      continue
+    }
+
+    // 仅将语义化主题类名视为信号（theme-dark / dark-theme / mode_light 等）。
+    if (
+      /(?:^|[-_])(theme|mode|scheme)(?:[-_])?(dark|light|night|day|dim)(?:$|[-_])/.test(cls)
+      || /(?:^|[-_])(dark|light|night|day|dim)(?:[-_])?(theme|mode|scheme)(?:$|[-_])/.test(cls)
+      || /(?:^|[-_])is[-_](dark|light)(?:$|[-_])/.test(cls)
+    ) {
+      if (/(dark|night|dim)/.test(cls)) hasDark = true
+      if (/light|day/.test(cls)) hasLight = true
+    }
+  }
+
+  if (hasDark && !hasLight) return 'dark'
+  if (hasLight && !hasDark) return 'light'
+  if (hasDark) return 'dark'
+  return null
+}
+
 function inferFromBackground(el: Element | null): ThemeMode | null {
   if (!el) return null
-  const match = window.getComputedStyle(el).backgroundColor.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
-  if (!match) return null
-  const luminance = 0.2126 * +match[1] + 0.7152 * +match[2] + 0.0722 * +match[3]
+  const color = window.getComputedStyle(el).backgroundColor.trim().toLowerCase()
+  if (color === 'transparent') return null
+
+  const nums = color.match(/[\d.]+/g)
+  if (!nums || nums.length < 3) return null
+
+  const [r, g, b, alphaRaw] = nums.map(Number)
+  if ([r, g, b].some((n) => Number.isNaN(n))) return null
+  if (typeof alphaRaw === 'number' && !Number.isNaN(alphaRaw) && alphaRaw === 0) return null
+
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
   if (luminance <= 92) return 'dark'
   if (luminance >= 168) return 'light'
   return null
@@ -73,7 +120,7 @@ function detectHostTheme(): ThemeMode | null {
   }
 
   const attrTokens = tokenize(themeAttrValues.join(' '))
-  const classTokens = tokenize([html.className, body?.className || ''].join(' '))
+  const classTheme = inferFromThemeClassNames([html.className, body?.className || ''].join(' '))
 
   // 属性中有 system/auto 且无明确 dark/light → 回退系统
   if (hasAny(attrTokens, SYSTEM_KEYWORDS) && !hasAny(attrTokens, DARK_KEYWORDS) && !hasAny(attrTokens, LIGHT_KEYWORDS)) {
@@ -85,11 +132,11 @@ function detectHostTheme(): ThemeMode | null {
   if (hasAny(attrTokens, LIGHT_KEYWORDS) && !hasAny(attrTokens, DARK_KEYWORDS)) return 'light'
 
   // class 次之
-  if (hasAny(classTokens, DARK_KEYWORDS) && !hasAny(classTokens, LIGHT_KEYWORDS)) return 'dark'
-  if (hasAny(classTokens, LIGHT_KEYWORDS) && !hasAny(classTokens, DARK_KEYWORDS)) return 'light'
+  if (classTheme === 'dark') return 'dark'
+  if (classTheme === 'light') return 'light'
 
   // 混合信号优先 dark
-  if (hasAny(attrTokens, DARK_KEYWORDS) || hasAny(classTokens, DARK_KEYWORDS)) return 'dark'
+  if (hasAny(attrTokens, DARK_KEYWORDS)) return 'dark'
 
   // computed color-scheme
   const htmlScheme = inferFromColorScheme(window.getComputedStyle(html).colorScheme)
@@ -100,7 +147,7 @@ function detectHostTheme(): ThemeMode | null {
   }
 
   // 背景色亮度
-  return inferFromBackground(html) || inferFromBackground(body)
+  return inferFromBackground(body) || inferFromBackground(html)
 }
 
 /**
