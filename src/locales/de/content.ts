@@ -25,6 +25,7 @@ export default {
   },
   outline: {
     title: "Gesprächsgliederung",
+    railTitle: "Schnellgliederung",
     searchPlaceholder: "Gespräch durchsuchen...",
     total: "{count} Einträge insgesamt",
     empty: "Keine Einträge gefunden.",
@@ -61,7 +62,12 @@ export default {
   },
   settings: {
     about: "Über",
+    outline: "Gliederung",
     version: "Version",
     openSettings: "Vollständige Einstellungen öffnen",
+    outlineRailTitle: "Gestufte rechte Leiste",
+    outlineRailDesc: "Zeigt rechts eine dezente Treppenleiste. Hover öffnet links die Gliederung.",
+    outlineRailOn: "An",
+    outlineRailOff: "Aus",
   },
 };

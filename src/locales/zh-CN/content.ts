@@ -22,6 +22,7 @@ export default {
   },
   outline: {
     title: "对话大纲",
+    railTitle: "阶梯导航",
     searchPlaceholder: "搜索对话内容...",
     total: "共 {count} 条",
     empty: "未找到任何项目。",
@@ -61,7 +62,12 @@ export default {
   // 设置面板
   settings: {
     about: "关于",
+    outline: "大纲导航",
     version: "版本",
     openSettings: "打开完整设置",
+    outlineRailTitle: "右侧阶梯大纲",
+    outlineRailDesc: "在页面最右侧显示低干扰阶梯条，悬停后在左侧展开完整大纲并支持跳转。",
+    outlineRailOn: "开启",
+    outlineRailOff: "关闭",
   },
 };

@@ -25,6 +25,7 @@ export default {
   },
   outline: {
     title: "Содержание диалога",
+    railTitle: "Быстрый обзор",
     searchPlaceholder: "Поиск по диалогу...",
     total: "Всего {count} элементов",
     empty: "Элементы не найдены.",
@@ -61,7 +62,12 @@ export default {
   },
   settings: {
     about: "О программе",
+    outline: "Содержание",
     version: "Версия",
     openSettings: "Открыть полные настройки",
+    outlineRailTitle: "Правая ступенчатая лента",
+    outlineRailDesc: "Показывает справа ненавязчивую ступенчатую ленту. Наведите, чтобы открыть содержание слева.",
+    outlineRailOn: "Вкл",
+    outlineRailOff: "Выкл",
   },
 };

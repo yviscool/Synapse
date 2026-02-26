@@ -196,11 +196,20 @@
               <span class="i-ph-x-bold text-sm"></span>
             </button>
           </div>
-          <SettingsPanel />
+          <SettingsPanel
+            :outline-rail-enabled="isOutlineRailEnabled"
+            @update:outline-rail-enabled="handleOutlineRailToggle"
+          />
         </div>
       </div>
     </Transition>
   </div>
+
+  <OutlineRail
+    v-if="shouldShowOutlineRail"
+    :config="outlineConfig!"
+    @hint="handleHint"
+  />
 
   <!-- ===== 全局 Hint 提示 ===== -->
   <Transition name="overlay-fade">
@@ -239,6 +248,7 @@ import type { SiteConfig } from '@/content/site-configs'
 
 import CollectPanel from './CollectPanel.vue'
 import OutlineContent from './OutlineContent.vue'
+import OutlineRail from './OutlineRail.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import { useSyncEngine, STORAGE_KEY_SYNC_ENABLED } from './useSyncEngine'
 
@@ -254,7 +264,9 @@ const { height: windowHeight } = useWindowSize()
 // --- 状态 ---
 const containerRef = ref<HTMLElement | null>(null)
 const STORAGE_KEY_COLLAPSED = 'synapse-panel-collapsed'
+const STORAGE_KEY_OUTLINE_RAIL_ENABLED = 'synapse-outline-rail-enabled'
 const isCollapsed = ref(false)
+const isOutlineRailEnabled = ref(false)
 const isHovered = ref(false)
 const isMounted = ref(false)
 const isRefreshing = ref(false)
@@ -278,6 +290,8 @@ const hint = ref<{ visible: boolean; text: string; icon: string }>({
   icon: '',
 })
 let hintTimeout: number | null = null
+let deepSeekNativeNavObserver: MutationObserver | null = null
+let deepSeekHideRaf: number | null = null
 
 // --- 是否在 AI 平台 ---
 const isAIPlatform = computed(() => canCollect() || detectPlatformFromUrl(window.location.href) !== 'other')
@@ -292,6 +306,14 @@ const availableModes = computed(() => {
     modes.push({ id: 'collect', label: t('content.panel.collect') })
   }
   return modes
+})
+
+const shouldShowOutlineRail = computed(() => {
+  return !!props.outlineConfig && (isOutlineRailEnabled.value || isCollapsed.value)
+})
+
+const isDeepSeekPage = computed(() => {
+  return props.outlineConfig?.platform === 'deepseek' || detectPlatformFromUrl(window.location.href) === 'deepseek'
 })
 
 // --- 折叠态图标 ---
@@ -342,6 +364,15 @@ function handleDragStart(e: MouseEvent | TouchEvent) {
 
 function persistCollapsed(value: boolean) {
   chrome.storage?.local?.set({ [STORAGE_KEY_COLLAPSED]: value })
+}
+
+function persistOutlineRailEnabled(value: boolean) {
+  chrome.storage?.local?.set({ [STORAGE_KEY_OUTLINE_RAIL_ENABLED]: value })
+}
+
+function handleOutlineRailToggle(value: boolean) {
+  isOutlineRailEnabled.value = value
+  persistOutlineRailEnabled(value)
 }
 
 function toggleCollapse() {
@@ -426,6 +457,47 @@ function injectGlobalStyles() {
   document.head.appendChild(style)
 }
 
+function hideDeepSeekNativeNav() {
+  if (!isDeepSeekPage.value) return
+  const candidates = document.querySelectorAll<HTMLElement>('div[style*="--scroll-nav-page-padding"]')
+  candidates.forEach((el) => {
+    if (!el.querySelector('.ds-scroll-area__vertical-gutter')) return
+    el.style.setProperty('display', 'none', 'important')
+    el.setAttribute('data-synapse-hide-native-outline-nav', '1')
+  })
+}
+
+function scheduleHideDeepSeekNativeNav() {
+  if (!isDeepSeekPage.value) return
+  if (deepSeekHideRaf !== null) return
+  deepSeekHideRaf = window.requestAnimationFrame(() => {
+    deepSeekHideRaf = null
+    hideDeepSeekNativeNav()
+  })
+}
+
+function startDeepSeekNativeNavSuppression() {
+  if (!isDeepSeekPage.value) return
+  hideDeepSeekNativeNav()
+  if (deepSeekNativeNavObserver) return
+  deepSeekNativeNavObserver = new MutationObserver(() => {
+    scheduleHideDeepSeekNativeNav()
+  })
+  deepSeekNativeNavObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+  })
+}
+
+function stopDeepSeekNativeNavSuppression() {
+  deepSeekNativeNavObserver?.disconnect()
+  deepSeekNativeNavObserver = null
+  if (deepSeekHideRaf !== null) {
+    cancelAnimationFrame(deepSeekHideRaf)
+    deepSeekHideRaf = null
+  }
+}
+
 // --- ElegantTooltip 内联组件 ---
 const ElegantTooltip = defineComponent({
   props: { text: String },
@@ -451,9 +523,16 @@ const ElegantTooltip = defineComponent({
 onMounted(async () => {
   // 从扩展存储恢复状态（跨域共享）
   try {
-    const result = await chrome.storage?.local?.get([STORAGE_KEY_COLLAPSED, STORAGE_KEY_SYNC_ENABLED])
+    const result = await chrome.storage?.local?.get([
+      STORAGE_KEY_COLLAPSED,
+      STORAGE_KEY_SYNC_ENABLED,
+      STORAGE_KEY_OUTLINE_RAIL_ENABLED,
+    ])
     if (result?.[STORAGE_KEY_COLLAPSED] === true) {
       isCollapsed.value = true
+    }
+    if (result?.[STORAGE_KEY_OUTLINE_RAIL_ENABLED] === true) {
+      isOutlineRailEnabled.value = true
     }
     // 恢复实时同步状态
     if (result?.[STORAGE_KEY_SYNC_ENABLED] === true && syncEngine.canSync.value && !syncEngine.isEnabled.value) {
@@ -465,6 +544,7 @@ onMounted(async () => {
   isMounted.value = true
   containerRef.value?.classList.add('animate-slide-in-right')
   injectGlobalStyles()
+  startDeepSeekNativeNavSuppression()
 
   // 默认入口策略（产品约定）：有大纲能力时始终优先大纲，否则进入采集
   if (props.outlineConfig) {
@@ -476,6 +556,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (hintTimeout) clearTimeout(hintTimeout)
+  stopDeepSeekNativeNavSuppression()
 })
 </script>
 

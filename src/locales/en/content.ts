@@ -22,6 +22,7 @@ export default {
   },
   outline: {
     title: "Conversation Outline",
+    railTitle: "Quick Outline",
     searchPlaceholder: "Search conversation...",
     total: "{count} items in total",
     empty: "No items found.",
@@ -61,7 +62,12 @@ export default {
   // Settings Panel
   settings: {
     about: "About",
+    outline: "Outline",
     version: "Version",
     openSettings: "Open Full Settings",
+    outlineRailTitle: "Stepped Right Rail",
+    outlineRailDesc: "Show a subtle stair rail on the right edge. Hover it to reveal the outline on the left.",
+    outlineRailOn: "On",
+    outlineRailOff: "Off",
   },
 };

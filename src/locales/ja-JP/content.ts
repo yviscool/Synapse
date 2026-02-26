@@ -25,6 +25,7 @@ export default {
   },
   outline: {
     title: "会話アウトライン",
+    railTitle: "クイックアウトライン",
     searchPlaceholder: "会話を検索...",
     total: "合計 {count} 件",
     empty: "項目が見つかりません。",
@@ -61,7 +62,12 @@ export default {
   },
   settings: {
     about: "バージョン情報",
+    outline: "アウトライン",
     version: "バージョン",
     openSettings: "詳細設定を開く",
+    outlineRailTitle: "右側ステップレール",
+    outlineRailDesc: "右端に控えめな段階レールを表示。ホバーで左側にアウトラインを展開します。",
+    outlineRailOn: "オン",
+    outlineRailOff: "オフ",
   },
 };

@@ -1,7 +1,7 @@
 <template>
   <div class="outline-content">
     <!-- 搜索框 -->
-    <div class="px-4 py-3 flex-shrink-0">
+    <div v-if="!hideSearch" class="px-4 py-3 flex-shrink-0">
       <div class="relative">
         <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
           <span class="i-ph-magnifying-glass-bold text-gray-400 dark:text-white/80 text-sm"></span>
@@ -21,11 +21,12 @@
           v-for="(item, index) in filteredItems"
           :key="item.id"
           :data-index="index"
+          :data-source-index="getSourceIndex(item)"
           :style="{ '--stagger-index': index }"
           class="outline-item-wrapper group"
-          :class="{ 'is-active': index === highlightedIndex }"
-          @click="handleItemClick($event, item.element, index)"
-          @mousemove="handleItemHover($event, index)"
+          :class="{ 'is-active': getSourceIndex(item) === highlightedIndex }"
+          @click="handleItemClick($event, item.element, getSourceIndex(item))"
+          @mousemove="handleItemHover($event, getSourceIndex(item))"
           @mouseleave="handleItemLeave(item.element)"
           @mouseenter="handleItemMouseEnter(item.element)"
         >
@@ -35,7 +36,7 @@
               class="item-icon transition-all duration-200"
               :class="[
                 getDisplayIcon(item, index),
-                hoveredItem.index === index
+                hoveredItem.index === getSourceIndex(item)
                   ? 'text-blue-500/100 scale-110'
                   : 'text-gray-400 dark:text-white/80 group-hover:text-gray-600/100 dark:group-hover:text-white/100'
               ]"
@@ -91,11 +92,13 @@ const ICONS = {
 
 const props = defineProps<{
   config: SiteConfig
+  hideSearch?: boolean
 }>()
 
 const emit = defineEmits<{
   hint: [data: { text: string; icon: string }]
   'refresh-request': []
+  'active-change': [sourceIndex: number]
 }>()
 
 const { t } = useI18n()
@@ -103,6 +106,7 @@ const targetRef = ref<HTMLElement | null>(null)
 const listContainerRef = ref<HTMLElement | null>(null)
 const searchQuery = ref('')
 const listKey = ref(0)
+const hideSearch = computed(() => !!props.hideSearch)
 
 // 三段式悬停状态
 type HoverZone = 'start' | 'center' | 'end' | ''
@@ -116,14 +120,20 @@ const {
   highlightedIndex,
   updateItems: baseUpdateItems,
   isLoading,
+  lockHighlightDuringProgrammaticScroll,
 } = useOutline(props.config, targetRef)
 
 // 过滤
 const filteredItems = computed(() => {
-  if (!searchQuery.value.trim()) return items.value
+  if (hideSearch.value || !searchQuery.value.trim()) return items.value
   const q = searchQuery.value.toLowerCase()
   return items.value.filter(i => i.title.toLowerCase().includes(q))
 })
+
+function getSourceIndex(item: (typeof items.value)[number]): number {
+  if (typeof item.id === 'number') return item.id
+  return items.value.findIndex(i => i === item)
+}
 
 
 // --- 三段式悬停交互 ---
@@ -138,10 +148,10 @@ function getHoverZone(event: MouseEvent): HoverZone {
   return 'center'
 }
 
-function handleItemHover(event: MouseEvent, index: number) {
+function handleItemHover(event: MouseEvent, sourceIndex: number) {
   const zone = getHoverZone(event)
-  if (hoveredItem.value.index !== index || hoveredItem.value.zone !== zone) {
-    hoveredItem.value = { index, zone }
+  if (hoveredItem.value.index !== sourceIndex || hoveredItem.value.zone !== zone) {
+    hoveredItem.value = { index: sourceIndex, zone }
     let text = '', icon = ''
     switch (zone) {
       case 'start':
@@ -175,8 +185,10 @@ function handleItemMouseEnter(element: Element | null) {
 
 // --- 点击滚动（含三段式定位） ---
 
-function handleItemClick(event: MouseEvent, element: Element, index: number) {
-  highlightedIndex.value = index
+function handleItemClick(event: MouseEvent, element: Element, sourceIndex: number) {
+  highlightedIndex.value = sourceIndex
+  lockHighlightDuringProgrammaticScroll(sourceIndex, 900)
+  emit('active-change', sourceIndex)
 
   const scrollContainerSelector = props.config.scrollContainer
   let scrollContainer: HTMLElement | null = null
@@ -236,7 +248,8 @@ function handleItemClick(event: MouseEvent, element: Element, index: number) {
 // --- 图标显示（三段式动态图标） ---
 
 function getDisplayIcon(item: (typeof items.value)[0], index: number): string {
-  if (hoveredItem.value.index === index && hoveredItem.value.zone) {
+  const sourceIndex = getSourceIndex(item)
+  if (hoveredItem.value.index === sourceIndex && hoveredItem.value.zone) {
     switch (hoveredItem.value.zone) {
       case 'start': return ICONS.scrollUp
       case 'center': return ICONS.scrollCenter
@@ -248,6 +261,10 @@ function getDisplayIcon(item: (typeof items.value)[0], index: number): string {
 
 // --- 高亮索引变化时更新目标元素样式 ---
 watch(highlightedIndex, (newIndex, oldIndex) => {
+  if (newIndex !== undefined && newIndex >= 0) {
+    emit('active-change', newIndex)
+  }
+
   if (oldIndex !== undefined && oldIndex >= 0 && items.value[oldIndex]) {
     items.value[oldIndex].element?.classList.remove('outline-active-highlight')
   }
@@ -257,7 +274,7 @@ watch(highlightedIndex, (newIndex, oldIndex) => {
 
   // 自动滚动列表到当前高亮项
   if (newIndex >= 0 && listContainerRef.value) {
-    const el = listContainerRef.value.querySelector(`[data-index="${newIndex}"]`)
+    const el = listContainerRef.value.querySelector(`[data-source-index="${newIndex}"]`)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 })

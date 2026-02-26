@@ -25,6 +25,7 @@ export default {
   },
   outline: {
     title: "대화 개요",
+    railTitle: "빠른 개요",
     searchPlaceholder: "대화 검색...",
     total: "총 {count}개 항목",
     empty: "항목이 없습니다.",
@@ -61,7 +62,12 @@ export default {
   },
   settings: {
     about: "정보",
+    outline: "개요",
     version: "버전",
     openSettings: "전체 설정 열기",
+    outlineRailTitle: "오른쪽 계단 레일",
+    outlineRailDesc: "오른쪽 끝에 은은한 계단 레일을 표시합니다. 호버하면 왼쪽에 개요가 펼쳐집니다.",
+    outlineRailOn: "켜짐",
+    outlineRailOff: "꺼짐",
   },
 };

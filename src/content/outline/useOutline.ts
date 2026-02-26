@@ -36,6 +36,30 @@ import type { OutlineItem } from './types';
 import { smartTruncate, getIntelligentIcon } from './utils';
 import { getNavigationApi } from '@/types/navigation';
 
+type ProgrammaticHighlightLock = {
+  targetIndex: number;
+  until: number;
+};
+
+let sharedProgrammaticHighlightLock: ProgrammaticHighlightLock | null = null;
+
+const setProgrammaticHighlightLock = (targetIndex: number, durationMs: number) => {
+  const safeDuration = Math.max(120, Math.min(durationMs, 5000));
+  sharedProgrammaticHighlightLock = {
+    targetIndex,
+    until: Date.now() + safeDuration,
+  };
+};
+
+const getProgrammaticHighlightLock = (): ProgrammaticHighlightLock | null => {
+  if (!sharedProgrammaticHighlightLock) return null;
+  if (Date.now() > sharedProgrammaticHighlightLock.until) {
+    sharedProgrammaticHighlightLock = null;
+    return null;
+  }
+  return sharedProgrammaticHighlightLock;
+};
+
 /**
  * useOutline - 驱动大纲功能的核心 Vue Composition API 钩子
  * @param config - 当前网站的“适配器”配置对象，来自 `site-configs.ts`
@@ -63,6 +87,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   // 防闪烁计时器：防止在页面刷新中途，大纲列表短暂变空导致的 UI 闪烁
   let emptyStateTimeout: number | null = null;
   let navigationSuccessHandler: (() => void) | null = null;
+  let detachGlobalScrollListener: (() => void) | null = null;
 
   /**
    * --------------------------------------------------------------------------
@@ -165,6 +190,9 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       return; // 如果目标已失效，则不执行更新，等待 `init` 重启。
     }
 
+    // 目标和页面结构变化后，滚动容器可能也会变化（SPA 常见）
+    syncScrollContainer();
+
     // 无论哪种模式，都调用 scanDOM
     const newItems = scanDOM();
 
@@ -194,6 +222,8 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       isLoading.value = false;
     }
 
+    // 列表可能变化，重同步滚动容器（自动推断场景下很关键）
+    syncScrollContainer();
     // 每次更新完数据，都重新计算一次滚动高亮
     updateHighlight();
   }, 200); // 200ms 防抖：在密集的 DOM 变动停止后 200ms 再执行扫描
@@ -300,6 +330,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       }
 
       // 7. 执行首次扫描
+      syncScrollContainer();
       softUpdate();
 
       // 8. 启动“侦察兵”，开始监视后续变化
@@ -367,6 +398,23 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
    * 而不是标准的 `window`。
    * `config.scrollContainer` 让我们能适配这种情况。
    */
+  const isScrollableElement = (el: Element | null): boolean => {
+    if (!(el instanceof HTMLElement)) return false;
+    const style = window.getComputedStyle(el);
+    const overflowY = style.overflowY;
+    const canScrollY = overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay';
+    return canScrollY && el.scrollHeight > el.clientHeight + 2;
+  };
+
+  const findScrollableAncestor = (start: Element | null): HTMLElement | null => {
+    let current = start instanceof HTMLElement ? start : start?.parentElement ?? null;
+    while (current && current !== document.body && current !== document.documentElement) {
+      if (isScrollableElement(current)) return current;
+      current = current.parentElement;
+    }
+    return null;
+  };
+
   const getScrollContainer = (): HTMLElement | Window => {
     if (config.scrollContainer === window) return window;
     if (typeof config.scrollContainer === 'string') {
@@ -374,15 +422,28 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       // 如果找到了配置的滚动容器，就用它
       if (el) return el;
     }
-    // 兜底方案：使用 `targetRef`（聊天容器），或 `document`，或 `window`
-    return targetRef.value || document.documentElement || window;
+    // 自动推断：优先从首条消息向上找最近可滚动祖先
+    const firstItemElement = items.value[0]?.element ?? targetRef.value;
+    const autoContainer = firstItemElement ? findScrollableAncestor(firstItemElement) : null;
+    if (autoContainer) return autoContainer;
+
+    // 最终兜底：window
+    return window;
   }
 
   // 创建一个 Ref 来存储滚动容器
   const scrollContainerRef = ref<HTMLElement | Window>(window);
+  const syncScrollContainer = () => {
+    const nextContainer = getScrollContainer();
+    if (scrollContainerRef.value !== nextContainer) {
+      scrollContainerRef.value = nextContainer;
+    }
+  };
+
   onMounted(() => {
     // 挂载后，立即查找并设置滚动容器
-    scrollContainerRef.value = getScrollContainer();
+    syncScrollContainer();
+    ensureGlobalScrollListener();
   });
 
   // 使用 vueuse 的 `useScroll` 来高性能地监听滚动事件
@@ -397,13 +458,23 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
    */
   const updateHighlight = useDebounceFn(() => {
     // 如果 `targetRef` 还没准备好，或已从 DOM 移除，则不计算
-    if (!targetRef.value || !document.body.contains(targetRef.value)) return;
+    if (!targetRef.value || !targetRef.value.isConnected) return;
+
+    const lock = getProgrammaticHighlightLock();
+    if (lock && lock.targetIndex >= 0 && lock.targetIndex < items.value.length) {
+      if (highlightedIndex.value !== lock.targetIndex) {
+        highlightedIndex.value = lock.targetIndex;
+      }
+      return;
+    }
 
     const container = scrollContainerRef.value;
     const isWindow = container === window;
 
     // 获取视口（滚动容器）的高度
     const containerHeight = isWindow ? window.innerHeight : (container as HTMLElement).clientHeight;
+    const containerTop = isWindow ? 0 : (container as HTMLElement).getBoundingClientRect().top;
+    const containerBottom = isWindow ? window.innerHeight : containerTop + containerHeight;
 
     if (!containerHeight) return; // 容器高度为 0，无法计算
 
@@ -419,13 +490,13 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
 
       // 1. 快速排除：如果元素完全在视口上方 (rect.bottom < 0) 或
       //    完全在视口下方 (rect.top > containerHeight)，则它不可见，跳过。
-      if (rect.bottom < 0 || rect.top > containerHeight) return;
+      if (rect.bottom < containerTop || rect.top > containerBottom) return;
 
       // 2. 计算可见高度：
       //    - 可见的顶部 = max(元素顶部, 0)
       //    - 可见的底部 = min(元素底部, 视口高度)
-      const top = Math.max(rect.top, 0);
-      const bottom = Math.min(rect.bottom, containerHeight);
+      const top = Math.max(rect.top, containerTop);
+      const bottom = Math.min(rect.bottom, containerBottom);
       const visibleHeight = bottom - top;
 
       // 3. 计算可见比例
@@ -433,10 +504,8 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
         // 可见比例 = 可见高度 / 元素总高度
         const visibility = visibleHeight / rect.height;
 
-        // 4. 找出“赢家”：
-        //    - 必须比当前的“赢家”可见比例更高
-        //    - 且可见比例必须超过 30%（避免一个元素刚露出 1 像素就高亮）
-        if (visibility > maxVisibility && visibility > 0.3) {
+        // 4. 找出“赢家”：选择可见比例最高者
+        if (visibility > maxVisibility) {
           maxVisibility = visibility;
           mostVisibleIndex = index;
         }
@@ -449,6 +518,32 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     }
   }, 50); // 防抖 50ms，提供平滑的响应
 
+  const ensureGlobalScrollListener = () => {
+    if (detachGlobalScrollListener) return;
+    const handler = useDebounceFn((event?: Event) => {
+      if (event?.target instanceof HTMLElement && isScrollableElement(event.target)) {
+        scrollContainerRef.value = event.target;
+      } else if (event?.target === document || event?.target === document.documentElement || event?.target === document.body) {
+        scrollContainerRef.value = window;
+      } else {
+        syncScrollContainer();
+      }
+      updateHighlight();
+    }, 16);
+
+    // capture=true 可捕获页面内任意滚动容器的 scroll 事件
+    document.addEventListener('scroll', handler, true);
+    window.addEventListener('scroll', handler, { passive: true });
+    window.addEventListener('resize', handler);
+
+    detachGlobalScrollListener = () => {
+      document.removeEventListener('scroll', handler, true);
+      window.removeEventListener('scroll', handler);
+      window.removeEventListener('resize', handler);
+      detachGlobalScrollListener = null;
+    };
+  };
+
   // --- 侦听器 (Watchers) ---
 
   // 1. 当 `scrollY`（滚动位置）变化时，触发高亮计算
@@ -456,9 +551,23 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
 
   // 2. 当 `items` 列表本身发生变化时（例如 `scanDOM` 重新运行时），
   //    也立即触发一次高亮计算
-  watch(items, updateHighlight, { deep: true, immediate: true });
+  watch(items, () => {
+    syncScrollContainer();
+    updateHighlight();
+  }, { deep: true, immediate: true });
+
+  onUnmounted(() => {
+    detachGlobalScrollListener?.();
+  });
 
   // --- 最终暴露 ---
+  const lockHighlightDuringProgrammaticScroll = (targetIndex: number, durationMs = 800) => {
+    setProgrammaticHighlightLock(targetIndex, durationMs);
+    if (targetIndex >= 0 && targetIndex < items.value.length) {
+      highlightedIndex.value = targetIndex;
+    }
+  };
+
   return {
 
     items,
@@ -468,6 +577,8 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     updateItems,
 
     isLoading,
+
+    lockHighlightDuringProgrammaticScroll,
 
   }
 
