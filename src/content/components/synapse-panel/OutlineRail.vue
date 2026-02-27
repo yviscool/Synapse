@@ -43,6 +43,7 @@
       <div class="rail-panel-shell rounded-2xl border border-slate-200/60 bg-white/90 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden dark:border-white/10 dark:bg-[#0f172a]/90 dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
         <OutlineContent
           :config="config"
+          :outline-state="outlineState"
           :hide-search="true"
           @hint="forwardHint"
           @active-change="handleOutlineActiveChange"
@@ -75,7 +76,8 @@ const emit = defineEmits<{
 }>()
 
 const targetRef = ref<HTMLElement | null>(null)
-const { items, highlightedIndex, lockHighlightDuringProgrammaticScroll } = useOutline(props.config, targetRef)
+const outlineState = useOutline(props.config, targetRef)
+const { items, highlightedIndex, lockHighlightDuringProgrammaticScroll } = outlineState
 const isExpanded = ref(false)
 const hoveredIndex = ref<number>(-1)
 const railRootRef = ref<HTMLElement | null>(null)

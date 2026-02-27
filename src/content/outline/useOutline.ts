@@ -88,6 +88,56 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   let emptyStateTimeout: number | null = null;
   let navigationSuccessHandler: (() => void) | null = null;
   let detachGlobalScrollListener: (() => void) | null = null;
+  let navigationReinitTimer: number | null = null;
+  let isDisposed = false;
+  let initRunToken = 0;
+
+  const isInitCancelled = (token: number): boolean => {
+    return isDisposed || token !== initRunToken;
+  };
+
+  const waitForElement = (
+    resolver: () => Element | null,
+    intervalMs: number,
+    maxAttempts: number,
+    token: number,
+  ): Promise<Element | null> => {
+    return new Promise((resolve) => {
+      let attempts = 0;
+      let timer: number | null = null;
+
+      const clearTimer = () => {
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      };
+
+      const tick = () => {
+        if (isInitCancelled(token)) {
+          clearTimer();
+          resolve(null);
+          return;
+        }
+
+        const found = resolver();
+        if (found || attempts >= maxAttempts) {
+          clearTimer();
+          resolve(found);
+          return;
+        }
+
+        attempts++;
+      };
+
+      tick();
+      if (isInitCancelled(token)) {
+        return;
+      }
+
+      timer = window.setInterval(tick, intervalMs);
+    });
+  };
 
   /**
    * --------------------------------------------------------------------------
@@ -245,7 +295,8 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
    */
   const startContentObserver = () => {
     // 防止重复启动
-    if (contentObserver || !targetRef.value) return;
+    if (isDisposed || contentObserver || !targetRef.value) return;
+    if (!targetRef.value.isConnected) return;
 
     // `MutationObserver` 是一个高性能的浏览器 API，用于监视 DOM 树的变化。
     contentObserver = new MutationObserver(softUpdate); // 当变化发生时，调用我们的轻量级更新
@@ -283,50 +334,48 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
    * `init` 负责在每次页面“貌似”刷新后，重新找到监视目标并启动“侦察兵”。
    */
   const init = async () => {
+    const token = ++initRunToken;
+    if (isDisposed) return;
+
     // 1. 立即重置状态，显示加载中
     items.value = [];
     isLoading.value = true;
 
     // 2. 停止所有旧的“侦察兵”，防止它们操作旧的 DOM
     stopObservers();
+    targetRef.value = null;
 
     // 3. 异步、带重试地查找新页面的“聊天容器” (`config.observeTarget`)
-    await new Promise<void>(resolve => {
-      let attempts = 0;
-      const interval = setInterval(() => {
-        const targetElement = document.querySelector<HTMLElement>(config.observeTarget);
-        // 如果找到了，或者重试了 50 次（5秒）后，就停止
-        if (targetElement || attempts > 50) {
-          clearInterval(interval);
-          targetRef.value = targetElement; // 将找到的元素存入 Ref
-          resolve();
-        }
-        attempts++;
-      }, 100); // 每 100ms 试一次
-    });
+    const targetElement = await waitForElement(
+      () => document.querySelector<HTMLElement>(config.observeTarget),
+      100,
+      50,
+      token,
+    );
+    if (isInitCancelled(token)) return;
+    targetRef.value = targetElement as HTMLElement | null; // 将找到的元素存入 Ref
 
     // 4. 检查是否成功找到了容器
     if (targetRef.value) {
       // 5. （可选）等待“第一个用户消息” (`config.waitForElement`) 出现
       //    这用于修复：容器 `div` 先出现，但内容是后加载的
       if (config.waitForElement) {
-        await new Promise<void>(resolve => {
-          let attempts = 0;
-          const interval = setInterval(() => {
-            // 如果在容器内找到了“等待元素”，或重试了 50 次（2.5秒）
-            if (targetRef.value?.querySelector(config.waitForElement!) || attempts > 50) {
-              clearInterval(interval);
-              resolve();
-            }
-            attempts++;
-          }, 50);
-        });
+        await waitForElement(
+          () => targetRef.value?.querySelector(config.waitForElement!) || null,
+          50,
+          50,
+          token,
+        );
+        if (isInitCancelled(token)) return;
       }
 
       // 6. （可选）为某些“极其棘手”的网站（如 AI Studio）提供一个“最终手段”
       //    强制等待一段时间，确保所有东西（比如滚动条按钮）都渲染完毕。
       if (config.initDelay) {
-        await new Promise(resolve => setTimeout(resolve, config.initDelay));
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, config.initDelay);
+        });
+        if (isInitCancelled(token)) return;
       }
 
       // 7. 执行首次扫描
@@ -345,6 +394,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   // --- Vue 生命周期钩子 ---
 
   onMounted(() => {
+    isDisposed = false;
     // 1. 组件挂载时，执行首次初始化
     init();
 
@@ -358,8 +408,14 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
 
       // `navigatesuccess` 事件在 SPA 路由成功切换后触发
       navigationSuccessHandler = () => {
+        if (navigationReinitTimer) {
+          clearTimeout(navigationReinitTimer);
+          navigationReinitTimer = null;
+        }
         // 给 SPA 框架一点时间（200ms）来销毁旧 DOM、创建新 DOM
-        setTimeout(() => {
+        navigationReinitTimer = window.setTimeout(() => {
+          navigationReinitTimer = null;
+          if (isDisposed) return;
           // 确认 URL 真的变了（防止误触）
           if (window.location.href !== lastUrl) {
             console.log('Outline: URL changed, re-initializing...');
@@ -377,8 +433,14 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
 
   // 组件卸载时，清理所有侦察兵和计时器
   onUnmounted(() => {
+    isDisposed = true;
+    initRunToken++;
     stopObservers();
     if (emptyStateTimeout) clearTimeout(emptyStateTimeout);
+    if (navigationReinitTimer) {
+      clearTimeout(navigationReinitTimer);
+      navigationReinitTimer = null;
+    }
     const navigation = getNavigationApi();
     if (navigation && navigationSuccessHandler) {
       navigation.removeEventListener('navigatesuccess', navigationSuccessHandler);
@@ -583,3 +645,5 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   }
 
 }
+
+export type OutlineEngine = ReturnType<typeof useOutline>;

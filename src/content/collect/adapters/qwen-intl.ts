@@ -23,6 +23,7 @@ const ASSISTANT_ITEM_SELECTOR = '.qwen-chat-message-assistant'
 
 export class QwenIntlAdapter extends BaseAdapter {
   private thinkingByAssistantId = new Map<string, string>()
+  private thinkingCacheScope = ''
   private mermaidCodeQueueByAssistantId = new Map<string, string[]>()
   private currentAssistantId: string | null = null
   private static readonly BRIDGE_SCRIPT_ID = '__synapse_qwen_intl_bridge__'
@@ -30,6 +31,18 @@ export class QwenIntlAdapter extends BaseAdapter {
   private static readonly BRIDGE_DATA_EVENT = 'synapse:qwen-intl-bridge-data'
   private static readonly BRIDGE_READY_EVENT = 'synapse:qwen-intl-bridge-ready'
   private bridgeLoadPromise: Promise<void> | null = null
+
+  private getThinkingScope(): string {
+    return this.getConversationId() || `${window.location.origin}${window.location.pathname}`
+  }
+
+  private ensureThinkingScope(): void {
+    const scope = this.getThinkingScope()
+    if (scope === this.thinkingCacheScope) return
+
+    this.thinkingCacheScope = scope
+    this.thinkingByAssistantId.clear()
+  }
 
   private startsWithMermaidSyntax(code: string): boolean {
     const trimmed = code.trim()
@@ -650,13 +663,13 @@ export class QwenIntlAdapter extends BaseAdapter {
   }
 
   override async collect(options?: CollectOptions): Promise<CollectResult> {
-    // 自动同步时跳过 UI 点击，避免打断用户页面状态
-    if (!options?.isAutoSync) {
-      console.debug('[QwenIntlAdapter] manual collect: preload thinking + mermaid')
+    this.ensureThinkingScope()
+
+    if (this.shouldInteractWithUi(options)) {
+      console.debug('[QwenIntlAdapter] interactive collect: preload thinking + mermaid')
       await this.preloadThinkingByClicking()
       await this.preloadMermaidCodesByActions()
     } else {
-      this.thinkingByAssistantId.clear()
       this.mermaidCodeQueueByAssistantId.clear()
     }
 

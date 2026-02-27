@@ -78,6 +78,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   let checkTimer: number | null = null
   let statusResetTimer: number | null = null
   let retryTimer: number | null = null
+  let observerRetryInterval: number | null = null
   let urlPollTimer: number | null = null
   let navDelayTimer: number | null = null
   let retryCount = 0
@@ -196,7 +197,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       if (response?.ok) {
         lastSavedKey = saveKey
         syncState.value.status = 'success'
-        syncState.value.messageCount = Math.ceil(messages.length / 2)
+        syncState.value.messageCount = messages.length
         syncState.value.lastSyncAt = Date.now()
         syncState.value.error = undefined
         retryCount = 0
@@ -251,12 +252,14 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
    * 带重试查找 observeTarget，避免 SPA 切换后 fallback 到 document.body
    */
   function startObserver() {
+    if (unmounted) return
     stopObserver()
 
     const config = getSiteConfig()
     const targetSelector = config?.observeTarget
 
     const attachObserver = (target: Node) => {
+      if (unmounted) return
       observer = new MutationObserver(() => {
         if (!syncState.value.enabled) return
         debouncedSync()
@@ -281,11 +284,21 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
 
     // 目标元素未就绪，重试查找（SPA 切换后 DOM 可能还没渲染）
     let attempts = 0
-    const retryInterval = window.setInterval(() => {
+    observerRetryInterval = window.setInterval(() => {
+      if (unmounted || !syncState.value.enabled) {
+        if (observerRetryInterval) {
+          clearInterval(observerRetryInterval)
+          observerRetryInterval = null
+        }
+        return
+      }
       attempts++
       const el = document.querySelector(targetSelector)
       if (el || attempts >= 30) {
-        clearInterval(retryInterval)
+        if (observerRetryInterval) {
+          clearInterval(observerRetryInterval)
+          observerRetryInterval = null
+        }
         attachObserver(el || document.body)
       }
     }, 100)
@@ -303,6 +316,10 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     if (retryTimer) {
       clearTimeout(retryTimer)
       retryTimer = null
+    }
+    if (observerRetryInterval) {
+      clearInterval(observerRetryInterval)
+      observerRetryInterval = null
     }
     if (debounceTimer) {
       clearTimeout(debounceTimer)

@@ -259,13 +259,15 @@ export class GeminiAdapter extends BaseAdapter {
    * 自动展开未缓存的 thinking → 采集 → 折叠 → 写入缓存
    * 已缓存的不展开，无 UI 闪烁。每个 thinking 只展开一次。
    */
-  override async collect(_options?: CollectOptions): Promise<CollectResult> {
-    const expandedBtns = this.expandUncachedThoughts()
+  override async collect(options?: CollectOptions): Promise<CollectResult> {
+    const shouldInteractWithUi = this.shouldInteractWithUi(options)
+    const expandedBtns = shouldInteractWithUi ? this.expandUncachedThoughts() : []
+
     if (expandedBtns.length) {
       await new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 150)))
     }
 
-    const result = super.collect()
+    const result = super.collect(options)
 
     if (expandedBtns.length) {
       this.collapseThoughts(expandedBtns)

@@ -375,7 +375,11 @@ export function getSiteConfigByHostname(hostname: string): SiteConfig | null {
 export function getSiteConfigByUrl(url: string): SiteConfig | null {
   try {
     const parsed = new URL(url)
-    return getSiteConfigByHostname(parsed.hostname)
+    const config = getSiteConfigByHostname(parsed.hostname)
+    if (!config) return null
+
+    // 必须同时满足 host 命中 + URL 规则命中，避免在站点非对话页误判可用
+    return config.urlPattern.test(parsed.href) ? config : null
   } catch {
     return null
   }

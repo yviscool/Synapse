@@ -81,6 +81,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useOutline } from '@/content/outline/useOutline'
+import type { OutlineEngine } from '@/content/outline/useOutline'
 import type { SiteConfig } from '@/content/site-configs'
 
 // 图标常量
@@ -93,6 +94,7 @@ const ICONS = {
 const props = defineProps<{
   config: SiteConfig
   hideSearch?: boolean
+  outlineState?: OutlineEngine
 }>()
 
 const emit = defineEmits<{
@@ -102,7 +104,6 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const targetRef = ref<HTMLElement | null>(null)
 const listContainerRef = ref<HTMLElement | null>(null)
 const searchQuery = ref('')
 const listKey = ref(0)
@@ -114,14 +115,17 @@ const hoveredItem = ref<{ index: number; zone: HoverZone }>({ index: -1, zone: '
 let hintTimeout: number | null = null
 let highlightTimeout: number | null = null
 
-// 大纲逻辑
+// 大纲逻辑：允许复用外部状态（用于 Rail 与面板共用同一套 Observer）
+const internalTargetRef = ref<HTMLElement | null>(null)
+const outlineState = props.outlineState ?? useOutline(props.config, internalTargetRef)
+
 const {
   items,
   highlightedIndex,
   updateItems: baseUpdateItems,
   isLoading,
   lockHighlightDuringProgrammaticScroll,
-} = useOutline(props.config, targetRef)
+} = outlineState
 
 // 过滤
 const filteredItems = computed(() => {

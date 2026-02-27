@@ -27,6 +27,19 @@ const ALL_GROUP_SELECTOR = 'div.group[id^="response-"]'
 
 export class GrokAdapter extends BaseAdapter {
   private thinkingByAssistantId = new Map<string, string>()
+  private thinkingCacheScope = ''
+
+  private getThinkingScope(): string {
+    return this.getConversationId() || `${window.location.origin}${window.location.pathname}`
+  }
+
+  private ensureThinkingScope(): void {
+    const scope = this.getThinkingScope()
+    if (scope === this.thinkingCacheScope) return
+
+    this.thinkingCacheScope = scope
+    this.thinkingByAssistantId.clear()
+  }
 
   private startsWithMermaidSyntax(code: string): boolean {
     const trimmed = code.trim()
@@ -482,10 +495,10 @@ export class GrokAdapter extends BaseAdapter {
   }
 
   override async collect(options?: CollectOptions): Promise<CollectResult> {
-    if (!options?.isAutoSync) {
+    this.ensureThinkingScope()
+
+    if (this.shouldInteractWithUi(options)) {
       await this.preloadThinkingByClicking()
-    } else {
-      this.thinkingByAssistantId.clear()
     }
 
     return super.collect(options)

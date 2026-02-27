@@ -62,7 +62,10 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
   if (handler) {
     handler(data, sender)
       .then(res => sendResponse({ ok: true, ...res }))
-      .catch(e => sendResponse({ ok: false, error: e.message }))
+      .catch((e: unknown) => sendResponse({
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+      }))
     return true
   }
 
@@ -103,7 +106,9 @@ async function handleCollectFrameSnapshots(sender: chrome.runtime.MessageSender)
         target: { tabId, allFrames: true },
         func: () => {
           const host = window.location.hostname
-          if (!host.endsWith('.web-sandbox.oaiusercontent.com')) {
+          const isSandboxHost = host === 'web-sandbox.oaiusercontent.com'
+            || host.endsWith('.web-sandbox.oaiusercontent.com')
+          if (!isSandboxHost) {
             return null
           }
 
@@ -241,7 +246,7 @@ function mergeMessages(
   existingMessages: ChatMessage[],
   newMessages: ChatMessage[],
 ): { merged: ChatMessage[]; unchanged: boolean } {
-  if (existingMessages.length <= newMessages.length) {
+  if (existingMessages.length < newMessages.length) {
     return { merged: newMessages, unchanged: false }
   }
 
@@ -287,33 +292,39 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
     return { ok: false, error: chrome.i18n.getMessage('chatSaveEmpty') }
   }
 
+  let existing = null as Awaited<ReturnType<typeof chatRepository.getConversationById>> | null
+
   if (conversation.externalId && conversation.platform) {
-    const existing = await chatRepository.getConversationByExternalId(
+    existing = await chatRepository.getConversationByExternalId(
       conversation.platform,
       conversation.externalId,
     )
-    if (existing) {
-      const { merged, unchanged } = mergeMessages(existing.messages, conversation.messages)
-      if (unchanged) return { ok: true }
+  } else if (conversation.id) {
+    // 无 externalId 的平台（如部分站点）按稳定 id 走更新路径
+    existing = await chatRepository.getConversationById(conversation.id)
+  }
 
-      const finalMessages = preserveThinking(merged, existing.messages)
+  if (existing) {
+    const { merged, unchanged } = mergeMessages(existing.messages, conversation.messages)
+    if (unchanged) return { ok: true }
 
-      const { ok, error } = await chatRepository.updateConversation(existing.id, {
-        ...conversation,
-        messages: finalMessages,
-        messageCount: finalMessages.length,
-        updatedAt: Date.now(),
+    const finalMessages = preserveThinking(merged, existing.messages)
+
+    const { ok, error } = await chatRepository.updateConversation(existing.id, {
+      ...conversation,
+      messages: finalMessages,
+      messageCount: finalMessages.length,
+      updatedAt: Date.now(),
+    })
+    if (ok) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon-128.png',
+        title: 'Synapse',
+        message: chrome.i18n.getMessage('chatUpdated'),
       })
-      if (ok) {
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: 'icons/icon-128.png',
-          title: 'Synapse',
-          message: chrome.i18n.getMessage('chatUpdated'),
-        })
-      }
-      return { ok, error: error?.message }
     }
+    return { ok, error: error?.message }
   }
 
   const { ok, error } = await chatRepository.saveConversation(conversation, tags)

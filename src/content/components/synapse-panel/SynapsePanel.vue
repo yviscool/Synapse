@@ -309,7 +309,12 @@ const availableModes = computed(() => {
 })
 
 const shouldShowOutlineRail = computed(() => {
-  return !!props.outlineConfig && (isOutlineRailEnabled.value || isCollapsed.value)
+  // 避免与主面板 OutlineContent 并行运行两套大纲引擎
+  // 折叠态始终显示；展开态仅在非 outline 模式下显示 Rail
+  return !!props.outlineConfig && (
+    isCollapsed.value
+    || (isOutlineRailEnabled.value && activeMode.value !== 'outline')
+  )
 })
 
 const isDeepSeekPage = computed(() => {

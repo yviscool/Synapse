@@ -36,7 +36,7 @@
       <div class="about-info">
         <div class="about-row">
           <span>{{ t('content.settings.version') }}</span>
-          <span class="version-badge">v1.0.0</span>
+          <span class="version-badge">v{{ extensionVersion }}</span>
         </div>
         <div class="about-row">
           <a
@@ -68,6 +68,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const outlineRailEnabled = computed(() => !!props.outlineRailEnabled)
+const extensionVersion = chrome.runtime?.getManifest?.().version || '0.0.0'
 
 function toggleOutlineRail() {
   emit('update:outline-rail-enabled', !outlineRailEnabled.value)

@@ -24,13 +24,85 @@ import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { CollectOptions, CollectResult } from './base'
 import type { ChatMessage } from '@/types/chat'
 
+// 折叠 thinking 后，DeepSeek 常不再暴露完整思考 DOM。
+// 这里按消息身份/内容维护轻量缓存，避免自动同步把已采集到的 thinking 覆盖丢失。
+const deepSeekThinkingCache = new Map<string, string>()
+const MAX_DEEPSEEK_THINKING_CACHE = 600
+
 interface MermaidTabSwitch {
   chartTab: HTMLElement
   codeTab: HTMLElement
   block: Element
 }
 
+interface ThinkingToggleContext {
+  trigger: HTMLElement
+  messageEl: Element
+}
+
 export class DeepSeekAdapter extends BaseAdapter {
+  private normalizeThinkingKey(content: string): string {
+    return content
+      .replace(/\u200B/g, '')
+      .replace(/\u00A0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 240)
+  }
+
+  private getAssistantIdentity(node: Element): string | null {
+    const attrs = ['data-message-id', 'data-id', 'data-msg-id', 'id']
+    for (const attr of attrs) {
+      const value = node.getAttribute(attr)?.trim()
+      if (value) return value
+    }
+    return null
+  }
+
+  private getThinkingScope(): string {
+    return this.getConversationId() || `${window.location.origin}${window.location.pathname}`
+  }
+
+  private cacheThinking(key: string, thinking: string): void {
+    if (!key || !thinking.trim()) return
+    if (deepSeekThinkingCache.has(key)) {
+      deepSeekThinkingCache.delete(key)
+    }
+    deepSeekThinkingCache.set(key, thinking)
+    if (deepSeekThinkingCache.size > MAX_DEEPSEEK_THINKING_CACHE) {
+      const oldestKey = deepSeekThinkingCache.keys().next().value
+      if (oldestKey) {
+        deepSeekThinkingCache.delete(oldestKey)
+      }
+    }
+  }
+
+  private getCachedThinking(identity: string | null, content: string): string | undefined {
+    const scope = this.getThinkingScope()
+    if (identity) {
+      const byId = deepSeekThinkingCache.get(`${scope}:id:${identity}`)
+      if (byId) return byId
+    }
+    return deepSeekThinkingCache.get(`${scope}:content:${this.normalizeThinkingKey(content)}`)
+  }
+
+  private persistThinking(identity: string | null, content: string, thinking: string): void {
+    const normalized = thinking.trim()
+    if (!normalized) return
+    const scope = this.getThinkingScope()
+
+    if (identity) {
+      this.cacheThinking(`${scope}:id:${identity}`, normalized)
+    }
+    this.cacheThinking(`${scope}:content:${this.normalizeThinkingKey(content)}`, normalized)
+  }
+
+  private hasCachedThinkingByIdentity(identity: string | null): boolean {
+    if (!identity) return false
+    const scope = this.getThinkingScope()
+    return deepSeekThinkingCache.has(`${scope}:id:${identity}`)
+  }
+
   /** 模拟用户点击（mousedown → mouseup → click，冒泡），兼容 React 合成事件 */
   private simulateClick(el: HTMLElement): void {
     const opts: MouseEventInit = { bubbles: true, cancelable: true, view: window }
@@ -74,6 +146,189 @@ export class DeepSeekAdapter extends BaseAdapter {
     return ariaSelected === 'true' || className.includes('active') || className.includes('selected')
   }
 
+  private hasThinkingContent(messageEl: Element): boolean {
+    const thinkBlocks = messageEl.querySelectorAll('.ds-think-content .ds-markdown')
+    for (const block of Array.from(thinkBlocks)) {
+      const text = (block.textContent || '').replace(/\s+/g, '').trim()
+      if (text) return true
+    }
+    return false
+  }
+
+  private isThinkingHeaderText(text: string): boolean {
+    const compact = text.replace(/\s+/g, '')
+    return /已思考（用时\d+(?:\.\d+)?(?:秒|s)）/i.test(compact)
+      || /思考(?:完成|中)?/.test(compact)
+      || /thoughtfor\d+(?:\.\d+)?s/i.test(compact)
+      || /thinking/i.test(compact)
+  }
+
+  private findClickableAncestor(start: HTMLElement, root: Element): HTMLElement {
+    let cur: HTMLElement | null = start
+    let depth = 0
+    while (cur && depth < 6 && root.contains(cur)) {
+      const role = cur.getAttribute('role')
+      const tabIndex = cur.getAttribute('tabindex')
+      if (
+        cur.tagName === 'BUTTON'
+        || role === 'button'
+        || role === 'tab'
+        || tabIndex !== null
+      ) {
+        return cur
+      }
+
+      const style = window.getComputedStyle(cur)
+      if (style.cursor === 'pointer') return cur
+
+      cur = cur.parentElement
+      depth++
+    }
+    return start
+  }
+
+  private getCollapsedThinkingTriggers(messageEl: Element): HTMLElement[] {
+    const triggers: HTMLElement[] = []
+    const seen = new Set<HTMLElement>()
+
+    // 语义优先：依赖 collapsible 变量与文本，不强依赖混淆 class。
+    const semanticBlocks = Array.from(
+      messageEl.querySelectorAll<HTMLElement>(
+        '[style*="--collapsible-area-title-height"], [class*="collapsible" i], ._74c0879',
+      ),
+    )
+
+    for (const block of semanticBlocks) {
+      if (this.hasThinkingContent(block)) continue
+
+      const label = block.querySelector<HTMLElement>('span, div')
+      const text = label?.textContent || block.textContent || ''
+      if (!this.isThinkingHeaderText(text)) continue
+
+      const header
+        = block.querySelector<HTMLElement>(':scope > ._245c867')
+          || block.querySelector<HTMLElement>(':scope > *')
+          || label
+          || block
+      if (!header) continue
+
+      const clickable = this.findClickableAncestor(header, messageEl)
+      if (seen.has(clickable)) continue
+      seen.add(clickable)
+      triggers.push(clickable)
+    }
+
+    if (triggers.length > 0) return triggers
+
+    // 最后兜底：直接按“已思考（用时 x 秒）”文本反推可点击祖先。
+    const labels = Array.from(messageEl.querySelectorAll<HTMLElement>('span, div')).filter((el) => {
+      if (el.closest('.ds-think-content')) return false
+      return this.isThinkingHeaderText(el.textContent || '')
+    })
+    for (const label of labels) {
+      const clickable = this.findClickableAncestor(label, messageEl)
+      if (seen.has(clickable)) continue
+      seen.add(clickable)
+      triggers.push(clickable)
+    }
+
+    return triggers
+  }
+
+  private getThinkingTriggers(messageEl: Element): HTMLElement[] {
+    const collapsedTriggers = this.getCollapsedThinkingTriggers(messageEl)
+    if (collapsedTriggers.length > 0) return collapsedTriggers
+
+    const nodes = Array.from(
+      messageEl.querySelectorAll<HTMLElement>(
+        'button, [role="button"], [tabindex], [data-testid*="think" i], [aria-label*="思考"], [aria-label*="think" i], [title*="思考"], [title*="think" i], [class*="think" i], [class*="reason" i]',
+      ),
+    )
+
+    const triggers: HTMLElement[] = []
+    const seen = new Set<HTMLElement>()
+
+    for (const node of nodes) {
+      const clickable
+        = node.closest<HTMLElement>('button, [role="button"], a, [tabindex]')
+          || node
+      if (seen.has(clickable)) continue
+
+      const signal = [
+        clickable.textContent || '',
+        clickable.getAttribute('aria-label') || '',
+        clickable.getAttribute('title') || '',
+        clickable.getAttribute('data-testid') || '',
+        clickable.className || '',
+      ]
+        .join(' ')
+        .toLowerCase()
+        .replace(/\s+/g, '')
+
+      // 仅命中思考相关触发器，避免误点复制/菜单按钮。
+      const isThinkingTrigger = /思考|think|thought|reason|推理|分析/.test(signal)
+      if (!isThinkingTrigger) continue
+
+      const style = window.getComputedStyle(clickable)
+      if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') continue
+
+      seen.add(clickable)
+      triggers.push(clickable)
+    }
+
+    return triggers
+  }
+
+  private async waitForThinkingReady(messageEl: Element, timeoutMs = 1500): Promise<boolean> {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      if (this.hasThinkingContent(messageEl)) return true
+      await new Promise<void>((r) => setTimeout(r, 80))
+    }
+    return this.hasThinkingContent(messageEl)
+  }
+
+  private async expandUncachedThinking(): Promise<ThinkingToggleContext[]> {
+    const expanded: ThinkingToggleContext[] = []
+    const container = document.querySelector('.dad65929')
+    if (!container) return expanded
+
+    const assistants = Array.from(container.children).filter((el) => el.classList.contains('_4f9bf79'))
+    for (const assistant of assistants) {
+      if (this.hasThinkingContent(assistant)) continue
+
+      const identity = this.getAssistantIdentity(assistant)
+      if (this.hasCachedThinkingByIdentity(identity)) continue
+
+      const triggers = this.getThinkingTriggers(assistant)
+      if (triggers.length === 0) continue
+
+      let opened = false
+      for (const trigger of triggers) {
+        this.simulateClick(trigger)
+        const ready = await this.waitForThinkingReady(assistant, 1200)
+        if (ready) {
+          expanded.push({ trigger, messageEl: assistant })
+          opened = true
+          break
+        }
+      }
+
+      if (!opened) {
+        await new Promise<void>((r) => setTimeout(r, 60))
+      }
+    }
+
+    return expanded
+  }
+
+  private collapseThinking(expanded: ThinkingToggleContext[]): void {
+    for (const item of expanded) {
+      if (!item.messageEl.isConnected || !item.trigger.isConnected) continue
+      this.simulateClick(item.trigger)
+    }
+  }
+
   /**
    * 等待 mermaid 切换到“代码”tab 且 pre 文本可读。
    * 失败时会重试点击 code tab，避免首轮采集拿到空代码块。
@@ -100,6 +355,14 @@ export class DeepSeekAdapter extends BaseAdapter {
   }
 
   override async collect(options?: CollectOptions): Promise<CollectResult> {
+    const shouldInteractWithUi = this.shouldInteractWithUi(options)
+
+    // 自动同步 + 页面可见：禁止触发 UI 交互，避免干扰阅读状态
+    if (!shouldInteractWithUi) {
+      return super.collect(options)
+    }
+
+    const expandedThinking = await this.expandUncachedThinking()
     const switched = this.switchMermaidToCodeTab()
     try {
       if (switched.length) {
@@ -110,6 +373,9 @@ export class DeepSeekAdapter extends BaseAdapter {
 
       return super.collect(options)
     } finally {
+      if (expandedThinking.length) {
+        this.collapseThinking(expandedThinking)
+      }
       if (switched.length) {
         this.restoreMermaidTabs(switched)
       }
@@ -251,6 +517,13 @@ export class DeepSeekAdapter extends BaseAdapter {
         }
 
         if (content.trim()) {
+          const identity = this.getAssistantIdentity(child)
+          if (thinking?.trim()) {
+            this.persistThinking(identity, content, thinking)
+          } else {
+            thinking = this.getCachedThinking(identity, content)
+          }
+
           messages.push({
             id: this.generateMessageId(),
             role: 'assistant',

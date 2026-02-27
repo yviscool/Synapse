@@ -121,6 +121,16 @@ export abstract class BaseAdapter implements PlatformAdapter {
   protected preprocessClone(_clone: Element): void {}
 
   /**
+   * UI 交互策略：
+   * - 手动采集：允许交互（可展开思考/切换 tab）
+   * - 自动同步：允许交互，优先保证完整采集（站点可在子类中自行收敛）
+   */
+  protected shouldInteractWithUi(options?: CollectOptions): boolean {
+    void options
+    return true
+  }
+
+  /**
    * HTML table → Markdown table
    * 通用实现，子类在 preprocessClone 中调用
    */
@@ -261,7 +271,7 @@ export abstract class BaseAdapter implements PlatformAdapter {
         title: this.getTitle() || DEFAULT_TITLE,
         link: window.location.href,
         messages,
-        messageCount: Math.ceil(messages.length / 2),
+        messageCount: messages.length,
         collectedAt: Date.now(),
       }
 
