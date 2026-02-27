@@ -15,7 +15,7 @@ const SEARCH_MAX_QUERY_TOKENS = 12;
 const SEARCH_MAX_CANDIDATES = 500;
 const CJK_TOKEN_RE = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+$/u;
 const SEARCH_SCORE_BY_MATCH_LEVEL = [0, 3, 6, 8] as const;
-const PROMPT_INDEX_TOKENIZER_VERSION = 2;
+const PROMPT_INDEX_TOKENIZER_VERSION = 3;
 
 let ensureSearchIndexPromise: Promise<void> | null = null;
 let hasVerifiedSearchIndex = false;
@@ -575,6 +575,7 @@ export async function queryPrompts(
           queryTokens = fallbackTokens;
         }
       }
+
     } else {
       filteredPrompts = await searchPromptsBySubstring(normalizedSearchQuery) as PromptWithMatches[];
     }

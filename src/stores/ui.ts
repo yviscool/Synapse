@@ -25,20 +25,34 @@ const state = reactive({
   } as Confirm,
 })
 
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
 function showToast(message: string, type: ToastType = 'success', duration: number = 3000) {
+  if (toastTimer) {
+    clearTimeout(toastTimer)
+    toastTimer = null
+  }
   state.toast = { message, type }
   if (duration > 0) {
-    setTimeout(() => {
+    toastTimer = setTimeout(() => {
       state.toast = null
+      toastTimer = null
     }, duration)
   }
 }
 
 function hideToast() {
+  if (toastTimer) {
+    clearTimeout(toastTimer)
+    toastTimer = null
+  }
   state.toast = null
 }
 
 function askConfirm(message: string, options?: { type?: ConfirmType }): Promise<boolean> {
+  if (state.confirm.resolver) {
+    state.confirm.resolver(false)
+  }
   state.confirm.message = message
   state.confirm.type = options?.type ?? 'default'
   state.confirm.visible = true

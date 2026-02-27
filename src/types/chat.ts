@@ -134,6 +134,7 @@ export interface ChatMessageSearchIndex {
   createdAt: number
   updatedAt: number
   collectedAt: number
+  tokenizerVersion?: number
 }
 
 /** 查询参数 */

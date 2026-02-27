@@ -17,6 +17,7 @@ const SEARCH_MAX_QUERY_TOKENS = 12;
 const SEARCH_MAX_MESSAGE_TOKENS = 384;
 const SEARCH_MAX_MESSAGE_CONTENT_LENGTH = 4000;
 const CJK_TOKEN_RE = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+$/u;
+const CHAT_MESSAGE_INDEX_TOKENIZER_VERSION = 2;
 
 let ensureSearchIndexPromise: Promise<void> | null = null;
 let hasVerifiedSearchIndex = false;
@@ -58,7 +59,9 @@ function buildChatMessageSearchIndexRecord(
 
   const normalizedContent = normalizeSearchText(content);
   const normalizedTitle = normalizeSearchText(conversation.title || "");
-  const tokens = collectSearchTokens(content, SEARCH_MAX_MESSAGE_TOKENS);
+  const tokens = collectSearchTokens(content, SEARCH_MAX_MESSAGE_TOKENS, {
+    includeWordPrefixes: true,
+  });
 
   return {
     id: `${conversation.id}:${messageIndex}`,
@@ -77,6 +80,7 @@ function buildChatMessageSearchIndexRecord(
     createdAt: conversation.createdAt || 0,
     updatedAt: conversation.updatedAt || Date.now(),
     collectedAt: conversation.collectedAt || conversation.createdAt || 0,
+    tokenizerVersion: CHAT_MESSAGE_INDEX_TOKENIZER_VERSION,
   };
 }
 
@@ -106,12 +110,15 @@ async function ensureChatMessageSearchIndexReady(): Promise<void> {
   }
 
   ensureSearchIndexPromise = (async () => {
-    const conversations = await db.chat_conversations.toArray();
+    const [conversations, indexCount, sampleRecord] = await Promise.all([
+      db.chat_conversations.toArray(),
+      db.chat_message_search_index.count(),
+      db.chat_message_search_index.limit(1).first(),
+    ]);
     const expectedIndexCount = conversations.reduce(
       (sum, conversation) => sum + countSearchableMessages(conversation),
       0,
     );
-    const indexCount = await db.chat_message_search_index.count();
 
     if (expectedIndexCount === 0) {
       if (indexCount > 0) {
@@ -121,7 +128,8 @@ async function ensureChatMessageSearchIndexReady(): Promise<void> {
       return;
     }
 
-    if (indexCount !== expectedIndexCount) {
+    const indexVersionMatches = sampleRecord?.tokenizerVersion === CHAT_MESSAGE_INDEX_TOKENIZER_VERSION;
+    if (indexCount !== expectedIndexCount || !indexVersionMatches) {
       await rebuildChatMessageSearchIndex(conversations);
     }
 

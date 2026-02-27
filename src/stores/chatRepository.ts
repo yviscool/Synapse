@@ -5,14 +5,9 @@ import {
   upsertChatMessageSearchIndex,
   removeChatMessageSearchIndex,
 } from "./chatMessageSearch";
-import {
-  fetchTagNameMap as fetchTagNameMapGeneric,
-  buildSearchIndexRecord,
-} from "@/utils/searchIndexUtils";
 import type {
   ChatConversation,
   ChatTag,
-  ChatSearchIndex,
   ChatPlatform,
   QueryChatsParams,
   QueryChatsResult,
@@ -36,52 +31,43 @@ function toDataScope(eventType: EventType): string {
 const withCommitNotification = createCommitNotifier("[ChatRepository]", events, toDataScope);
 
 // ============================================
-// Search Index Functions
+// Tag Helpers
 // ============================================
 
-function fetchChatTagNameMap(tagIds?: string[]): Promise<Map<string, string>> {
-  return fetchTagNameMapGeneric(db.chat_tags, tagIds);
+async function resolveChatTagIds(
+  tagNames: string[],
+  directTagIds?: string[],
+  fallbackTagIds: string[] = [],
+): Promise<string[]> {
+  const normalizedTagNames = [...new Set(
+    tagNames.map((name) => name.trim()).filter(Boolean),
+  )];
+  if (normalizedTagNames.length === 0) {
+    return Array.isArray(directTagIds) ? directTagIds : fallbackTagIds;
+  }
+
+  const tagIds: string[] = [];
+  const existingTags = await db.chat_tags
+    .where("name")
+    .anyOf(normalizedTagNames)
+    .toArray();
+  const existingTagsMap = new Map(existingTags.map((tag) => [tag.name, tag.id]));
+
+  for (const name of normalizedTagNames) {
+    const existingTagId = existingTagsMap.get(name);
+    if (existingTagId) {
+      tagIds.push(existingTagId);
+      continue;
+    }
+
+    const newTag: ChatTag = { id: crypto.randomUUID(), name };
+    await db.chat_tags.add(newTag);
+    tagIds.push(newTag.id);
+  }
+
+  return tagIds;
 }
 
-function buildChatSearchIndexRecord(
-  conversation: ChatConversation,
-  tagNameMap: Map<string, string>
-): ChatSearchIndex {
-  const messageContent = conversation.messages
-    .map((m) => (typeof m.content === "string" ? m.content : m.content.original))
-    .join(" ")
-    .slice(0, 8000);
-
-  return buildSearchIndexRecord({
-    id: conversation.id,
-    idField: "conversationId",
-    title: conversation.title,
-    content: messageContent,
-    tagIds: conversation.tagIds,
-    tagNameMap,
-    updatedAt: conversation.updatedAt || Date.now(),
-  }) as unknown as ChatSearchIndex;
-}
-
-async function upsertChatSearchIndex(
-  conversation: ChatConversation,
-  tagNameMap?: Map<string, string>
-): Promise<void> {
-  if (!conversation.id) return;
-  const resolvedTagMap = tagNameMap || (await fetchChatTagNameMap(conversation.tagIds));
-  const record = buildChatSearchIndexRecord(conversation, resolvedTagMap);
-  await db.chat_search_index.put(record);
-}
-
-async function removeChatSearchIndex(conversationIds: string | string[]): Promise<void> {
-  const ids = Array.isArray(conversationIds) ? conversationIds : [conversationIds];
-  if (ids.length === 0) return;
-  await db.chat_search_index.bulkDelete(ids);
-}
-
-// ============================================
-// Helper Functions
-// ============================================
 function toSerializableValue(
   value: unknown,
   seen: WeakMap<object, unknown>,
@@ -194,47 +180,32 @@ export const chatRepository = {
     tagNames: string[] = []
   ): Promise<{ ok: boolean; data?: ChatConversation; error?: Error }> {
     return withCommitNotification(
-      ["chat_conversations", "chat_tags", "chat_search_index", "chat_message_search_index"],
+      ["chat_conversations", "chat_tags", "chat_message_search_index"],
       async () => {
-        // 1. Resolve Tags
-        const tagIds: string[] = [];
-        if (tagNames.length > 0) {
-          const existingTags = await db.chat_tags
-            .where("name")
-            .anyOf(tagNames)
-            .toArray();
-          const existingTagsMap = new Map(existingTags.map((t) => [t.name, t.id]));
-          for (const name of tagNames) {
-            if (existingTagsMap.has(name)) {
-              tagIds.push(existingTagsMap.get(name)!);
-            } else {
-              const newTag: ChatTag = { id: crypto.randomUUID(), name };
-              await db.chat_tags.add(newTag);
-              tagIds.push(newTag.id);
-            }
-          }
-        }
-
-        // 2. Prepare Conversation
         const sanitizedData = ensureSerializable(data);
-        const resolvedTagIds = tagNames.length > 0
-          ? tagIds
-          : (sanitizedData.tagIds || []);
-        const safeConversation = createSafeConversation({
-          ...sanitizedData,
-          tagIds: resolvedTagIds,
-        });
-
-        // 3. Check if update or create
         const existing = data.id ? await db.chat_conversations.get(data.id) : null;
-        if (existing) {
-          safeConversation.updatedAt = Date.now();
-          safeConversation.createdAt = existing.createdAt;
-        }
 
-        // 4. Save
+        const resolvedTagIds = await resolveChatTagIds(
+          tagNames,
+          sanitizedData.tagIds,
+          existing?.tagIds || [],
+        );
+
+        const safeConversation = createSafeConversation(existing
+          ? {
+              ...existing,
+              ...sanitizedData,
+              id: existing.id,
+              createdAt: existing.createdAt,
+              updatedAt: Date.now(),
+              tagIds: resolvedTagIds,
+            }
+          : {
+              ...sanitizedData,
+              tagIds: resolvedTagIds,
+            });
+
         await db.chat_conversations.put(safeConversation);
-        await upsertChatSearchIndex(safeConversation);
         await upsertChatMessageSearchIndex(safeConversation);
 
         return safeConversation;
@@ -255,7 +226,7 @@ export const chatRepository = {
       sanitizedPatch.messageCount = Math.ceil(sanitizedPatch.messages.length / 2);
     }
     return withCommitNotification(
-      ["chat_conversations", "chat_tags", "chat_search_index", "chat_message_search_index"],
+      ["chat_conversations", "chat_tags", "chat_message_search_index"],
       async () => {
         await db.chat_conversations.update(id, sanitizedPatch);
         if (
@@ -269,7 +240,6 @@ export const chatRepository = {
         ) {
           const updated = await db.chat_conversations.get(id);
           if (updated) {
-            await upsertChatSearchIndex(updated);
             await upsertChatMessageSearchIndex(updated);
           }
         }
@@ -280,10 +250,9 @@ export const chatRepository = {
 
   async deleteConversation(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
-      ["chat_conversations", "chat_search_index", "chat_message_search_index"],
+      ["chat_conversations", "chat_message_search_index"],
       async () => {
         await db.chat_conversations.delete(id);
-        await removeChatSearchIndex(id);
         await removeChatMessageSearchIndex(id);
       },
       "chatsChanged"
@@ -293,10 +262,9 @@ export const chatRepository = {
   async deleteConversations(ids: string[]): Promise<{ ok: boolean; error?: Error }> {
     if (ids.length === 0) return { ok: true };
     return withCommitNotification(
-      ["chat_conversations", "chat_search_index", "chat_message_search_index"],
+      ["chat_conversations", "chat_message_search_index"],
       async () => {
         await db.chat_conversations.bulkDelete(ids);
-        await removeChatSearchIndex(ids);
         await removeChatMessageSearchIndex(ids);
       },
       "chatsChanged"
@@ -342,7 +310,7 @@ export const chatRepository = {
 
   async deleteTag(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
-      ["chat_tags", "chat_conversations", "chat_search_index", "chat_message_search_index"],
+      ["chat_tags", "chat_conversations", "chat_message_search_index"],
       async () => {
         // Remove tag from all conversations
         const conversationsWithTag = await db.chat_conversations
@@ -352,7 +320,6 @@ export const chatRepository = {
         for (const conv of conversationsWithTag) {
           const newTagIds = conv.tagIds.filter((t) => t !== id);
           await db.chat_conversations.update(conv.id, { tagIds: newTagIds });
-          await upsertChatSearchIndex({ ...conv, tagIds: newTagIds });
           await upsertChatMessageSearchIndex({ ...conv, tagIds: newTagIds });
         }
         await db.chat_tags.delete(id);
@@ -367,13 +334,22 @@ export const chatRepository = {
   },
 
   async getTagsWithCount(): Promise<Array<ChatTag & { count: number }>> {
-    const tags = await db.chat_tags.toArray();
-    const result: Array<ChatTag & { count: number }> = [];
-    for (const tag of tags) {
-      const count = await db.chat_conversations.where("tagIds").equals(tag.id).count();
-      result.push({ ...tag, count });
+    const [tags, conversations] = await Promise.all([
+      db.chat_tags.toArray(),
+      db.chat_conversations.toArray(),
+    ]);
+
+    const countMap = new Map<string, number>();
+    for (const conversation of conversations) {
+      for (const tagId of conversation.tagIds) {
+        countMap.set(tagId, (countMap.get(tagId) || 0) + 1);
+      }
     }
-    return result;
+
+    return tags.map((tag) => ({
+      ...tag,
+      count: countMap.get(tag.id) || 0,
+    }));
   },
 
   async getConversationById(id: string): Promise<ChatConversation | undefined> {
@@ -402,6 +378,29 @@ export const chatRepository = {
     } = params;
 
     const offset = (page - 1) * limit;
+
+    const hasDateRange = !!(dateRange?.start || dateRange?.end);
+    const hasFilters = !!(
+      searchQuery
+      || starredOnly
+      || hasDateRange
+      || (platforms && platforms.length > 0)
+      || (tagIds && tagIds.length > 0)
+      || sortBy === "title"
+      || sortBy === "messageCount"
+    );
+    if (!hasFilters) {
+      const [total, conversations] = await Promise.all([
+        db.chat_conversations.count(),
+        db.chat_conversations
+          .orderBy(sortBy)
+          .reverse()
+          .offset(offset)
+          .limit(limit)
+          .toArray(),
+      ]);
+      return { conversations, total };
+    }
 
     // Build filters
     const filters: ((c: ChatConversation) => boolean)[] = [];

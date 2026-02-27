@@ -7,18 +7,30 @@ import type { Table } from "dexie";
 
 export const SEARCH_MAX_SOURCE_LENGTH = 12000;
 export const SEARCH_MAX_TOKENS = 1200;
+const WORD_PREFIX_MIN_LENGTH = 2;
+const WORD_PREFIX_MAX_LENGTH = 24;
 
 // 允许技术关键词保留符号，例如 c++、c#、node.js、next.js、foo_bar
 const WORD_RE = /[\p{L}\p{N}][\p{L}\p{N}._#+-]*/gu;
 const CJK_SEGMENT_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+/gu;
+const CJK_TOKEN_RE = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+$/u;
 
 export function normalizeSearchText(text: string): string {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-export function collectSearchTokens(text: string, maxTokens: number): string[] {
+export interface CollectSearchTokenOptions {
+  includeWordPrefixes?: boolean;
+}
+
+export function collectSearchTokens(
+  text: string,
+  maxTokens: number,
+  options: CollectSearchTokenOptions = {},
+): string[] {
   const source = normalizeSearchText(text).slice(0, SEARCH_MAX_SOURCE_LENGTH);
   if (!source) return [];
+  const includeWordPrefixes = options.includeWordPrefixes ?? false;
 
   const tokens = new Set<string>();
   const pushToken = (token: string) => {
@@ -30,6 +42,13 @@ export function collectSearchTokens(text: string, maxTokens: number): string[] {
   for (const word of words) {
     if (word.length >= 2 || /^\d$/.test(word)) {
       pushToken(word);
+    }
+    if (includeWordPrefixes && word.length > WORD_PREFIX_MIN_LENGTH && !CJK_TOKEN_RE.test(word)) {
+      const maxPrefixLength = Math.min(word.length - 1, WORD_PREFIX_MAX_LENGTH);
+      for (let prefixLength = WORD_PREFIX_MIN_LENGTH; prefixLength <= maxPrefixLength; prefixLength++) {
+        pushToken(word.slice(0, prefixLength));
+        if (tokens.size >= maxTokens) break;
+      }
     }
     if (tokens.size >= maxTokens) break;
   }
@@ -89,9 +108,15 @@ export function buildSearchIndexRecord(config: BuildSearchIndexConfig): Record<s
     .filter(Boolean)
     .join(" ");
 
-  const titleTokens = collectSearchTokens(config.title, 256);
-  const contentTokens = collectSearchTokens(config.content, 1024);
-  const tagTokens = collectSearchTokens(tagText, 128);
+  const titleTokens = collectSearchTokens(config.title, 256, {
+    includeWordPrefixes: true,
+  });
+  const contentTokens = collectSearchTokens(config.content, 1024, {
+    includeWordPrefixes: true,
+  });
+  const tagTokens = collectSearchTokens(tagText, 128, {
+    includeWordPrefixes: true,
+  });
 
   const mergedTokenSet = new Set<string>([
     ...titleTokens,

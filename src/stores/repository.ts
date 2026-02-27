@@ -9,8 +9,6 @@ import {
   removePromptSearchIndex,
   rebuildPromptSearchIndex,
 } from "./promptSearch";
-import { rebuildSnippetSearchIndex } from "./snippetSearch";
-import { rebuildChatSearchIndex } from "./chatSearch";
 import { rebuildChatMessageSearchIndex } from "./chatMessageSearch";
 import { createEventBus, createCommitNotifier } from "./repositoryHelpers";
 import type {
@@ -63,6 +61,32 @@ function toError(error: unknown): Error {
     return error;
   }
   return new Error(typeof error === "string" ? error : "Unknown repository error");
+}
+
+function getNextPromptVersionNumber(versions: PromptVersion[]): number {
+  let maxVersionNumber = 0;
+  let hasValidVersionNumber = false;
+
+  for (const version of versions) {
+    if (typeof version.versionNumber !== "number" || !Number.isFinite(version.versionNumber)) {
+      continue;
+    }
+    hasValidVersionNumber = true;
+    maxVersionNumber = Math.max(maxVersionNumber, version.versionNumber);
+  }
+
+  if (!hasValidVersionNumber) {
+    return versions.length + 1;
+  }
+
+  return maxVersionNumber + 1;
+}
+
+function getPromptVersionLabel(versionNumber: unknown): string {
+  if (typeof versionNumber !== "number" || !Number.isFinite(versionNumber)) {
+    return "?";
+  }
+  return String(versionNumber);
 }
 
 function isSearchRelevantPatch(patch: Partial<Prompt>): boolean {
@@ -179,11 +203,7 @@ export const repository = {
               .where("promptId")
               .equals(safePrompt.id!)
               .toArray();
-
-            // 安全获取下一个版本号：如果旧数据没有 versionNumber，则使用数组长度+1
-            const nextVersionNumber = allVersions.length > 0
-              ? Math.max(...allVersions.map(v => typeof v.versionNumber === 'number' && !isNaN(v.versionNumber) ? v.versionNumber : 0)) + 1
-              : 1;
+            const nextVersionNumber = getNextPromptVersionNumber(allVersions);
 
             const newVersion: PromptVersion = {
               id: crypto.randomUUID(),
@@ -464,16 +484,8 @@ export const repository = {
           .where("promptId")
           .equals(promptId)
           .toArray();
-
-        // 安全获取下一个版本号
-        const nextVersionNumber = allVersions.length > 0
-          ? Math.max(...allVersions.map(v => typeof v.versionNumber === 'number' && !isNaN(v.versionNumber) ? v.versionNumber : 0)) + 1
-          : 1;
-
-        // 安全获取目标版本号（用于 note）
-        const targetVersionNumber = typeof versionToApply.versionNumber === 'number' && !isNaN(versionToApply.versionNumber)
-          ? versionToApply.versionNumber
-          : '?';
+        const nextVersionNumber = getNextPromptVersionNumber(allVersions);
+        const targetVersionNumber = getPromptVersionLabel(versionToApply.versionNumber);
 
         // 安全获取 title：如果旧版本没有 title，回退到当前 prompt 的 title
         const safeTitle = versionToApply.title || prompt.title;
@@ -552,10 +564,8 @@ export const repository = {
         db.snippets,
         db.snippet_folders,
         db.snippet_tags,
-        db.snippet_search_index,
         db.chat_conversations,
         db.chat_tags,
-        db.chat_search_index,
         db.chat_message_search_index,
       ],
       async () => {
@@ -584,7 +594,6 @@ export const repository = {
         await db.snippets.clear();
         await db.snippet_folders.clear();
         await db.snippet_tags.clear();
-        await db.snippet_search_index.clear();
         if (Array.isArray(importedData.snippets)) {
           await db.snippets.bulkPut(importedData.snippets as Snippet[]);
         }
@@ -598,7 +607,6 @@ export const repository = {
         // --- Chats ---
         await db.chat_conversations.clear();
         await db.chat_tags.clear();
-        await db.chat_search_index.clear();
         await db.chat_message_search_index.clear();
         if (Array.isArray(importedData.chat_conversations)) {
           await db.chat_conversations.bulkPut(importedData.chat_conversations as ChatConversation[]);
@@ -623,8 +631,6 @@ export const repository = {
 
         // --- Rebuild search indexes ---
         await rebuildPromptSearchIndex();
-        await rebuildSnippetSearchIndex();
-        await rebuildChatSearchIndex();
         await rebuildChatMessageSearchIndex();
       },
       "allChanged",
@@ -643,10 +649,8 @@ export const repository = {
         db.snippets,
         db.snippet_folders,
         db.snippet_tags,
-        db.snippet_search_index,
         db.chat_conversations,
         db.chat_tags,
-        db.chat_search_index,
         db.chat_message_search_index,
       ],
       async () => {
@@ -663,12 +667,10 @@ export const repository = {
         await db.snippets.clear();
         await db.snippet_folders.clear();
         await db.snippet_tags.clear();
-        await db.snippet_search_index.clear();
 
         // --- Chats ---
         await db.chat_conversations.clear();
         await db.chat_tags.clear();
-        await db.chat_search_index.clear();
         await db.chat_message_search_index.clear();
 
         // --- Settings ---

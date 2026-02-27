@@ -1,9 +1,4 @@
 import { db } from "./db";
-import {
-  upsertSnippetSearchIndex,
-  bulkUpsertSnippetSearchIndex,
-  removeSnippetSearchIndex,
-} from "./snippetSearch";
 import { createEventBus, createCommitNotifier } from "./repositoryHelpers";
 import type {
   Snippet,
@@ -31,14 +26,6 @@ function toDataScope(eventType: EventType): string {
 
 const withCommitNotification = createCommitNotifier("[SnippetRepository]", events, toDataScope);
 
-function isSearchRelevantPatch(patch: Partial<Snippet>): boolean {
-  return (
-    Object.prototype.hasOwnProperty.call(patch, "title") ||
-    Object.prototype.hasOwnProperty.call(patch, "content") ||
-    Object.prototype.hasOwnProperty.call(patch, "tagIds")
-  );
-}
-
 function createSafeSnippet(data: Partial<Snippet>): Snippet {
   const now = Date.now();
   return {
@@ -55,6 +42,40 @@ function createSafeSnippet(data: Partial<Snippet>): Snippet {
     useCount: data.useCount || 0,
     dependencies: data.dependencies,
   };
+}
+
+async function resolveSnippetTagIds(
+  tagNames: string[],
+  directTagIds?: string[],
+  fallbackTagIds: string[] = [],
+): Promise<string[]> {
+  const normalizedTagNames = [...new Set(
+    tagNames.map((name) => name.trim()).filter(Boolean),
+  )];
+  if (normalizedTagNames.length === 0) {
+    return Array.isArray(directTagIds) ? directTagIds : fallbackTagIds;
+  }
+
+  const tagIds: string[] = [];
+  const existingTags = await db.snippet_tags
+    .where("name")
+    .anyOf(normalizedTagNames)
+    .toArray();
+  const existingTagsMap = new Map(existingTags.map((tag) => [tag.name, tag.id]));
+
+  for (const name of normalizedTagNames) {
+    const existingTagId = existingTagsMap.get(name);
+    if (existingTagId) {
+      tagIds.push(existingTagId);
+      continue;
+    }
+
+    const newTag: SnippetTag = { id: crypto.randomUUID(), name };
+    await db.snippet_tags.add(newTag);
+    tagIds.push(newTag.id);
+  }
+
+  return tagIds;
 }
 
 async function listSiblingFolders(parentId: string | null): Promise<SnippetFolder[]> {
@@ -77,45 +98,33 @@ export const snippetRepository = {
     tagNames: string[],
   ): Promise<{ ok: boolean; data?: Snippet; error?: Error }> {
     return withCommitNotification(
-      ["snippets", "snippet_tags", "snippet_search_index"],
+      ["snippets", "snippet_tags"],
       async () => {
-        // 1. Resolve Tags
-        const tagIds: string[] = [];
-        if (tagNames.length > 0) {
-          const existingTags = await db.snippet_tags
-            .where("name")
-            .anyOf(tagNames)
-            .toArray();
-          const existingTagsMap = new Map(
-            existingTags.map((t) => [t.name, t.id]),
-          );
-          for (const name of tagNames) {
-            if (existingTagsMap.has(name)) {
-              tagIds.push(existingTagsMap.get(name)!);
-            } else {
-              const newTag: SnippetTag = { id: crypto.randomUUID(), name };
-              await db.snippet_tags.add(newTag);
-              tagIds.push(newTag.id);
-            }
-          }
-        }
-
-        // 2. Prepare Snippet
-        const safeSnippet = createSafeSnippet({ ...snippetData, tagIds });
-
-        // 3. Check if update or create
         const existingSnippet = snippetData.id
           ? await db.snippets.get(snippetData.id)
           : null;
 
-        if (existingSnippet) {
-          safeSnippet.updatedAt = Date.now();
-          safeSnippet.createdAt = existingSnippet.createdAt;
-        }
+        const resolvedTagIds = await resolveSnippetTagIds(
+          tagNames,
+          snippetData.tagIds,
+          existingSnippet?.tagIds || [],
+        );
 
-        // 4. Save snippet
+        const safeSnippet = createSafeSnippet(existingSnippet
+          ? {
+              ...existingSnippet,
+              ...snippetData,
+              id: existingSnippet.id,
+              createdAt: existingSnippet.createdAt,
+              updatedAt: Date.now(),
+              tagIds: resolvedTagIds,
+            }
+          : {
+              ...snippetData,
+              tagIds: resolvedTagIds,
+            });
+
         await db.snippets.put(safeSnippet);
-        await upsertSnippetSearchIndex(safeSnippet);
 
         return safeSnippet;
       },
@@ -131,15 +140,9 @@ export const snippetRepository = {
       patch.updatedAt = Date.now();
     }
     return withCommitNotification(
-      ["snippets", "snippet_tags", "snippet_search_index"],
+      ["snippets"],
       async () => {
         await db.snippets.update(id, patch);
-        if (isSearchRelevantPatch(patch)) {
-          const updatedSnippet = await db.snippets.get(id);
-          if (updatedSnippet) {
-            await upsertSnippetSearchIndex(updatedSnippet);
-          }
-        }
       },
       "snippetsChanged",
     );
@@ -147,10 +150,9 @@ export const snippetRepository = {
 
   async deleteSnippet(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
-      ["snippets", "snippet_search_index"],
+      ["snippets"],
       async () => {
         await db.snippets.delete(id);
-        await removeSnippetSearchIndex(id);
       },
       "snippetsChanged",
     );
@@ -159,10 +161,9 @@ export const snippetRepository = {
   async deleteSnippets(ids: string[]): Promise<{ ok: boolean; error?: Error }> {
     if (ids.length === 0) return { ok: true };
     return withCommitNotification(
-      ["snippets", "snippet_search_index"],
+      ["snippets"],
       async () => {
         await db.snippets.bulkDelete(ids);
-        await removeSnippetSearchIndex(ids);
       },
       "snippetsChanged",
     );
@@ -413,7 +414,7 @@ export const snippetRepository = {
 
   async deleteTag(id: string): Promise<{ ok: boolean; error?: Error }> {
     return withCommitNotification(
-      ["snippet_tags", "snippets", "snippet_search_index"],
+      ["snippet_tags", "snippets"],
       async () => {
         // Remove tag from all snippets
         const snippetsWithTag = await db.snippets
@@ -423,7 +424,6 @@ export const snippetRepository = {
         for (const snippet of snippetsWithTag) {
           const newTagIds = snippet.tagIds.filter((t) => t !== id);
           await db.snippets.update(snippet.id, { tagIds: newTagIds });
-          await upsertSnippetSearchIndex({ ...snippet, tagIds: newTagIds });
         }
         // Delete the tag
         await db.snippet_tags.delete(id);
@@ -442,16 +442,22 @@ export const snippetRepository = {
   },
 
   async getTagsWithCount(): Promise<Array<SnippetTag & { count: number }>> {
-    const tags = await db.snippet_tags.toArray();
-    const result: Array<SnippetTag & { count: number }> = [];
-    for (const tag of tags) {
-      const count = await db.snippets
-        .where("tagIds")
-        .equals(tag.id)
-        .count();
-      result.push({ ...tag, count });
+    const [tags, snippets] = await Promise.all([
+      db.snippet_tags.toArray(),
+      db.snippets.toArray(),
+    ]);
+
+    const countMap = new Map<string, number>();
+    for (const snippet of snippets) {
+      for (const tagId of snippet.tagIds) {
+        countMap.set(tagId, (countMap.get(tagId) || 0) + 1);
+      }
     }
-    return result;
+
+    return tags.map((tag) => ({
+      ...tag,
+      count: countMap.get(tag.id) || 0,
+    }));
   },
 
   async querySnippets(params: QuerySnippetsParams = {}): Promise<QuerySnippetsResult> {
@@ -467,6 +473,29 @@ export const snippetRepository = {
     } = params;
 
     const offset = (page - 1) * limit;
+
+    const hasFilters = !!(
+      searchQuery
+      || starredOnly
+      || (folderId !== undefined)
+      || (tagIds && tagIds.length > 0)
+      || (languages && languages.length > 0)
+      || sortBy === "usedAt"
+      || sortBy === "useCount"
+      || sortBy === "title"
+    );
+    if (!hasFilters) {
+      const [total, snippets] = await Promise.all([
+        db.snippets.count(),
+        db.snippets
+          .orderBy(sortBy)
+          .reverse()
+          .offset(offset)
+          .limit(limit)
+          .toArray(),
+      ]);
+      return { snippets, total };
+    }
 
     // Build base query
     let collection = db.snippets.toCollection();
