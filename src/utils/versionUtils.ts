@@ -93,7 +93,8 @@ export async function cleanupOldVersions(promptId: string, keepCount: number = 1
     return
   }
 
-  const toDelete = versions.slice(0, versions.length - keepCount)
+  // getVersionHistory() 已按 createdAt 降序（新 -> 旧）返回，保留前 keepCount 条即可
+  const toDelete = versions.slice(keepCount)
   const deleteIds = toDelete.map(v => v.id)
 
   await db.prompt_versions.bulkDelete(deleteIds)

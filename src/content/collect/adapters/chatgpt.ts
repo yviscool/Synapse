@@ -126,62 +126,45 @@ export class ChatGPTAdapter extends BaseAdapter {
 
     const requestId = this.createBridgeRequestId()
 
-    return await new Promise<DeepResearchFrameSnapshot | null>((resolve) => {
-      let done = false
-      let timer: number | undefined
+    try {
+      frameWindow.postMessage({
+        __synapseBridge: true,
+        type: FRAME_DOM_BRIDGE_REQUEST_TYPE,
+        requestId,
+        payload: {
+          selectors: [
+            '#extended-response-markdown-content',
+            '[data-test-id="message-content"] .markdown-main-panel',
+            'main article',
+            'article',
+            'main',
+          ],
+          maxLength: 200000,
+          maxHtmlLength: 400000,
+        },
+      }, '*')
+    } catch {
+      return null
+    }
 
-      const finish = (payload: DeepResearchFrameSnapshot | null) => {
-        if (done) return
-        done = true
-        if (timer) window.clearTimeout(timer)
-        window.removeEventListener('message', onMessage as EventListener, true)
-        resolve(payload)
-      }
+    const event = await this.waitForEvent<MessageEvent>(window, 'message', {
+      timeoutMs,
+      capture: true,
+      filter: (raw) => {
+        const data = (raw as MessageEvent).data || {}
+        return data.__synapseBridge === true
+          && data.type === FRAME_DOM_BRIDGE_RESPONSE_TYPE
+          && data.requestId === requestId
+      },
+    })
+    if (!event) return null
 
-      const onMessage = (event: MessageEvent) => {
-        const data = event.data || {}
-        if (data.__synapseBridge !== true) return
-        if (data.type !== FRAME_DOM_BRIDGE_RESPONSE_TYPE) return
-        if (data.requestId !== requestId) return
-
-        const payload = data.payload || {}
-        const normalized = this.normalizeFrameSnapshot({
-          url: iframe.getAttribute('src')?.trim() || '',
-          title: typeof payload.title === 'string' ? payload.title : '',
-          content: typeof payload.content === 'string' ? payload.content : '',
-          html: typeof payload.html === 'string' ? payload.html : '',
-        })
-        if (!normalized) {
-          finish(null)
-          return
-        }
-
-        finish(normalized)
-      }
-
-      window.addEventListener('message', onMessage as EventListener, true)
-      timer = window.setTimeout(() => finish(null), timeoutMs)
-
-      try {
-        frameWindow.postMessage({
-          __synapseBridge: true,
-          type: FRAME_DOM_BRIDGE_REQUEST_TYPE,
-          requestId,
-          payload: {
-            selectors: [
-              '#extended-response-markdown-content',
-              '[data-test-id="message-content"] .markdown-main-panel',
-              'main article',
-              'article',
-              'main',
-            ],
-            maxLength: 200000,
-            maxHtmlLength: 400000,
-          },
-        }, '*')
-      } catch {
-        finish(null)
-      }
+    const payload = (event.data || {}).payload || {}
+    return this.normalizeFrameSnapshot({
+      url: iframe.getAttribute('src')?.trim() || '',
+      title: typeof payload.title === 'string' ? payload.title : '',
+      content: typeof payload.content === 'string' ? payload.content : '',
+      html: typeof payload.html === 'string' ? payload.html : '',
     })
   }
 
@@ -189,7 +172,7 @@ export class ChatGPTAdapter extends BaseAdapter {
     for (let i = 0; i < maxRetry; i++) {
       const snapshot = await this.requestFrameSnapshot(iframe, 1600 + i * 600)
       if (snapshot?.content?.trim()) return snapshot
-      await new Promise<void>(resolve => setTimeout(resolve, 120 + i * 120))
+      await this.sleep(120 + i * 120)
     }
     return null
   }

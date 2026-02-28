@@ -43,6 +43,8 @@ export function useHorizontalScroll(
 
   function init() {
     nextTick(() => {
+      resizeObserver?.disconnect()
+      resizeObserver = null
       if (viewportRef.value) {
         resizeObserver = new ResizeObserver(updateDimensions)
         resizeObserver.observe(viewportRef.value)
@@ -60,6 +62,7 @@ export function useHorizontalScroll(
 
   onUnmounted(() => {
     resizeObserver?.disconnect()
+    resizeObserver = null
   })
 
   return {

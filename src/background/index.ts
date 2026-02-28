@@ -2,7 +2,7 @@ import { db, getSettings } from '@/stores/db'
 import { queryPrompts } from '@/stores/promptSearch'
 import { repository } from '@/stores/repository'
 import { chatRepository } from '@/stores/chatRepository'
-import { getOriginalContent, type ChatMessage } from '@/types/chat'
+import { countConversationTurns, getOriginalContent, type ChatMessage } from '@/types/chat'
 import {
   MSG,
   type RequestMessage,
@@ -285,7 +285,7 @@ function preserveThinking(
   })
 }
 
-async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; error?: string }> {
+async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; error?: string; messageCount?: number }> {
   const { conversation, tags = [] } = payload
 
   if (!conversation?.messages?.length) {
@@ -313,7 +313,7 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
     const { ok, error } = await chatRepository.updateConversation(existing.id, {
       ...conversation,
       messages: finalMessages,
-      messageCount: finalMessages.length,
+      messageCount: countConversationTurns(finalMessages),
       updatedAt: Date.now(),
     })
     if (ok) {
@@ -324,21 +324,27 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
         message: chrome.i18n.getMessage('chatUpdated'),
       })
     }
-    return { ok, error: error?.message }
+    return { ok, error: error?.message, messageCount: countConversationTurns(finalMessages) }
   }
 
-  const { ok, error } = await chatRepository.saveConversation(conversation, tags)
+  const { ok, data: savedConversation, error } = await chatRepository.saveConversation(conversation, tags)
 
   if (ok) {
+    const collectedTurns = savedConversation?.messageCount
+      ?? countConversationTurns(conversation.messages || [])
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon-128.png',
       title: 'Synapse',
-      message: chrome.i18n.getMessage('chatCollected', [String(conversation.messageCount || conversation.messages?.length || 0)]),
+      message: chrome.i18n.getMessage('chatCollected', [String(collectedTurns)]),
     })
   }
 
-  return { ok, error: error?.message }
+  return {
+    ok,
+    error: error?.message,
+    messageCount: savedConversation?.messageCount ?? countConversationTurns(conversation.messages || []),
+  }
 }
 
 // --- 快捷保存功能 ---

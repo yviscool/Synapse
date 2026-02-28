@@ -122,30 +122,26 @@ export class QwenIntlAdapter extends BaseAdapter {
       script.src = chrome.runtime.getURL('page-bridges/qwen-intl-bridge.js')
       ;(document.documentElement || document.head || document.body).appendChild(script)
     }
+    if (!script) return
+    const scriptEl: HTMLScriptElement = script
 
-    this.bridgeLoadPromise = new Promise<void>((resolve) => {
-      let done = false
-      let timer: number | undefined
-      const finish = () => {
-        if (done) return
-        done = true
-        if (timer) window.clearTimeout(timer)
-        script?.removeEventListener('load', onLoad)
-        script?.removeEventListener('error', onError)
-        window.removeEventListener(QwenIntlAdapter.BRIDGE_READY_EVENT, onReady as EventListener, true)
-        if (script) script.dataset.ready = '1'
-        this.bridgeLoadPromise = null
-        resolve()
-      }
-      const onLoad = () => finish()
-      const onError = () => finish()
-      const onReady = () => finish()
-
-      script?.addEventListener('load', onLoad, { once: true })
-      script?.addEventListener('error', onError, { once: true })
-      window.addEventListener(QwenIntlAdapter.BRIDGE_READY_EVENT, onReady as EventListener, true)
-
-      timer = window.setTimeout(() => finish(), 1200)
+    this.bridgeLoadPromise = Promise.race([
+      this.waitForEvent<Event>(scriptEl, 'load', {
+        timeoutMs: 1200,
+        capture: false,
+      }),
+      this.waitForEvent<Event>(scriptEl, 'error', {
+        timeoutMs: 1200,
+        capture: false,
+      }),
+      this.waitForEvent<Event>(window, QwenIntlAdapter.BRIDGE_READY_EVENT, {
+        timeoutMs: 1200,
+        capture: true,
+      }),
+    ]).then(() => {
+      scriptEl.dataset.ready = '1'
+    }).finally(() => {
+      this.bridgeLoadPromise = null
     })
 
     await this.bridgeLoadPromise
@@ -164,27 +160,20 @@ export class QwenIntlAdapter extends BaseAdapter {
   }
 
   private async waitBridgeData(token: string, timeoutMs: number): Promise<string | undefined> {
-    return await new Promise<string | undefined>((resolve) => {
-      let done = false
-      let timer: number | undefined
-
-      const finish = (text?: string) => {
-        if (done) return
-        done = true
-        if (timer) window.clearTimeout(timer)
-        window.removeEventListener(QwenIntlAdapter.BRIDGE_DATA_EVENT, onData as EventListener, true)
-        resolve(this.extractMermaidCandidate(text || ''))
-      }
-
-      const onData = (event: Event) => {
-        const detail = (event as CustomEvent).detail || {}
-        if (detail.token !== token) return
-        finish(typeof detail.text === 'string' ? detail.text : '')
-      }
-
-      window.addEventListener(QwenIntlAdapter.BRIDGE_DATA_EVENT, onData as EventListener, true)
-      timer = window.setTimeout(() => finish(), timeoutMs)
-    })
+    const event = await this.waitForEvent<CustomEvent<{ token?: string; text?: string }>>(
+      window,
+      QwenIntlAdapter.BRIDGE_DATA_EVENT,
+      {
+        timeoutMs,
+        capture: true,
+        filter: (raw) => {
+          const detail = (raw as CustomEvent<{ token?: string }>).detail || {}
+          return detail.token === token
+        },
+      },
+    )
+    if (!event) return undefined
+    return this.extractMermaidCandidate(typeof event.detail?.text === 'string' ? event.detail.text : '')
   }
 
   private parseMermaidBlocksFromText(text: string): string[] {
@@ -360,6 +349,89 @@ export class QwenIntlAdapter extends BaseAdapter {
     return type === 'copy' ? actions[0] : actions[1] || null
   }
 
+  private isSupportedDownloadHref(href: string): boolean {
+    return href.startsWith('blob:') || href.startsWith('data:text/plain')
+  }
+
+  private getSupportedDownloadAnchor(target: EventTarget | null): HTMLAnchorElement | null {
+    if (!(target instanceof Element)) return null
+    const anchor = target.closest('a[download], a[href]') as HTMLAnchorElement | null
+    if (!anchor) return null
+    const href = anchor.getAttribute('href') || anchor.href || ''
+    return this.isSupportedDownloadHref(href) ? anchor : null
+  }
+
+  private async parseDownloadHrefText(href: string): Promise<string | undefined> {
+    if (!href) return undefined
+
+    if (href.startsWith('blob:')) {
+      try {
+        return await fetch(href).then((r) => r.text())
+      } catch {
+        return undefined
+      }
+    }
+
+    if (href.startsWith('data:text/plain')) {
+      try {
+        const payload = href.split(',', 2)[1] || ''
+        return decodeURIComponent(payload)
+      } catch {
+        return undefined
+      }
+    }
+
+    return undefined
+  }
+
+  private createDownloadAnchorObserver(timeoutMs: number): {
+    promise: Promise<HTMLAnchorElement | null>
+    stop: () => void
+  } {
+    let done = false
+    let timer: number | undefined
+    let observer: MutationObserver | null = null
+    let resolvePromise: (anchor: HTMLAnchorElement | null) => void = () => {}
+
+    const finish = (anchor: HTMLAnchorElement | null) => {
+      if (done) return
+      done = true
+      if (timer) window.clearTimeout(timer)
+      observer?.disconnect()
+      observer = null
+      resolvePromise(anchor)
+    }
+
+    const promise = new Promise<HTMLAnchorElement | null>((resolve) => {
+      resolvePromise = resolve
+
+      if (!document.body) {
+        finish(null)
+        return
+      }
+
+      observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of Array.from(mutation.addedNodes)) {
+            if (!(node instanceof Element)) continue
+            const anchor = node.matches('a[download], a[href]')
+              ? (node as HTMLAnchorElement)
+              : node.querySelector<HTMLAnchorElement>('a[download], a[href]')
+            if (!anchor) continue
+            const supported = this.getSupportedDownloadAnchor(anchor)
+            if (!supported) continue
+            finish(supported)
+            return
+          }
+        }
+      })
+      observer.observe(document.body, { childList: true, subtree: true })
+      timer = window.setTimeout(() => finish(null), timeoutMs)
+    })
+
+    return { promise, stop: () => finish(null) }
+  }
+
   private async tryCaptureMermaidFromCopy(block: Element): Promise<string | undefined> {
     const copyBtn = this.getCodeActionButton(block, 'copy')
     if (!copyBtn) return undefined
@@ -372,36 +444,23 @@ export class QwenIntlAdapter extends BaseAdapter {
     this.disarmBridge(token)
     if (bridgeCaptured) return bridgeCaptured
 
-    return await new Promise<string | undefined>((resolve) => {
-      let done = false
-      let timer: number | undefined
-
-      const finish = (text?: string) => {
-        if (done) return
-        done = true
-        if (timer) window.clearTimeout(timer)
-        document.removeEventListener('copy', onCopy, true)
-        resolve(this.extractMermaidCandidate(text || ''))
-      }
-
-      const onCopy = (e: Event) => {
-        const evt = e as ClipboardEvent
-        const copied = evt.clipboardData?.getData('text/plain') || ''
-        if (copied.trim()) finish(copied)
-      }
-
-      document.addEventListener('copy', onCopy, true)
-      this.clickElement(copyBtn)
-
-      timer = window.setTimeout(async () => {
-        try {
-          const text = await navigator.clipboard.readText()
-          finish(text)
-        } catch {
-          finish()
-        }
-      }, 600)
+    const copyEventPromise = this.waitForEvent<ClipboardEvent>(document, 'copy', {
+      timeoutMs: 600,
+      capture: true,
     })
+    this.clickElement(copyBtn)
+    const copyEvent = await copyEventPromise
+
+    const copied = copyEvent?.clipboardData?.getData('text/plain') || ''
+    const fromCopyEvent = this.extractMermaidCandidate(copied)
+    if (fromCopyEvent) return fromCopyEvent
+
+    try {
+      const clipboardText = await navigator.clipboard.readText()
+      return this.extractMermaidCandidate(clipboardText)
+    } catch {
+      return undefined
+    }
   }
 
   private async tryCaptureMermaidFromDownload(block: Element): Promise<string | undefined> {
@@ -416,84 +475,36 @@ export class QwenIntlAdapter extends BaseAdapter {
     this.disarmBridge(token)
     if (bridgeCaptured) return bridgeCaptured
 
-    return await new Promise<string | undefined>((resolve) => {
-      let done = false
-      let timer: number | undefined
-      let observer: MutationObserver | null = null
-
-      const finish = (text?: string) => {
-        if (done) return
-        done = true
-        if (timer) window.clearTimeout(timer)
-        if (observer) observer.disconnect()
-        document.removeEventListener('click', onClickCapture, true)
-        resolve(this.extractMermaidCandidate(text || ''))
-      }
-
-      const parseHrefText = async (href: string): Promise<string | undefined> => {
-        if (!href) return undefined
-
-        if (href.startsWith('blob:')) {
-          try {
-            const text = await fetch(href).then((r) => r.text())
-            return text
-          } catch {
-            return undefined
-          }
-        }
-
-        if (href.startsWith('data:text/plain')) {
-          try {
-            const payload = href.split(',', 2)[1] || ''
-            return decodeURIComponent(payload)
-          } catch {
-            return undefined
-          }
-        }
-
-        return undefined
-      }
-
-      const tryFromAnchor = (anchor: HTMLAnchorElement) => {
-        const href = anchor.getAttribute('href') || anchor.href || ''
-        if (!href.startsWith('blob:') && !href.startsWith('data:text/plain')) return
-
-        void (async () => {
-          const text = await parseHrefText(href)
-          finish(text)
-        })()
-      }
-
-      const onClickCapture = (e: Event) => {
-        const target = e.target as Element | null
-        const anchor = target?.closest('a[download], a[href]') as HTMLAnchorElement | null
-        if (!anchor) return
-        const href = anchor.getAttribute('href') || anchor.href || ''
-        if (!href.startsWith('blob:') && !href.startsWith('data:text/plain')) return
-
-        e.preventDefault()
-        e.stopPropagation()
-        tryFromAnchor(anchor)
-      }
-
-      document.addEventListener('click', onClickCapture, true)
-      observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          for (const node of Array.from(mutation.addedNodes)) {
-            if (!(node instanceof Element)) continue
-            const anchor = node.matches('a[download], a[href]')
-              ? (node as HTMLAnchorElement)
-              : node.querySelector?.('a[download], a[href]')
-            if (!anchor) continue
-            tryFromAnchor(anchor as HTMLAnchorElement)
-          }
-        }
+    const clickAnchorPromise = this
+      .waitForEvent<MouseEvent>(document, 'click', {
+        timeoutMs: 1200,
+        capture: true,
+        filter: (raw) => {
+          const event = raw as MouseEvent
+          const anchor = this.getSupportedDownloadAnchor(event.target)
+          if (!anchor) return false
+          event.preventDefault()
+          event.stopPropagation()
+          return true
+        },
       })
-      observer.observe(document.body, { childList: true, subtree: true })
+      .then((event) => this.getSupportedDownloadAnchor(event?.target ?? null))
 
-      this.clickElement(downloadBtn)
-      timer = window.setTimeout(() => finish(), 1200)
-    })
+    const mutationWatcher = this.createDownloadAnchorObserver(1200)
+
+    this.clickElement(downloadBtn)
+
+    let anchor: HTMLAnchorElement | null = null
+    try {
+      anchor = await Promise.race([clickAnchorPromise, mutationWatcher.promise])
+    } finally {
+      mutationWatcher.stop()
+    }
+    if (!anchor) return undefined
+
+    const href = anchor.getAttribute('href') || anchor.href || ''
+    const text = await this.parseDownloadHrefText(href)
+    return this.extractMermaidCandidate(text || '')
   }
 
   private async preloadMermaidCodesByActions(): Promise<void> {
@@ -567,7 +578,7 @@ export class QwenIntlAdapter extends BaseAdapter {
         })
         if (hasContent) return true
       }
-      await new Promise<void>((resolve) => setTimeout(resolve, 80))
+      await this.sleep(80)
     }
 
     return false
@@ -614,7 +625,7 @@ export class QwenIntlAdapter extends BaseAdapter {
       const ready = await this.waitForThinkingPanelReady(assistantId, 2000)
       if (ready) return true
 
-      await new Promise<void>((resolve) => setTimeout(resolve, 120))
+      await this.sleep(120)
     }
 
     return false
@@ -651,7 +662,8 @@ export class QwenIntlAdapter extends BaseAdapter {
       if (!ready) continue
 
       // 等待一次渲染帧，确保右侧内容稳定
-      await new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 50)))
+      await this.nextFrame()
+      await this.sleep(50)
 
       const thinking = this.extractThinkingFromRightPanel(assistantId)
       if (thinking) {

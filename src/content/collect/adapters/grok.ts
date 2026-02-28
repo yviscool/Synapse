@@ -421,7 +421,7 @@ export class GrokAdapter extends BaseAdapter {
       if (current) {
         return current
       }
-      await new Promise<void>((resolve) => setTimeout(resolve, 80))
+      await this.sleep(80)
     }
 
     return this.getCurrentRightPanelThinking()
@@ -442,14 +442,14 @@ export class GrokAdapter extends BaseAdapter {
     const start = Date.now()
     while (Date.now() - start < 800) {
       if (this.getRightPanelCandidates().length === 0) return
-      await new Promise<void>((resolve) => setTimeout(resolve, 60))
+      await this.sleep(60)
     }
   }
 
   private async openThinkingPanelForAssistant(messageEl: Element): Promise<string | undefined> {
     for (let round = 0; round < 3; round++) {
       this.warmupThinkingHover(messageEl)
-      await new Promise<void>((resolve) => setTimeout(resolve, 50))
+      await this.sleep(50)
 
       const triggers = this.getThinkingTriggers(messageEl)
       if (triggers.length === 0) continue
@@ -461,7 +461,7 @@ export class GrokAdapter extends BaseAdapter {
       const ready = await this.waitForThinkingPanelReady(1600)
       if (ready) return ready
 
-      await new Promise<void>((resolve) => setTimeout(resolve, 120))
+      await this.sleep(120)
     }
 
     return undefined

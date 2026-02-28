@@ -6,8 +6,9 @@
  * 由基类根据 SiteConfig 提供默认实现，子类可 override 补充 fallback。
  */
 
-import type { ChatMessage, ChatPlatform, ChatConversation } from '@/types/chat'
+import { countConversationTurns, type ChatMessage, type ChatPlatform, type ChatConversation } from '@/types/chat'
 import type { SiteConfig } from '../../site-configs'
+import { promiseTimeout } from '@vueuse/core'
 
 /** 默认对话标题（所有适配器共用） */
 export const DEFAULT_TITLE = '未命名对话'
@@ -94,6 +95,69 @@ export abstract class BaseAdapter implements PlatformAdapter {
    */
   protected generateMessageId(): string {
     return crypto.randomUUID()
+  }
+
+  /**
+   * Sleep helper to reduce duplicated Promise+setTimeout templates.
+   */
+  protected sleep(ms: number): Promise<void> {
+    return promiseTimeout(ms)
+  }
+
+  /**
+   * Wait until next animation frame.
+   */
+  protected nextFrame(): Promise<void> {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => resolve())
+    })
+  }
+
+  /**
+   * Wait for one event with timeout.
+   */
+  protected waitForEvent<T extends Event>(
+    target: {
+      addEventListener: (
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+      ) => void
+      removeEventListener: (
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | EventListenerOptions,
+      ) => void
+    },
+    type: string,
+    options: {
+      timeoutMs: number
+      capture?: boolean
+      filter?: (event: Event) => boolean
+    },
+  ): Promise<T | null> {
+    const { timeoutMs, capture = true, filter } = options
+
+    return new Promise<T | null>((resolve) => {
+      let done = false
+      let timer: number | undefined
+
+      const finish = (event: T | null) => {
+        if (done) return
+        done = true
+        if (timer) window.clearTimeout(timer)
+        target.removeEventListener(type, onEvent as EventListener, capture)
+        resolve(event)
+      }
+
+      const onEvent = (event: Event) => {
+        if (filter && !filter(event)) return
+        finish(event as T)
+      }
+
+      target.addEventListener(type, onEvent as EventListener, capture)
+      timer = window.setTimeout(() => finish(null), timeoutMs)
+    })
   }
 
   /**
@@ -271,7 +335,7 @@ export abstract class BaseAdapter implements PlatformAdapter {
         title: this.getTitle() || DEFAULT_TITLE,
         link: window.location.href,
         messages,
-        messageCount: messages.length,
+        messageCount: countConversationTurns(messages),
         collectedAt: Date.now(),
       }
 

@@ -9,11 +9,13 @@ import type {
   ChatConversation,
   ChatTag,
   ChatPlatform,
+  ChatMessage,
   QueryChatsParams,
   QueryChatsResult,
   QueryChatMessageHitsParams,
   QueryChatMessageHitsResult,
 } from "@/types/chat";
+import { countConversationTurns } from "@/types/chat";
 import { compareLocalizedText } from "@/utils/intl";
 
 // ============================================
@@ -151,20 +153,21 @@ function ensureSerializable<T>(input: T): T {
 
 function createSafeConversation(data: Partial<ChatConversation>): ChatConversation {
   const now = Date.now();
+  const messages = (data.messages || []) as ChatMessage[];
   return {
     id: data.id || crypto.randomUUID(),
     platform: data.platform || "other",
     externalId: data.externalId,
     title: data.title || "未命名对话",
     link: data.link,
-    messages: data.messages || [],
+    messages,
     starred: data.starred || false,
     tagIds: data.tagIds || [],
     note: data.note,
     createdAt: data.createdAt || now,
     updatedAt: data.updatedAt || now,
     collectedAt: data.collectedAt || now,
-    messageCount: Math.ceil((data.messages?.length || 0) / 2),
+    messageCount: countConversationTurns(messages),
   };
 }
 
@@ -223,7 +226,7 @@ export const chatRepository = {
       sanitizedPatch.updatedAt = Date.now();
     }
     if (sanitizedPatch.messages) {
-      sanitizedPatch.messageCount = Math.ceil(sanitizedPatch.messages.length / 2);
+      sanitizedPatch.messageCount = countConversationTurns(sanitizedPatch.messages as ChatMessage[]);
     }
     return withCommitNotification(
       ["chat_conversations", "chat_tags", "chat_message_search_index"],
@@ -361,7 +364,9 @@ export const chatRepository = {
     externalId: string
   ): Promise<ChatConversation | undefined> {
     return db.chat_conversations
-      .where({ platform, externalId })
+      .where("externalId")
+      .equals(externalId)
+      .and((conversation) => conversation.platform === platform)
       .first();
   },
 

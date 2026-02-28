@@ -264,7 +264,8 @@ export class GeminiAdapter extends BaseAdapter {
     const expandedBtns = shouldInteractWithUi ? this.expandUncachedThoughts() : []
 
     if (expandedBtns.length) {
-      await new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 150)))
+      await this.nextFrame()
+      await this.sleep(150)
     }
 
     const result = super.collect(options)

@@ -1,5 +1,9 @@
 <template>
-  <div class="html-preview flex flex-col h-full bg-white dark:bg-gray-900 rounded-lg overflow-hidden">
+  <div
+    ref="previewRootRef"
+    class="html-preview flex flex-col h-full bg-white dark:bg-gray-900 rounded-lg overflow-hidden"
+    :class="{ 'fixed inset-0 z-[9999] rounded-none': isPseudoFullscreen }"
+  >
     <!-- Header -->
     <div class="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
       <div class="flex items-center gap-2">
@@ -54,7 +58,7 @@
     </div>
 
     <!-- Preview iframe -->
-    <div class="flex-1 relative bg-white dark:bg-gray-900" :class="{ 'fixed inset-0 z-50': isFullscreen }">
+    <div class="flex-1 relative bg-white dark:bg-gray-900">
       <iframe
         ref="iframeRef"
         :srcdoc="sanitizedHtml"
@@ -76,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
@@ -92,11 +96,15 @@ const { t } = useI18n()
 
 // Refs
 const iframeRef = ref<HTMLIFrameElement | null>(null)
+const previewRootRef = ref<HTMLElement | null>(null)
 
 // State
-const isFullscreen = ref(false)
+const isNativeFullscreen = ref(false)
+const isPseudoFullscreen = ref(false)
 const showDependencies = ref(false)
 const externalLinks = ref<string[]>([])
+
+const isFullscreen = computed(() => isNativeFullscreen.value || isPseudoFullscreen.value)
 
 // Detect external links in HTML
 function detectExternalLinks(html: string): string[] {
@@ -169,7 +177,39 @@ watch(() => props.content, (newContent) => {
 
 // Methods
 function toggleFullscreen() {
-  isFullscreen.value = !isFullscreen.value
+  void toggleFullscreenAsync()
+}
+
+async function toggleFullscreenAsync() {
+  const root = previewRootRef.value
+  if (!root) return
+
+  // 优先使用浏览器原生全屏，确保不是“组件内假全屏”
+  if (document.fullscreenEnabled && typeof root.requestFullscreen === 'function') {
+    try {
+      if (document.fullscreenElement === root) {
+        await document.exitFullscreen()
+      } else {
+        await root.requestFullscreen()
+      }
+      return
+    } catch {
+      // 忽略并回退到覆盖层
+    }
+  }
+
+  isPseudoFullscreen.value = !isPseudoFullscreen.value
+}
+
+function syncNativeFullscreenState() {
+  const root = previewRootRef.value
+  isNativeFullscreen.value = !!root && document.fullscreenElement === root
+}
+
+function handlePseudoFullscreenEscape(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !isPseudoFullscreen.value) return
+  event.preventDefault()
+  isPseudoFullscreen.value = false
 }
 
 function onIframeLoad() {
@@ -250,6 +290,19 @@ defineExpose({
       iframeRef.value.srcdoc = sanitizedHtml.value
     }
   },
+})
+
+onMounted(() => {
+  document.addEventListener('fullscreenchange', syncNativeFullscreenState)
+  window.addEventListener('keydown', handlePseudoFullscreenEscape)
+  syncNativeFullscreenState()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', syncNativeFullscreenState)
+  window.removeEventListener('keydown', handlePseudoFullscreenEscape)
+  isPseudoFullscreen.value = false
+  isNativeFullscreen.value = false
 })
 </script>
 

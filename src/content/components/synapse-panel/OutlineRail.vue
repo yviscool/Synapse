@@ -55,10 +55,12 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useEventListener, useTimeoutFn } from '@vueuse/core'
 import { useOutline } from '@/content/outline/useOutline'
 import type { SiteConfig } from '@/content/site-configs'
 import type { OutlineItem } from '@/content/outline/types'
 import OutlineContent from './OutlineContent.vue'
+import { flashOutlineHighlight, scrollToOutlineElement } from './useOutlineJump'
 
 const MAX_RAIL_STEPS = 12
 
@@ -84,9 +86,13 @@ const railRootRef = ref<HTMLElement | null>(null)
 const railListRef = ref<HTMLElement | null>(null)
 const panelRight = ref<number>(32)
 
-let collapseTimer: number | null = null
-let highlightTimer: number | null = null
 let hoveredElement: Element | null = null
+const { start: startCollapseDelay, stop: stopCollapseDelay } = useTimeoutFn(() => {
+  isExpanded.value = false
+  hoveredIndex.value = -1
+  clearHoveredElement()
+  emit('hint', { text: '', icon: '' })
+}, 250, { immediate: false })
 
 const anchorIndex = computed(() => {
   const total = items.value.length
@@ -195,7 +201,7 @@ function forwardHint(data: { text: string; icon: string }) {
 }
 
 function handleRailEnter() {
-  if (collapseTimer) clearTimeout(collapseTimer)
+  stopCollapseDelay()
   isExpanded.value = true
   void nextTick(() => {
     updatePanelPosition()
@@ -203,13 +209,8 @@ function handleRailEnter() {
 }
 
 function handleRailLeave() {
-  if (collapseTimer) clearTimeout(collapseTimer)
-  collapseTimer = window.setTimeout(() => {
-    isExpanded.value = false
-    hoveredIndex.value = -1
-    clearHoveredElement()
-    emit('hint', { text: '', icon: '' })
-  }, 250) // More relaxed exit timing
+  stopCollapseDelay()
+  startCollapseDelay()
 }
 
 function handleRailHover(step: RailStep) {
@@ -223,72 +224,23 @@ function handleStepLeave() {
   clearHoveredElement()
 }
 
-// Fluid, spring-like scroll to optimum reading position
-function scrollToElement(element: Element) {
-  const scrollContainerSelector = props.config.scrollContainer
-  let scrollContainer: HTMLElement | null = null
-  if (typeof scrollContainerSelector === 'string') {
-    scrollContainer = document.querySelector<HTMLElement>(scrollContainerSelector)
-  }
-
-  // Visual breathing room from the top of the viewport
-  const topOffset = 80 
-  
-  if (scrollContainer) {
-    const containerRect = scrollContainer.getBoundingClientRect()
-    const elementRect = element.getBoundingClientRect()
-
-    const targetScrollTop = scrollContainer.scrollTop + elementRect.top - containerRect.top - topOffset
-    const startScrollTop = scrollContainer.scrollTop
-    const distance = targetScrollTop - startScrollTop
-    
-    // Physics-inspired ease (easeInOutExpo)
-    const duration = 600
-    let startTime: number | null = null
-
-    const ease = (t: number) => t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2
-
-    const animate = (time: number) => {
-      if (startTime === null) startTime = time
-      const progress = Math.min((time - startTime) / duration, 1)
-      scrollContainer!.scrollTop = startScrollTop + distance * ease(progress)
-      if (progress < 1) requestAnimationFrame(animate)
-    }
-
-    requestAnimationFrame(animate)
-    return
-  }
-
-  // Fallback to window scrolling with natural top padding
-  const elementRect = element.getBoundingClientRect()
-  const absoluteElementTop = elementRect.top + window.scrollY
-  window.scrollTo({
-    top: absoluteElementTop - topOffset,
-    behavior: 'smooth'
-  })
-}
-
 function handleStepClick(step: RailStep) {
+  const target = step.item.element ?? null
+  if (!target) return
+
   highlightedIndex.value = step.sourceIndex
   lockHighlightDuringProgrammaticScroll(step.sourceIndex, 900)
-  scrollToElement(step.item.element)
+  scrollToOutlineElement(target, {
+    scrollContainer: props.config.scrollContainer,
+    align: 'start',
+    topOffset: 80,
+    durationMs: 600,
+  })
   
   // Clear hints on click to keep UI pristine
   emit('hint', { text: '', icon: '' })
 
-  // Magical ripple highlight that guides the eye
-  document.querySelectorAll('.outline-flash-highlight').forEach(el => el.classList.remove('outline-flash-highlight'))
-  
-  // Force browser reflow to reliably restart animation
-  if (step.item.element instanceof HTMLElement) {
-    void step.item.element.offsetWidth
-  }
-  step.item.element.classList.add('outline-flash-highlight')
-
-  if (highlightTimer) clearTimeout(highlightTimer)
-  highlightTimer = window.setTimeout(() => {
-    step.item.element.classList.remove('outline-flash-highlight')
-  }, 2000)
+  flashOutlineHighlight(target, 2000)
 }
 
 function handleOutlineActiveChange(sourceIndex: number) {
@@ -297,14 +249,12 @@ function handleOutlineActiveChange(sourceIndex: number) {
 }
 
 onUnmounted(() => {
-  if (collapseTimer) clearTimeout(collapseTimer)
-  if (highlightTimer) clearTimeout(highlightTimer)
+  stopCollapseDelay()
   clearHoveredElement()
 })
 
 onMounted(() => {
   updatePanelPosition()
-  window.addEventListener('resize', updatePanelPosition)
 })
 
 watch([railItems, isExpanded], async ([, expanded]) => {
@@ -314,9 +264,7 @@ watch([railItems, isExpanded], async ([, expanded]) => {
   }
 })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', updatePanelPosition)
-})
+useEventListener(window, 'resize', updatePanelPosition)
 </script>
 
 <style scoped>

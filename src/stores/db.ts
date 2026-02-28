@@ -3,7 +3,6 @@ import type { Prompt, PromptVersion, Category, Tag, Settings } from "@/types/pro
 import type { Snippet, SnippetFolder, SnippetTag, SnippetSearchIndex } from "@/types/snippet";
 import type { ChatConversation, ChatTag, ChatSearchIndex, ChatMessageSearchIndex } from "@/types/chat";
 import { getDefaultCategories } from "@/utils/categoryUtils";
-import { resolveSystemLocale } from "@/utils/locale";
 
 export interface PromptSearchIndex {
   promptId: string;
@@ -120,16 +119,42 @@ export const DEFAULT_SETTINGS: Settings = {
   syncEnabled: false,
 };
 
+export function normalizeSettings(
+  settings?: Partial<Settings> | null,
+): Settings {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...(settings || {}),
+    id: "global",
+    locale: settings?.locale ?? DEFAULT_SETTINGS.locale,
+  };
+}
+
+function hasSettingsDiff(
+  current: Partial<Settings>,
+  next: Settings,
+): boolean {
+  for (const [key, value] of Object.entries(next) as Array<[keyof Settings, Settings[keyof Settings]]>) {
+    if (!Object.is(current[key], value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function getSettings(): Promise<Settings> {
   let s = await db.settings.get("global");
   if (!s) {
-    s = { ...DEFAULT_SETTINGS };
+    s = normalizeSettings();
     await db.settings.put(s);
-  } else if (!s.locale) {
-    s.locale = resolveSystemLocale();
-    await db.settings.put(s);
+    return s;
   }
-  return s;
+
+  const normalized = normalizeSettings(s);
+  if (hasSettingsDiff(s, normalized)) {
+    await db.settings.put(normalized);
+  }
+  return normalized;
 }
 
 export async function ensureDefaultCategories(): Promise<boolean> {

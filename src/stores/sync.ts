@@ -3,7 +3,7 @@
  *
  * This service manages the entire lifecycle of syncing data with a cloud provider.
  */
-import { db, getSettings } from '@/stores/db'
+import { db, getSettings, normalizeSettings } from '@/stores/db'
 import { rebuildPromptSearchIndex } from '@/stores/promptSearch'
 import { rebuildChatMessageSearchIndex } from '@/stores/chatMessageSearch'
 import { getDefaultCategories } from '@/utils/categoryUtils'
@@ -192,27 +192,34 @@ class SyncManager {
   }
 
   private async buildLocalSyncPayload(): Promise<SyncPayload> {
-    const [
-      prompts, prompt_versions, categories, tags, settings,
-      snippets, snippet_folders, snippet_tags,
-      chat_conversations, chat_tags,
-    ] = await Promise.all([
-      db.prompts.toArray(),
-      db.prompt_versions.toArray(),
-      db.categories.toArray(),
-      db.tags.toArray(),
-      getSettings(),
-      db.snippets.toArray(),
-      db.snippet_folders.toArray(),
-      db.snippet_tags.toArray(),
-      db.chat_conversations.toArray(),
-      db.chat_tags.toArray(),
-    ])
-    return {
-      prompts, prompt_versions, categories, tags, settings,
-      snippets, snippet_folders, snippet_tags,
-      chat_conversations, chat_tags,
-    }
+    return db.transaction('r', [
+      db.prompts, db.prompt_versions, db.categories, db.tags, db.settings,
+      db.snippets, db.snippet_folders, db.snippet_tags,
+      db.chat_conversations, db.chat_tags,
+    ], async () => {
+      const [
+        prompts, prompt_versions, categories, tags, settingsRecord,
+        snippets, snippet_folders, snippet_tags,
+        chat_conversations, chat_tags,
+      ] = await Promise.all([
+        db.prompts.toArray(),
+        db.prompt_versions.toArray(),
+        db.categories.toArray(),
+        db.tags.toArray(),
+        db.settings.get('global'),
+        db.snippets.toArray(),
+        db.snippet_folders.toArray(),
+        db.snippet_tags.toArray(),
+        db.chat_conversations.toArray(),
+        db.chat_tags.toArray(),
+      ])
+      const settings = normalizeSettings(settingsRecord)
+      return {
+        prompts, prompt_versions, categories, tags, settings,
+        snippets, snippet_folders, snippet_tags,
+        chat_conversations, chat_tags,
+      }
+    })
   }
 
   private isDefaultOnlyCategoryState(categories: Category[]): boolean {
@@ -285,8 +292,8 @@ class SyncManager {
     await db.transaction('rw', [
       db.prompts, db.prompt_versions, db.categories, db.tags,
       db.settings, db.prompt_search_index,
-      db.snippets, db.snippet_folders, db.snippet_tags,
-      db.chat_conversations, db.chat_tags, db.chat_message_search_index,
+      db.snippets, db.snippet_folders, db.snippet_tags, db.snippet_search_index,
+      db.chat_conversations, db.chat_tags, db.chat_search_index, db.chat_message_search_index,
     ], async () => {
       // --- Prompts ---
       await db.prompts.clear()
@@ -305,23 +312,25 @@ class SyncManager {
       if (snippetFolders.length > 0) await db.snippet_folders.bulkPut(snippetFolders)
       await db.snippet_tags.clear()
       if (snippetTags.length > 0) await db.snippet_tags.bulkPut(snippetTags)
+      await db.snippet_search_index.clear()
 
       // --- Chats ---
       await db.chat_conversations.clear()
       if (chatConversations.length > 0) await db.chat_conversations.bulkPut(chatConversations)
       await db.chat_tags.clear()
       if (chatTags.length > 0) await db.chat_tags.bulkPut(chatTags)
+      await db.chat_search_index.clear()
       await db.chat_message_search_index.clear()
 
       // --- Settings ---
-      const currentSettings = await getSettings();
-      const newSettings = {
+      const currentSettings = normalizeSettings(await db.settings.get('global'))
+      const newSettings = normalizeSettings({
         ...currentSettings,
         ...(importedSettings || {}),
         syncEnabled: currentSettings.syncEnabled,
         syncProvider: currentSettings.syncProvider,
         userProfile: currentSettings.userProfile,
-      };
+      })
       await db.settings.put(newSettings)
 
       // --- Rebuild search indexes ---

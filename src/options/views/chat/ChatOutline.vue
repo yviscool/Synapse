@@ -21,17 +21,17 @@
           :key="item.index"
           @click="$emit('jump', item.index)"
           class="outline-item group relative flex items-start gap-2 px-4 py-2 cursor-pointer transition-colors duration-150"
-          :class="activeIndex === item.index ? 'is-active' : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+          :class="activeIndex === item.index ? 'is-active' : 'hover:bg-gray-50 dark:hover:bg-slate-800/80'"
         >
           <!-- 左侧激活指示条 -->
           <div
             class="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full transition-all duration-200"
-            :class="activeIndex === item.index ? 'bg-blue-500' : 'bg-transparent group-hover:bg-gray-200 dark:hover:bg-gray-700'"
+            :class="activeIndex === item.index ? 'bg-blue-500' : 'bg-transparent group-hover:bg-gray-200 dark:group-hover:bg-slate-500/70'"
           ></div>
           <span class="text-[11px] leading-5 text-gray-300 flex-shrink-0 font-mono select-none">{{ item.seq }}</span>
           <span
             class="text-[13px] leading-5 line-clamp-2 transition-colors duration-150"
-            :class="activeIndex === item.index ? 'text-blue-600 font-medium' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:hover:text-gray-200'"
+            :class="activeIndex === item.index ? 'text-blue-600 dark:text-blue-300 font-medium' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'"
           >{{ item.summary }}</span>
         </div>
       </div>

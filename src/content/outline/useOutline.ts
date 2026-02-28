@@ -29,7 +29,7 @@
  */
 
 import { ref, onMounted, onUnmounted, Ref, watch } from 'vue';
-import { useScroll, useDebounceFn } from '@vueuse/core';
+import { promiseTimeout, useDebounceFn, useEventListener, useTimeoutFn } from '@vueuse/core';
 // 导入配置文件的"类型"，而不是实体，这样 hook 保持纯净
 import type { SiteConfig } from '../site-configs';
 import type { OutlineItem } from './types';
@@ -80,15 +80,9 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
 
   // DOM 变化“侦察兵”：监视聊天内容的增删改
   let contentObserver: MutationObserver | null = null;
-  // 引导“侦察兵”：用于在 `init` 阶段查找目标
-  let bootstrapObserver: MutationObserver | null = null;
   // 上次的 URL：用于在 SPA 路由切换时，判断是否需要“重启”
   let lastUrl = window.location.href;
-  // 防闪烁计时器：防止在页面刷新中途，大纲列表短暂变空导致的 UI 闪烁
-  let emptyStateTimeout: number | null = null;
-  let navigationSuccessHandler: (() => void) | null = null;
-  let detachGlobalScrollListener: (() => void) | null = null;
-  let navigationReinitTimer: number | null = null;
+  let stopNavigationSuccessListener: (() => void) | null = null;
   let isDisposed = false;
   let initRunToken = 0;
 
@@ -96,48 +90,34 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     return isDisposed || token !== initRunToken;
   };
 
-  const waitForElement = (
+  const sleep = (ms: number): Promise<void> => {
+    return promiseTimeout(ms);
+  };
+
+  const waitForElement = async (
     resolver: () => Element | null,
     intervalMs: number,
     maxAttempts: number,
     token: number,
   ): Promise<Element | null> => {
-    return new Promise((resolve) => {
-      let attempts = 0;
-      let timer: number | null = null;
+    for (let attempts = 0; attempts <= maxAttempts; attempts++) {
+      if (isInitCancelled(token)) return null;
 
-      const clearTimer = () => {
-        if (timer) {
-          clearInterval(timer);
-          timer = null;
-        }
-      };
+      const found = resolver();
+      if (found) return found;
+      if (attempts === maxAttempts) return null;
 
-      const tick = () => {
-        if (isInitCancelled(token)) {
-          clearTimer();
-          resolve(null);
-          return;
-        }
+      await sleep(intervalMs);
+    }
 
-        const found = resolver();
-        if (found || attempts >= maxAttempts) {
-          clearTimer();
-          resolve(found);
-          return;
-        }
-
-        attempts++;
-      };
-
-      tick();
-      if (isInitCancelled(token)) {
-        return;
-      }
-
-      timer = window.setInterval(tick, intervalMs);
-    });
+    return null;
   };
+
+  const { start: startEmptyStateDelay, stop: stopEmptyStateDelay } = useTimeoutFn(() => {
+    // 400ms 后仍未扫描到条目，才确认进入空态，避免路由切换瞬间闪烁
+    items.value = [];
+    isLoading.value = false;
+  }, 400, { immediate: false });
 
   /**
    * --------------------------------------------------------------------------
@@ -247,17 +227,13 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     const newItems = scanDOM();
 
     // 清除上一个“防闪烁”计时器
-    if (emptyStateTimeout) clearTimeout(emptyStateTimeout);
+    stopEmptyStateDelay();
 
     // 【体验优化】防闪烁逻辑：
     // 如果新列表是空的，但旧列表 *有* 内容（这经常发生在 SPA 路由切换的瞬间），
     // 我们不立即清空 `items.value`，而是启动一个计时器。
     if (newItems.length === 0 && items.value.length > 0) {
-      emptyStateTimeout = window.setTimeout(() => {
-        // 400ms 后，如果 `scanDOM` 仍然没有找到内容，我们才“确认”列表是真的空了。
-        items.value = [];
-        isLoading.value = false;
-      }, 400); // 400ms 是一个经验值，足够 SPA 渲染
+      startEmptyStateDelay();
       return;
     }
 
@@ -286,7 +262,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
    */
   const updateItems = () => {
     isLoading.value = true;
-    if (emptyStateTimeout) clearTimeout(emptyStateTimeout);
+    stopEmptyStateDelay();
     softUpdate();
   };
 
@@ -318,10 +294,8 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
    * 在 `init` 重启或组件卸载时调用，防止内存泄漏。
    */
   const stopObservers = () => {
-    bootstrapObserver?.disconnect();
     contentObserver?.disconnect();
     contentObserver = null;
-    bootstrapObserver = null;
   }
 
   /**
@@ -372,9 +346,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       // 6. （可选）为某些“极其棘手”的网站（如 AI Studio）提供一个“最终手段”
       //    强制等待一段时间，确保所有东西（比如滚动条按钮）都渲染完毕。
       if (config.initDelay) {
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, config.initDelay);
-        });
+        await sleep(config.initDelay);
         if (isInitCancelled(token)) return;
       }
 
@@ -390,6 +362,16 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       console.warn("Outline Generator: Observe target not found after URL change.");
     }
   };
+
+  const { start: startNavigationReinitDelay, stop: stopNavigationReinitDelay } = useTimeoutFn(() => {
+    if (isDisposed) return;
+    // 确认 URL 真的变了（防止误触）
+    if (window.location.href !== lastUrl) {
+      console.log('Outline: URL changed, re-initializing...');
+      lastUrl = window.location.href;
+      init(); // 触发“重启程序”
+    }
+  }, 200, { immediate: false });
 
   // --- Vue 生命周期钩子 ---
 
@@ -407,24 +389,11 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
       }
 
       // `navigatesuccess` 事件在 SPA 路由成功切换后触发
-      navigationSuccessHandler = () => {
-        if (navigationReinitTimer) {
-          clearTimeout(navigationReinitTimer);
-          navigationReinitTimer = null;
-        }
+      stopNavigationSuccessListener = useEventListener(navigation, 'navigatesuccess', () => {
         // 给 SPA 框架一点时间（200ms）来销毁旧 DOM、创建新 DOM
-        navigationReinitTimer = window.setTimeout(() => {
-          navigationReinitTimer = null;
-          if (isDisposed) return;
-          // 确认 URL 真的变了（防止误触）
-          if (window.location.href !== lastUrl) {
-            console.log('Outline: URL changed, re-initializing...');
-            lastUrl = window.location.href;
-            init(); // 触发“重启程序”
-          }
-        }, 200);
-      };
-      navigation.addEventListener('navigatesuccess', navigationSuccessHandler);
+        stopNavigationReinitDelay();
+        startNavigationReinitDelay();
+      });
     } else {
       // 如果浏览器太老（不太可能），此功能将在 SPA 切换时失效
       console.warn('Navigation API not supported. SPA navigation may not trigger outline updates.');
@@ -436,16 +405,10 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     isDisposed = true;
     initRunToken++;
     stopObservers();
-    if (emptyStateTimeout) clearTimeout(emptyStateTimeout);
-    if (navigationReinitTimer) {
-      clearTimeout(navigationReinitTimer);
-      navigationReinitTimer = null;
-    }
-    const navigation = getNavigationApi();
-    if (navigation && navigationSuccessHandler) {
-      navigation.removeEventListener('navigatesuccess', navigationSuccessHandler);
-      navigationSuccessHandler = null;
-    }
+    stopEmptyStateDelay();
+    stopNavigationReinitDelay();
+    stopNavigationSuccessListener?.();
+    stopNavigationSuccessListener = null;
   });
 
   // =================================================================================
@@ -505,12 +468,6 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   onMounted(() => {
     // 挂载后，立即查找并设置滚动容器
     syncScrollContainer();
-    ensureGlobalScrollListener();
-  });
-
-  // 使用 vueuse 的 `useScroll` 来高性能地监听滚动事件
-  const { y: scrollY } = useScroll(scrollContainerRef as Ref<HTMLElement | Window>, {
-    throttle: 150 // 节流：每 150ms 最多触发一次
   });
 
   /**
@@ -580,47 +537,30 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     }
   }, 50); // 防抖 50ms，提供平滑的响应
 
-  const ensureGlobalScrollListener = () => {
-    if (detachGlobalScrollListener) return;
-    const handler = useDebounceFn((event?: Event) => {
-      if (event?.target instanceof HTMLElement && isScrollableElement(event.target)) {
-        scrollContainerRef.value = event.target;
-      } else if (event?.target === document || event?.target === document.documentElement || event?.target === document.body) {
-        scrollContainerRef.value = window;
-      } else {
-        syncScrollContainer();
-      }
-      updateHighlight();
-    }, 16);
+  const handleAnyScroll = useDebounceFn((event?: Event) => {
+    if (event?.target instanceof HTMLElement && isScrollableElement(event.target)) {
+      scrollContainerRef.value = event.target;
+    } else if (event?.target === document || event?.target === document.documentElement || event?.target === document.body) {
+      scrollContainerRef.value = window;
+    } else {
+      syncScrollContainer();
+    }
+    updateHighlight();
+  }, 16);
 
-    // capture=true 可捕获页面内任意滚动容器的 scroll 事件
-    document.addEventListener('scroll', handler, true);
-    window.addEventListener('scroll', handler, { passive: true });
-    window.addEventListener('resize', handler);
-
-    detachGlobalScrollListener = () => {
-      document.removeEventListener('scroll', handler, true);
-      window.removeEventListener('scroll', handler);
-      window.removeEventListener('resize', handler);
-      detachGlobalScrollListener = null;
-    };
-  };
+  // capture=true 可捕获页面内任意滚动容器的 scroll 事件
+  useEventListener(document, 'scroll', handleAnyScroll, { capture: true, passive: true });
+  useEventListener(window, 'scroll', handleAnyScroll, { passive: true });
+  useEventListener(window, 'resize', handleAnyScroll);
 
   // --- 侦听器 (Watchers) ---
 
-  // 1. 当 `scrollY`（滚动位置）变化时，触发高亮计算
-  watch(scrollY, updateHighlight);
-
-  // 2. 当 `items` 列表本身发生变化时（例如 `scanDOM` 重新运行时），
+  // 1. 当 `items` 列表本身发生变化时（例如 `scanDOM` 重新运行时），
   //    也立即触发一次高亮计算
   watch(items, () => {
     syncScrollContainer();
     updateHighlight();
-  }, { deep: true, immediate: true });
-
-  onUnmounted(() => {
-    detachGlobalScrollListener?.();
-  });
+  }, { immediate: true });
 
   // --- 最终暴露 ---
   const lockHighlightDuringProgrammaticScroll = (targetIndex: number, durationMs = 800) => {

@@ -283,7 +283,7 @@ export class DeepSeekAdapter extends BaseAdapter {
     const start = Date.now()
     while (Date.now() - start < timeoutMs) {
       if (this.hasThinkingContent(messageEl)) return true
-      await new Promise<void>((r) => setTimeout(r, 80))
+      await this.sleep(80)
     }
     return this.hasThinkingContent(messageEl)
   }
@@ -315,7 +315,7 @@ export class DeepSeekAdapter extends BaseAdapter {
       }
 
       if (!opened) {
-        await new Promise<void>((r) => setTimeout(r, 60))
+        await this.sleep(60)
       }
     }
 
@@ -350,7 +350,7 @@ export class DeepSeekAdapter extends BaseAdapter {
       }
 
       if (ready) return
-      await new Promise<void>((r) => setTimeout(r, 80))
+      await this.sleep(80)
     }
   }
 
@@ -368,7 +368,8 @@ export class DeepSeekAdapter extends BaseAdapter {
       if (switched.length) {
         // 等待 React 重新渲染，让 pre 元素稳定可读
         await this.waitForMermaidCodeReady(switched)
-        await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 50)))
+        await this.nextFrame()
+        await this.sleep(50)
       }
 
       return super.collect(options)

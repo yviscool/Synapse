@@ -80,6 +80,12 @@ function handleEditorMarkdownUpdate(markdown: string) {
   scheduleStatsEmit(markdown)
 }
 
+function getCurrentMarkdown(): string {
+  const crepe = crepeRef.value
+  if (!crepe) return props.modelValue || ''
+  return crepe.editor.action(getMarkdown())
+}
+
 onMounted(async () => {
   if (!rootRef.value) return
 
@@ -207,6 +213,10 @@ onBeforeUnmount(async () => {
   } catch (error) {
     console.error('Failed to destroy crepe editor:', error)
   }
+})
+
+defineExpose({
+  getCurrentMarkdown,
 })
 </script>
 

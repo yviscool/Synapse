@@ -288,6 +288,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, toRaw, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useTimeoutFn } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
 import { db, getSettings } from '@/stores/db'
 import { repository } from '@/stores/repository'
@@ -324,6 +325,9 @@ const isDisconnecting = ref(false)
 const showAdvancedSyncMenu = ref(false)
 const showResetConfirmation = ref(false)
 const resetConfirmationText = ref('')
+const { start: startReloadDelay, stop: stopReloadDelay } = useTimeoutFn(() => {
+  window.location.reload()
+}, 1500, { immediate: false })
 
 const LOCALE_NAME_KEY_MAP: Record<SupportedLocale, string> = {
   'zh-CN': 'zhCN',
@@ -337,6 +341,23 @@ const LOCALE_NAME_KEY_MAP: Record<SupportedLocale, string> = {
 
 function getLocaleLabel(value: SupportedLocale): string {
   return t(`settings.language.localeNames.${LOCALE_NAME_KEY_MAP[value]}`)
+}
+
+function scheduleReload() {
+  stopReloadDelay()
+  startReloadDelay()
+}
+
+function downloadJsonFile(fileName: string, data: unknown) {
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 const themeOptions = computed<Array<{ value: ThemeOption; label: string }>>(() => [
@@ -523,7 +544,7 @@ async function handleRestoreFromCloud(fileId: string) {
     await syncManager.restoreFromCloudBackup(fileId);
     await refreshSettings();
     showToast(t('common.toast.operationSuccess'), 'success');
-    setTimeout(() => window.location.reload(), 1500);
+    scheduleReload();
   } catch (error) {
     showToast(`${t('common.error')}: ${(error as Error).message}`, 'error');
   }
@@ -533,15 +554,7 @@ async function handleDownloadFromCloud(fileId: string, fileName: string) {
   showToast(t('common.loading'), 'success');
   try {
     const data = await syncManager.downloadCloudBackup(fileId);
-    const dataStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJsonFile(fileName, data);
 
     showToast(t('common.toast.operationSuccess'), 'success');
   } catch (error) {
@@ -642,15 +655,7 @@ const exportData = async () => {
       version: '2.0.0'
     };
 
-    const dataStr = JSON.stringify(exportObject, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Synapse-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJsonFile(`Synapse-backup-${new Date().toISOString().split('T')[0]}.json`, exportObject);
     
     showToast(t('common.toast.saveSuccess'), 'success');
   } catch (error) {
@@ -678,7 +683,7 @@ const importData = async (event: Event) => {
 
     if (ok) {
       showToast(t('common.toast.operationSuccess'), 'success')
-      setTimeout(() => window.location.reload(), 1500)
+      scheduleReload()
     } else {
       throw error
     }
@@ -701,7 +706,7 @@ const executeResetData = async () => {
     const { ok, error } = await repository.resetAllData()
     if (ok) {
       showToast(t('common.toast.operationSuccess'), 'success')
-      setTimeout(() => window.location.reload(), 1500)
+      scheduleReload()
     } else {
       throw error
     }

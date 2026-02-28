@@ -1,30 +1,27 @@
 /**
- * 实时同步引擎
- * 基于 MutationObserver 监听 DOM 变化，自动采集对话内容
- *
- * 对话切换防腐策略（自包含在 doSync 内部，不依赖任何外部时序）：
- * 1. URL 变化时，无条件跳过首次采集，将当前内容指纹记为"脏基线"
- * 2. 后续采集中，只有内容指纹与脏基线不同（DOM 真正更新）才允许保存
- * 3. Observer / checkTimer 会自然重试，直到 DOM 刷新为新对话内容
+ * Real-time sync engine.
+ * - Uses MutationObserver to watch chat DOM changes.
+ * - Applies anti-stale logic during SPA conversation switches.
  */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useDebounceFn, useEventListener, useIntervalFn, useTimeoutFn } from '@vueuse/core'
 import { collect, canCollect, getCurrentPlatformInfo } from '@/content/collect'
 import { getSiteConfig } from '@/content/site-configs'
 import { MSG } from '@/utils/messaging'
-import type { SyncState, ChatConversation, ChatMessage } from '@/types/chat'
+import { countConversationTurns, type SyncState, type ChatConversation, type ChatMessage } from '@/types/chat'
 import { getNavigationApi } from '@/types/navigation'
 
 export interface UseSyncEngineOptions {
-  /** 防抖延迟 (ms) */
+  /** Debounce delay for observer-triggered sync */
   debounceDelay?: number
-  /** 检查间隔 (ms) */
+  /** Polling interval for fallback checks */
   checkInterval?: number
-  /** 最大重试次数 */
+  /** Max retry times after sync errors */
   maxRetries?: number
-  /** 同步成功回调 */
+  /** Callback when sync succeeds */
   onSyncSuccess?: (conversation: Partial<ChatConversation>) => void
-  /** 同步失败回调 */
+  /** Callback when sync fails after retries */
   onSyncError?: (error: string) => void
 }
 
@@ -38,12 +35,10 @@ const DEFAULT_OPTIONS: Required<UseSyncEngineOptions> = {
 
 export const STORAGE_KEY_SYNC_ENABLED = 'synapse-realtime-sync-enabled'
 
-// ── 模块级状态：跨组件重建存活 ──
-// SynapsePanel 使用 :key="url"，每次导航都会销毁重建，
-// 组件内部状态全部丢失。这些变量必须在模块作用域才能跨重建保持记忆。
+// Module-level memory shared across panel remounts.
 let lastCollectedUrl = ''
 let lastCollectedHash = ''
-let lastSavedKey = ''  // url + ':' + hash，已成功保存的内容标识，用于去重
+let lastSavedKey = '' // url + ':' + hash
 let lastConversationId: string | null = null
 
 function hashString(input: string): string {
@@ -51,7 +46,7 @@ function hashString(input: string): string {
   for (let i = 0; i < input.length; i++) {
     const char = input.charCodeAt(i)
     hash = ((hash << 5) - hash) + char
-    hash = hash & hash
+    hash &= hash
   }
   return hash.toString(36)
 }
@@ -65,36 +60,124 @@ function buildFallbackConversationId(platform: string, url: string): string {
 export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options }
 
-  // 状态
   const syncState = ref<SyncState>({
     enabled: false,
     status: 'idle',
     messageCount: 0,
   })
 
-  // 内部状态
   let observer: MutationObserver | null = null
-  let debounceTimer: number | null = null
-  let checkTimer: number | null = null
-  let statusResetTimer: number | null = null
-  let retryTimer: number | null = null
-  let observerRetryInterval: number | null = null
-  let urlPollTimer: number | null = null
-  let navDelayTimer: number | null = null
   let retryCount = 0
   let lastUrl = window.location.href
-  let navigationSuccessHandler: (() => void) | null = null
+  let stopNavigationSuccessListener: (() => void) | null = null
   let unmounted = false
+  let retryAutoSync = true
 
-  // 计算属性
+  const observerRetrySelector = ref<string | null>(null)
+  const observerRetryAttempts = ref(0)
+  const canSync = ref(canCollect())
+
   const isEnabled = computed(() => syncState.value.enabled)
   const isSyncing = computed(() => syncState.value.status === 'syncing')
-  const canSync = computed(() => canCollect())
 
-  /**
-   * 生成内容指纹（标题 + 消息），用于检测变化
-   * 标题纳入哈希，确保标题更新也能触发重新同步
-   */
+  const refreshCanSync = () => {
+    canSync.value = canCollect()
+  }
+
+  const { start: startStatusReset, stop: stopStatusReset } = useTimeoutFn(
+    () => {
+      if (syncState.value.status === 'success') {
+        syncState.value.status = 'idle'
+      }
+    },
+    2000,
+    { immediate: false },
+  )
+
+  const retryDelayMs = ref(opts.debounceDelay)
+  const { start: startRetryTimeout, stop: stopRetryTimeout } = useTimeoutFn(
+    () => {
+      if (syncState.value.enabled && !unmounted) {
+        void doSync(retryAutoSync)
+      }
+    },
+    retryDelayMs,
+    { immediate: false },
+  )
+
+  const { start: startNavDelay, stop: stopNavDelay } = useTimeoutFn(
+    () => {
+      checkUrlChange()
+    },
+    200,
+    { immediate: false },
+  )
+
+  const scheduleAutoSync = useDebounceFn(() => {
+    if (!syncState.value.enabled || !canSync.value || unmounted) return
+    void doSync(true)
+  }, opts.debounceDelay)
+
+  const {
+    pause: pauseObserverRetryLoop,
+    resume: resumeObserverRetryLoop,
+  } = useIntervalFn(
+    () => {
+      const selector = observerRetrySelector.value
+      if (!selector) return
+      if (unmounted || !syncState.value.enabled) {
+        stopObserverRetry()
+        return
+      }
+
+      observerRetryAttempts.value += 1
+      const el = document.querySelector(selector)
+      if (el || observerRetryAttempts.value >= 30) {
+        stopObserverRetry()
+        attachObserver(el || document.body)
+      }
+    },
+    100,
+    { immediate: false },
+  )
+
+  const {
+    pause: pauseCheckLoop,
+    resume: resumeCheckLoop,
+    isActive: isCheckLoopActive,
+  } = useIntervalFn(
+    () => {
+      if (!syncState.value.enabled || syncState.value.status === 'syncing') return
+      refreshCanSync()
+      if (!canSync.value) return
+      void doSync(true)
+    },
+    opts.checkInterval,
+    { immediate: false },
+  )
+
+  const {
+    pause: pauseUrlPollLoop,
+    resume: resumeUrlPollLoop,
+  } = useIntervalFn(
+    () => {
+      checkUrlChange()
+    },
+    1000,
+    { immediate: false },
+  )
+
+  const {
+    pause: pauseCanSyncProbe,
+    resume: resumeCanSyncProbe,
+  } = useIntervalFn(
+    () => {
+      refreshCanSync()
+    },
+    1000,
+    { immediate: false },
+  )
+
   function hashContent(title: string, messages: ChatMessage[]): string {
     const content = title + '||' + messages
       .map((m) => {
@@ -107,74 +190,114 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     return hashString(content)
   }
 
-  /**
-   * 执行同步
-   */
+  function attachObserver(target: Node) {
+    if (unmounted) return
+    observer = new MutationObserver(() => {
+      if (!syncState.value.enabled || !canSync.value) return
+      scheduleAutoSync()
+    })
+    observer.observe(target, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    })
+  }
+
+  function startObserverRetry(selector: string) {
+    observerRetrySelector.value = selector
+    observerRetryAttempts.value = 0
+    pauseObserverRetryLoop()
+    resumeObserverRetryLoop()
+  }
+
+  function stopObserverRetry() {
+    observerRetrySelector.value = null
+    observerRetryAttempts.value = 0
+    pauseObserverRetryLoop()
+  }
+
+  function startObserver() {
+    if (unmounted) return
+    stopObserver()
+    refreshCanSync()
+    if (!canSync.value) return
+
+    const config = getSiteConfig()
+    const targetSelector = config?.observeTarget
+    if (!targetSelector) return
+
+    const target = document.querySelector(targetSelector)
+    if (target) {
+      attachObserver(target)
+      return
+    }
+
+    // DOM may still be switching after SPA navigation.
+    startObserverRetry(targetSelector)
+  }
+
+  function stopObserver() {
+    observer?.disconnect()
+    observer = null
+    stopObserverRetry()
+  }
+
   async function doSync(isAutoSync = true) {
     if (syncState.value.status === 'syncing') return
+
+    refreshCanSync()
+    if (!canSync.value) {
+      syncState.value.status = 'idle'
+      return
+    }
 
     syncState.value.status = 'syncing'
 
     try {
-      // 检测对话 ID 变化，强制全量同步
       const platformInfo = getCurrentPlatformInfo()
       if (platformInfo.conversationId && platformInfo.conversationId !== lastConversationId) {
         lastConversationId = platformInfo.conversationId
       }
 
       const result = await collect({ isAutoSync })
-
       if (!result.success || !result.conversation) {
-        throw new Error(result.error || '采集失败')
+        throw new Error(result.error || 'collect failed')
       }
 
       const messages = result.conversation.messages || []
       const currentTitle = result.conversation.title || ''
       const contentHash = hashContent(currentTitle, messages)
       const currentUrl = window.location.href
-      const saveKey = currentUrl + ':' + contentHash
+      const saveKey = `${currentUrl}:${contentHash}`
       const config = getSiteConfig()
       const requireExternalId = Boolean(config?.conversationIdPattern)
       const platform = result.conversation.platform || platformInfo.platform || 'other'
 
-      console.log(`[SyncEngine] doSync: ${messages.length} msgs, hash=${contentHash}, lastHash=${lastCollectedHash}, lastSaved=${lastSavedKey.slice(-12)}`)
-
-      // ── 防腐 + 去重，两层检查 ──
-
       if (lastCollectedUrl && currentUrl !== lastCollectedUrl) {
-        // URL 刚变化：记录脏基线，跳过本次
-        // SPA 切换瞬间 DOM 大概率还是旧内容
         lastCollectedUrl = currentUrl
         lastCollectedHash = contentHash
-        console.log('[SyncEngine] skip: URL changed (dirty baseline)')
-        syncState.value.status = 'idle'
-        return
+        // 仅自动同步首轮跳过，避免 SPA 切换瞬间保存到脏快照。
+        // 手动采集是用户显式动作，不应要求点击两次。
+        if (isAutoSync) {
+          syncState.value.status = 'idle'
+          return
+        }
       }
 
       if (!lastCollectedUrl) {
         lastCollectedUrl = currentUrl
       }
 
-      if (contentHash === lastCollectedHash) {
-        // 内容与脏基线相同 → 可能 DOM 还没更新（Gemini），也可能本来就是正确内容（DeepSeek）
-        // 用 lastSavedKey 判断：如果这个 URL+内容 已经保存过就跳过，否则放行
-        if (saveKey === lastSavedKey) {
-          console.log('[SyncEngine] skip: same content already saved')
-          syncState.value.status = 'idle'
-          return
-        }
-        // 未保存过 → 放行（DeepSeek：DOM 更新快，脏基线就是正确内容）
+      if (contentHash === lastCollectedHash && saveKey === lastSavedKey) {
+        syncState.value.status = 'idle'
+        return
       }
 
-      // 内容已变化 或 未保存过 → 更新快照
       lastCollectedHash = contentHash
 
-      // 仅对“本应从 URL 提取 externalId”的平台做强校验。
-      // 对无 conversationIdPattern 的平台，使用 URL 派生稳定 id，避免静默跳过与重复新建。
       if (!result.conversation.externalId) {
         if (requireExternalId) {
-          lastCollectedHash = '' // 回退，URL 稳定后仍能触发保存
-          console.log('[SyncEngine] skip: missing externalId on id-required site')
+          lastCollectedHash = ''
           syncState.value.status = 'idle'
           return
         }
@@ -184,7 +307,6 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         }
       }
 
-      // 发送到 background 保存
       const response = await chrome.runtime.sendMessage({
         type: MSG.CHAT_SAVE,
         data: {
@@ -194,176 +316,72 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
         },
       })
 
-      if (response?.ok) {
-        lastSavedKey = saveKey
-        syncState.value.status = 'success'
-        syncState.value.messageCount = messages.length
-        syncState.value.lastSyncAt = Date.now()
-        syncState.value.error = undefined
-        retryCount = 0
-        console.log(`[SyncEngine] saved: ${messages.length} msgs`)
-        opts.onSyncSuccess(result.conversation)
-
-        if (statusResetTimer) {
-          clearTimeout(statusResetTimer)
-        }
-        statusResetTimer = window.setTimeout(() => {
-          statusResetTimer = null
-          if (syncState.value.status === 'success') {
-            syncState.value.status = 'idle'
-          }
-        }, 2000)
-      } else {
-        throw new Error(response?.error || '保存失败')
+      if (!response?.ok) {
+        throw new Error(response?.error || 'save failed')
       }
+
+      lastSavedKey = saveKey
+      syncState.value.status = 'success'
+      syncState.value.messageCount = typeof response.messageCount === 'number'
+        ? response.messageCount
+        : countConversationTurns(messages)
+      syncState.value.lastSyncAt = Date.now()
+      syncState.value.error = undefined
+      retryCount = 0
+      stopRetryTimeout()
+      opts.onSyncSuccess(result.conversation)
+
+      stopStatusReset()
+      startStatusReset()
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : '同步失败'
-      console.error(`[SyncEngine] error:`, errorMsg)
+      const errorMsg = error instanceof Error ? error.message : 'sync failed'
       syncState.value.status = 'error'
       syncState.value.error = errorMsg
+      stopStatusReset()
 
-      retryCount++
-      if (retryCount < opts.maxRetries) {
-        if (retryTimer) {
-          clearTimeout(retryTimer)
-        }
-        retryTimer = window.setTimeout(() => {
-          retryTimer = null
-          if (syncState.value.enabled) {
-            void doSync(isAutoSync)
-          }
-        }, opts.debounceDelay * retryCount)
+      retryCount += 1
+      if (retryCount < opts.maxRetries && syncState.value.enabled) {
+        retryAutoSync = isAutoSync
+        retryDelayMs.value = opts.debounceDelay * retryCount
+        stopRetryTimeout()
+        startRetryTimeout()
       } else {
+        stopRetryTimeout()
         opts.onSyncError(errorMsg)
         retryCount = 0
       }
     }
   }
 
-  function debouncedSync() {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer)
-    }
-    debounceTimer = window.setTimeout(doSync, opts.debounceDelay)
-  }
-
-  /**
-   * 启动 MutationObserver
-   * 带重试查找 observeTarget，避免 SPA 切换后 fallback 到 document.body
-   */
-  function startObserver() {
-    if (unmounted) return
-    stopObserver()
-
-    const config = getSiteConfig()
-    const targetSelector = config?.observeTarget
-
-    const attachObserver = (target: Node) => {
-      if (unmounted) return
-      observer = new MutationObserver(() => {
-        if (!syncState.value.enabled) return
-        debouncedSync()
-      })
-      observer.observe(target, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      })
-    }
-
-    if (!targetSelector) {
-      attachObserver(document.body)
-      return
-    }
-
-    const target = document.querySelector(targetSelector)
-    if (target) {
-      attachObserver(target)
-      return
-    }
-
-    // 目标元素未就绪，重试查找（SPA 切换后 DOM 可能还没渲染）
-    let attempts = 0
-    observerRetryInterval = window.setInterval(() => {
-      if (unmounted || !syncState.value.enabled) {
-        if (observerRetryInterval) {
-          clearInterval(observerRetryInterval)
-          observerRetryInterval = null
-        }
-        return
-      }
-      attempts++
-      const el = document.querySelector(targetSelector)
-      if (el || attempts >= 30) {
-        if (observerRetryInterval) {
-          clearInterval(observerRetryInterval)
-          observerRetryInterval = null
-        }
-        attachObserver(el || document.body)
-      }
-    }, 100)
-  }
-
-  function stopObserver() {
-    if (observer) {
-      observer.disconnect()
-      observer = null
-    }
-    if (statusResetTimer) {
-      clearTimeout(statusResetTimer)
-      statusResetTimer = null
-    }
-    if (retryTimer) {
-      clearTimeout(retryTimer)
-      retryTimer = null
-    }
-    if (observerRetryInterval) {
-      clearInterval(observerRetryInterval)
-      observerRetryInterval = null
-    }
-    if (debounceTimer) {
-      clearTimeout(debounceTimer)
-      debounceTimer = null
-    }
-  }
-
-  /**
-   * 对话切换：重挂 Observer
-   * 防腐逻辑完全由 doSync 内部处理
-   */
   function reinit() {
     retryCount = 0
-
-    // 重挂 Observer 到新的 DOM 节点
+    stopRetryTimeout()
+    stopStatusReset()
     stopObserver()
+    refreshCanSync()
     if (syncState.value.enabled) {
       startObserver()
     }
   }
 
   function startCheckTimer() {
-    if (checkTimer) return
-    checkTimer = window.setInterval(() => {
-      if (syncState.value.enabled && syncState.value.status !== 'syncing') {
-        doSync(true)
-      }
-    }, opts.checkInterval)
+    if (isCheckLoopActive.value) return
+    resumeCheckLoop()
   }
 
   function stopCheckTimer() {
-    if (checkTimer) {
-      clearInterval(checkTimer)
-      checkTimer = null
-    }
+    pauseCheckLoop()
   }
 
   function enable() {
+    refreshCanSync()
     if (!canSync.value) return
+
     syncState.value.enabled = true
     chrome.storage?.local?.set({ [STORAGE_KEY_SYNC_ENABLED]: true })
     startObserver()
     startCheckTimer()
-    doSync(true)
+    void doSync(true)
   }
 
   function disable() {
@@ -371,6 +389,9 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     chrome.storage?.local?.set({ [STORAGE_KEY_SYNC_ENABLED]: false })
     stopObserver()
     stopCheckTimer()
+    stopRetryTimeout()
+    stopStatusReset()
+    syncState.value.status = 'idle'
   }
 
   function toggle() {
@@ -389,28 +410,27 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     if (unmounted) return
     const currentUrl = window.location.href
     if (currentUrl !== lastUrl) {
-      console.log('[SyncEngine] URL changed, reinitializing...')
       lastUrl = currentUrl
       reinit()
     }
   }
 
-  // 生命周期：启动对话切换检测
   onMounted(() => {
+    refreshCanSync()
+    resumeCanSyncProbe()
+
     if ('navigation' in window) {
       const navigation = getNavigationApi()
       if (navigation) {
-        navigationSuccessHandler = () => {
-          if (navDelayTimer) clearTimeout(navDelayTimer)
-          navDelayTimer = window.setTimeout(() => {
-            navDelayTimer = null
-            checkUrlChange()
-          }, 200)
-        }
-        navigation.addEventListener('navigatesuccess', navigationSuccessHandler)
+        stopNavigationSuccessListener = useEventListener(navigation, 'navigatesuccess', () => {
+          stopNavDelay()
+          startNavDelay()
+        })
+      } else {
+        resumeUrlPollLoop()
       }
     } else {
-      urlPollTimer = window.setInterval(checkUrlChange, 1000)
+      resumeUrlPollLoop()
     }
   })
 
@@ -418,22 +438,13 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
     unmounted = true
     stopObserver()
     stopCheckTimer()
-
-    if (navDelayTimer) {
-      clearTimeout(navDelayTimer)
-      navDelayTimer = null
-    }
-
-    const navigation = getNavigationApi()
-    if (navigation && navigationSuccessHandler) {
-      navigation.removeEventListener('navigatesuccess', navigationSuccessHandler)
-      navigationSuccessHandler = null
-    }
-
-    if (urlPollTimer) {
-      clearInterval(urlPollTimer)
-      urlPollTimer = null
-    }
+    stopNavDelay()
+    stopRetryTimeout()
+    stopStatusReset()
+    pauseCanSyncProbe()
+    pauseUrlPollLoop()
+    stopNavigationSuccessListener?.()
+    stopNavigationSuccessListener = null
   })
 
   return {

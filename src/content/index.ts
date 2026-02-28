@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { useEventListener } from '@vueuse/core'
 import App from './App.vue'
 import i18n from '@/i18n'
 import '@/styles'
@@ -25,7 +26,7 @@ import { setupHostThemeSync } from './useHostTheme'
   app.use(i18n)
   app.mount(appContainer)
 
-  window.addEventListener('beforeunload', () => {
+  useEventListener(window, 'beforeunload', () => {
     cleanupStyles()
     cleanupTheme()
   }, { once: true })

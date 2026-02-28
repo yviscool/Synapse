@@ -50,10 +50,11 @@
 <script setup lang="ts">
 // === 导入依赖 ===
 import { ui, useUI } from "@/stores/ui";
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     refDebounced,
+    useEventListener,
     useMagicKeys,
     whenever,
     useScrollLock,
@@ -120,12 +121,9 @@ const navigationApi = getNavigationApi();
 const handleNavigateSuccess = () => {
     outlineKey.value = window.location.href;
 };
-onMounted(() => {
-    navigationApi?.addEventListener("navigatesuccess", handleNavigateSuccess);
-});
-onUnmounted(() => {
-    navigationApi?.removeEventListener("navigatesuccess", handleNavigateSuccess);
-});
+if (navigationApi) {
+    useEventListener(navigationApi, "navigatesuccess", handleNavigateSuccess);
+}
 
 // === i18n & Theme & Real-time Sync ---
 const theme = ref("light");
@@ -360,7 +358,7 @@ function closePanel() {
 
     // 恢复之前的焦点元素
     if (lastActiveEl) {
-        setTimeout(() => lastActiveEl?.focus(), 0);
+        void nextTick(() => lastActiveEl?.focus());
     }
 }
 

@@ -328,7 +328,7 @@
               </div>
             </template>
 
-            <div ref="loaderRef" class="py-4 flex justify-center">
+            <div class="py-4 flex justify-center">
               <div v-if="isLoading" class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                 <div class="i-carbon-circle-dash w-5 h-5 animate-spin"></div>
               </div>
@@ -396,7 +396,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onClickOutside, useIntersectionObserver, useTitle } from '@vueuse/core'
+import { onClickOutside, useInfiniteScroll, useTitle } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
 import { chatRepository } from '@/stores/chatRepository'
@@ -465,7 +465,6 @@ const exportingConversation = ref<ChatConversation | null>(null)
 const showSortMenu = ref(false)
 const sortRef = ref<HTMLElement | null>(null)
 const listRef = ref<HTMLElement | null>(null)
-const loaderRef = ref<HTMLElement | null>(null)
 const detailRef = ref<InstanceType<typeof ConversationDetail> | null>(null)
 const activeMessageIndex = ref(0)
 const showOutline = ref(true)
@@ -476,16 +475,14 @@ const outlineActiveIndex = computed(() => activeMessageIndex.value)
 const platformViewportRef = ref<HTMLElement | null>(null)
 const platformContentRef = ref<HTMLElement | null>(null)
 
-useIntersectionObserver(
-  loaderRef,
-  (entries) => {
-    if (entries[0]?.isIntersecting && hasMore.value && !isLoading.value) {
-      void loadMore()
-    }
+useInfiniteScroll(
+  listRef,
+  () => {
+    void loadMore()
   },
   {
-    root: listRef,
-    rootMargin: '100px',
+    distance: 80,
+    canLoadMore: () => hasMore.value && !isLoading.value,
   },
 )
 

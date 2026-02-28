@@ -132,8 +132,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useFocus, useVModel } from '@vueuse/core'
+import { ref, computed, onMounted } from 'vue'
+import { useFocus, useIntersectionObserver, useTimeoutFn, useVModel } from '@vueuse/core'
 import type { PromptDTO } from '@/utils/messaging'
 import { generateHighlightedHtml, generateHighlightedPreviewHtml } from '@/utils/highlighter'
 import type { FuseResultMatch } from 'fuse.js'
@@ -187,30 +187,24 @@ const promptCards = computed<PromptCardView[]>(() => {
 
 const isMounted = ref(false)
 const loaderRef = ref<HTMLElement | null>(null)
-let observer: IntersectionObserver | null = null
+const { start: startMountedReveal } = useTimeoutFn(() => {
+  isMounted.value = true
+}, 50, { immediate: false })
 
 onMounted(() => {
-  // Staggered animation trigger
-  setTimeout(() => { isMounted.value = true }, 50)
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      if (entries[0].isIntersecting && props.hasMore && !props.isLoading) {
-        emit('load-more')
-      }
-    },
-    { threshold: 0.1 },
-  )
-
-  watch(loaderRef, (newEl, oldEl) => {
-    if (oldEl) observer?.unobserve(oldEl)
-    if (newEl) observer?.observe(newEl)
-  }, { immediate: true })
+  startMountedReveal()
 })
 
-onUnmounted(() => {
-  observer?.disconnect()
-})
+useIntersectionObserver(
+  loaderRef,
+  (entries) => {
+    const first = entries[0]
+    if (first?.isIntersecting && props.hasMore && !props.isLoading) {
+      emit('load-more')
+    }
+  },
+  { threshold: 0.1 },
+)
 
 const scrollContainer = ref<HTMLElement | null>(null)
 

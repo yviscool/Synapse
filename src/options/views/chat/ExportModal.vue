@@ -8,7 +8,7 @@
       @click.stop
     >
       <!-- 头部 -->
-      <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
             <div class="i-carbon-download text-white text-xl"></div>
@@ -41,8 +41,8 @@
               class="flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all"
               :class="[
                 selectedFormat === format.value
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 hover:border-gray-300 dark:hover:border-gray-500 text-gray-600 dark:text-gray-300'
               ]"
             >
               <div :class="format.icon" class="text-2xl"></div>

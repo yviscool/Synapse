@@ -120,7 +120,7 @@
                     @keydown.tab.prevent="addCurrentTag"
                     @keydown.backspace="handleTagBackspace"
                     @blur="handleTagInputBlur"
-                    @focus="isTagInputFocused = true"
+                    @focus="handleTagInputFocus"
                   >
                 </div>
               </div>
@@ -173,6 +173,7 @@
             <!-- Markdown编辑器 -->
             <div class="flex-1 relative border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-inner bg-white dark:bg-gray-900 flex flex-col min-h-0">
               <MarkdownEditor
+                ref="markdownEditorRef"
                 v-model="contentProxy"
                 :readonly="isReadonly"
                 :placeholder="t('prompts.editor.contentPlaceholder')"
@@ -205,12 +206,12 @@
 
 <script setup lang="ts">
 // Vue 3 组合式API相关导入
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 // 国际化相关导入
 import { useI18n } from 'vue-i18n'
 // 自定义Hook导入
 import { useModal } from '@/composables/useModal'
-import { useMagicKeys } from '@vueuse/core'
+import { useMagicKeys, useTimeoutFn } from '@vueuse/core'
 // 子组件导入
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import VersionHistory from './VersionHistory.vue'
@@ -270,6 +271,7 @@ const emit = defineEmits<{
 // ===============================
 
 const { t } = useI18n()
+const markdownEditorRef = ref<{ getCurrentMarkdown?: () => string } | null>(null)
 
 // 检查模态框是否打开（通过modelValue是否存在判断）
 const isOpen = computed(() => !!props.modelValue)
@@ -280,7 +282,7 @@ useModal(isOpen, () => emit('close'), { lockScroll: false })
 const keys = useMagicKeys()
 watch([keys['Ctrl+Enter'], keys['Meta+Enter']], ([ctrl, meta]) => {
   if ((ctrl || meta) && isOpen.value) {
-    handleSave()
+    void handleSave()
   }
 })
 
@@ -343,6 +345,14 @@ const tagInputLocal = ref<string>('')
 const showVersionHistoryLocal = ref(false)
 // 跟踪标签输入框是否获得焦点
 const isTagInputFocused = ref(false)
+const { start: startTagBlurDelay, stop: stopTagBlurDelay } = useTimeoutFn(() => {
+  if (!isOpen.value || isTagInputFocused.value) return
+  addCurrentTag()
+}, 100, { immediate: false })
+
+watch(isOpen, (open) => {
+  if (!open) stopTagBlurDelay()
+})
 
 // 修改备注的双向绑定代理
 const changeNoteProxy = computed({
@@ -403,11 +413,13 @@ function addCurrentTag() {
 function handleTagInputBlur() {
   isTagInputFocused.value = false
   // 延迟执行，确保如果用户点击了其他元素（如保存按钮），不会触发添加标签
-  setTimeout(() => {
-    if (!isTagInputFocused.value) {
-      addCurrentTag()
-    }
-  }, 100)
+  stopTagBlurDelay()
+  startTagBlurDelay()
+}
+
+function handleTagInputFocus() {
+  isTagInputFocused.value = true
+  stopTagBlurDelay()
 }
 
 /**
@@ -446,7 +458,29 @@ function handleEditorContentChange() {
   emit('content-change')
 }
 
-function handleSave() {
+async function syncEditorContentBeforeSave(): Promise<void> {
+  const active = document.activeElement
+  if (active instanceof HTMLElement) {
+    const isEditable =
+      active.isContentEditable ||
+      active.tagName === 'INPUT' ||
+      active.tagName === 'TEXTAREA'
+    if (isEditable) {
+      active.blur()
+    }
+  }
+
+  await nextTick()
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+
+  const latestContent = markdownEditorRef.value?.getCurrentMarkdown?.()
+  if (typeof latestContent === 'string' && (localModel.value?.content || '') !== latestContent) {
+    localModel.value = { ...localModel.value, content: latestContent }
+  }
+}
+
+async function handleSave() {
+  await syncEditorContentBeforeSave()
   const snapshot = { ...localModel.value }
   emit('update:modelValue', snapshot)
   emit('save', snapshot)

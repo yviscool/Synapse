@@ -47,6 +47,64 @@
             <span>·</span>
             <span>{{ t('chat.list.messages', { count: conversation.messageCount }) }}</span>
           </div>
+
+          <!-- 标签/备注编辑（头部） -->
+          <div class="mt-2 space-y-2">
+            <div class="flex items-start gap-2">
+              <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 mt-1">{{ t('chat.detail.tags') }}:</span>
+              <div class="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+                <span
+                  v-for="tagId in conversation.tagIds"
+                  :key="tagId"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-400/20"
+                >
+                  {{ getTagName(tagId) }}
+                  <button
+                    @click="removeTagById(tagId)"
+                    class="text-blue-500 hover:text-red-500 rounded-full transition-colors"
+                    :title="t('common.delete')"
+                  >
+                    <div class="i-carbon-close text-[10px]"></div>
+                  </button>
+                </span>
+                <button
+                  v-if="!showTagInput"
+                  @click="showTagInput = true"
+                  class="px-2 py-0.5 text-xs rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
+                >
+                  + {{ t('common.add') }}
+                </button>
+                <div v-else class="flex items-center gap-1.5">
+                  <input
+                    v-model="newTag"
+                    @keydown.enter="addTag"
+                    @keydown.escape="showTagInput = false"
+                    type="text"
+                    :placeholder="t('chat.detail.tagsPlaceholder')"
+                    class="w-44 px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    ref="tagInputRef"
+                  />
+                  <button
+                    @click="addTag"
+                    class="px-2 py-1 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    {{ t('common.add') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-2">
+              <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 mt-1.5">{{ t('chat.detail.note') }}:</span>
+              <textarea
+                v-model="localNote"
+                @blur="saveNote"
+                :placeholder="t('chat.detail.notePlaceholder')"
+                rows="2"
+                class="flex-1 px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              ></textarea>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -117,7 +175,7 @@
     </div>
 
     <!-- 消息列表 -->
-    <div ref="messageListRef" @scroll="handleMessageScroll" @click="handleMarkdownContentClick" class="relative flex-1 overflow-y-auto p-4 space-y-1 bg-gradient-to-b from-white to-blue-50/40 dark:from-slate-950 dark:to-black">
+    <div ref="messageListRef" @click="handleMarkdownContentClick" class="relative flex-1 overflow-y-auto p-4 space-y-1 bg-gradient-to-b from-white to-blue-50/40 dark:from-slate-950 dark:to-black">
       <template v-for="(item, index) in visibleMessages" :key="item.message.id || item.originalIndex">
         <!-- 轮次分隔线 -->
         <hr
@@ -287,58 +345,7 @@
     </div>
 
     <!-- 底部信息栏 -->
-    <div class="border-t border-gray-100 dark:border-gray-800 p-4 space-y-3 bg-gray-50 dark:bg-gray-800/50">
-      <!-- 标签 -->
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{{ t('chat.detail.tags') }}:</span>
-        <div class="flex flex-wrap gap-1.5 flex-1">
-          <span
-            v-for="tagId in conversation.tagIds"
-            :key="tagId"
-            class="px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-400/20"
-          >
-            {{ getTagName(tagId) }}
-          </span>
-          <button
-            @click="showTagInput = true"
-            class="px-2 py-0.5 text-xs rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
-          >
-            + {{ t('common.add') }}
-          </button>
-        </div>
-      </div>
-
-      <!-- 标签输入 -->
-      <div v-if="showTagInput" class="flex items-center gap-2">
-        <input
-          v-model="newTag"
-          @keydown.enter="addTag"
-          @keydown.escape="showTagInput = false"
-          type="text"
-          :placeholder="t('chat.detail.tagsPlaceholder')"
-          class="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          ref="tagInputRef"
-        />
-        <button
-          @click="addTag"
-          class="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-        >
-          {{ t('common.add') }}
-        </button>
-      </div>
-
-      <!-- 备注 -->
-      <div class="flex items-start gap-2">
-        <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 mt-1.5">{{ t('chat.detail.note') }}:</span>
-        <textarea
-          v-model="localNote"
-          @blur="saveNote"
-          :placeholder="t('chat.detail.notePlaceholder')"
-          rows="2"
-          class="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-        ></textarea>
-      </div>
-
+    <div class="border-t border-gray-100 dark:border-gray-800 p-4 bg-gray-50 dark:bg-gray-800/50">
       <!-- 元信息 -->
       <div class="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
         <span>{{ t('chat.list.collected') }}: {{ formatFullTime(conversation.collectedAt || conversation.createdAt) }}</span>
@@ -351,11 +358,11 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useEventListener, useMutationObserver } from '@vueuse/core'
+import { useEventListener, useMutationObserver, useThrottleFn } from '@vueuse/core'
 import { handleMarkdownCodeCopyClick, handleMermaidBlockClick, renderMarkdown, renderMermaidInElement, reRenderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
 import { getPlatformConfig, getPlatformIconUrl } from '@/content/site-configs'
 import MilkdownEditor from '@/components/Milkdown.vue'
-import type { ChatConversation, ChatMessage, ChatPlatform } from '@/types/chat'
+import { countConversationTurns, type ChatConversation, type ChatMessage, type ChatPlatform } from '@/types/chat'
 
 const { t, locale } = useI18n()
 
@@ -513,6 +520,10 @@ function handleMessageScroll() {
   }
 }
 
+const handleMessageScrollThrottled = useThrottleFn(() => {
+  handleMessageScroll()
+}, 33)
+
 // 暴露方法
 defineExpose({ scrollToMessage })
 
@@ -555,7 +566,8 @@ async function handleMarkdownContentClick(event: MouseEvent) {
   await handleMarkdownCodeCopyClick(event)
 }
 
-useEventListener(window, 'scroll', handleMessageScroll, { capture: true })
+useEventListener(messageListRef, 'scroll', handleMessageScrollThrottled, { passive: true })
+useEventListener(window, 'scroll', handleMessageScrollThrottled, { capture: true, passive: true })
 
 useMutationObserver(
   document.documentElement,
@@ -585,6 +597,19 @@ function addTag() {
   }
   newTag.value = ''
   showTagInput.value = false
+}
+
+function removeTagById(tagId: string) {
+  const nextTagNames = props.conversation.tagIds
+    .filter(id => id !== tagId)
+    .map(id => getTagName(id))
+    .filter(Boolean)
+  if (nextTagNames.length === 0) {
+    // 显式清空 tagIds，避免 saveConversation 回退到旧 tagIds 导致“最后一个标签删不掉”
+    emit('update', props.conversation.id, { tagIds: [] }, [])
+    return
+  }
+  emit('update', props.conversation.id, {}, nextTagNames)
 }
 
 function saveNote() {
@@ -650,7 +675,7 @@ function handleDeleteMessage(index: number) {
 
   emit('update', props.conversation.id, {
     messages: updatedMessages,
-    messageCount: Math.ceil(updatedMessages.filter(m => !m.isDeleted).length / 2),
+    messageCount: countConversationTurns(updatedMessages),
   })
 }
 

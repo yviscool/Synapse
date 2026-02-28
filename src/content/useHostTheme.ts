@@ -15,6 +15,8 @@
  * 5. 回退到系统 prefers-color-scheme
  */
 
+import { useEventListener } from '@vueuse/core'
+
 type ThemeMode = 'dark' | 'light'
 
 function tokenize(text: string): Set<string> {
@@ -159,6 +161,7 @@ export function setupHostThemeSync(appContainer: HTMLElement, host: HTMLElement)
   let lastTheme: ThemeMode | null = null
   let rafId = 0
   let themeObserver: MutationObserver | null = null
+  let stopDomReadyListener: (() => void) | null = null
 
   function applyTheme(isDark: boolean) {
     const mode: ThemeMode = isDark ? 'dark' : 'light'
@@ -192,9 +195,9 @@ export function setupHostThemeSync(appContainer: HTMLElement, host: HTMLElement)
   const onFocus = () => scheduleSync()
   const onVisibility = () => scheduleSync()
 
-  mediaQuery.addEventListener('change', onMediaChange)
-  window.addEventListener('focus', onFocus, true)
-  document.addEventListener('visibilitychange', onVisibility)
+  const stopMediaListener = useEventListener(mediaQuery, 'change', onMediaChange)
+  const stopFocusListener = useEventListener(window, 'focus', onFocus, { capture: true })
+  const stopVisibilityListener = useEventListener(document, 'visibilitychange', onVisibility)
 
   // 监听 html/body 属性变化
   const observerConfig = { attributes: true }
@@ -210,21 +213,22 @@ export function setupHostThemeSync(appContainer: HTMLElement, host: HTMLElement)
     themeObserver.observe(document.documentElement, observerConfig)
     themeObserver.observe(document.body, observerConfig)
   } else {
-    const onReady = () => {
+    stopDomReadyListener = useEventListener(document, 'DOMContentLoaded', () => {
       if (!themeObserver || !document.body) return
       themeObserver.observe(document.documentElement, observerConfig)
       themeObserver.observe(document.body, observerConfig)
       scheduleSync()
-    }
-    document.addEventListener('DOMContentLoaded', onReady, { once: true })
+    }, { once: true })
   }
 
   return () => {
     themeObserver?.disconnect()
     themeObserver = null
     if (rafId) cancelAnimationFrame(rafId)
-    mediaQuery.removeEventListener('change', onMediaChange)
-    window.removeEventListener('focus', onFocus, true)
-    document.removeEventListener('visibilitychange', onVisibility)
+    stopDomReadyListener?.()
+    stopDomReadyListener = null
+    stopMediaListener()
+    stopFocusListener()
+    stopVisibilityListener()
   }
 }

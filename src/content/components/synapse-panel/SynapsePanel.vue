@@ -240,7 +240,7 @@ import {
   Transition,
   type CSSProperties,
 } from 'vue'
-import { useDraggable, useWindowSize } from '@vueuse/core'
+import { useDraggable, useTimeoutFn, useWindowSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { canCollect } from '@/content/collect'
 import { detectPlatformFromUrl } from '@/content/site-configs'
@@ -289,7 +289,13 @@ const hint = ref<{ visible: boolean; text: string; icon: string }>({
   text: '',
   icon: '',
 })
-let hintTimeout: number | null = null
+const hintHideDelayMs = ref(1500)
+const { start: startHintHide, stop: stopHintHide } = useTimeoutFn(() => {
+  hint.value = { visible: false, text: '', icon: '' }
+}, hintHideDelayMs, { immediate: false })
+const { start: startRefreshReset, stop: stopRefreshReset } = useTimeoutFn(() => {
+  isRefreshing.value = false
+}, 800, { immediate: false })
 let deepSeekNativeNavObserver: MutationObserver | null = null
 let deepSeekHideRaf: number | null = null
 
@@ -397,9 +403,8 @@ function handleCollapsedClick() {
 function handleRefresh() {
   if (isRefreshing.value) return
   isRefreshing.value = true
-  setTimeout(() => {
-    isRefreshing.value = false
-  }, 800)
+  stopRefreshReset()
+  startRefreshReset()
 }
 
 function handleSyncStatusChange(status: 'idle' | 'syncing' | 'success' | 'error') {
@@ -407,17 +412,15 @@ function handleSyncStatusChange(status: 'idle' | 'syncing' | 'success' | 'error'
 }
 
 function handleHint(data: { text: string; icon: string }) {
-  if (hintTimeout) clearTimeout(hintTimeout)
+  stopHintHide()
   if (!data.text) {
-    hintTimeout = window.setTimeout(() => {
-      hint.value = { visible: false, text: '', icon: '' }
-    }, 100)
+    hintHideDelayMs.value = 100
+    startHintHide()
     return
   }
   hint.value = { visible: true, text: data.text, icon: data.icon }
-  hintTimeout = window.setTimeout(() => {
-    hint.value = { visible: false, text: '', icon: '' }
-  }, 1500)
+  hintHideDelayMs.value = 1500
+  startHintHide()
 }
 
 // --- 全局样式注入 ---
@@ -560,7 +563,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (hintTimeout) clearTimeout(hintTimeout)
+  stopHintHide()
+  stopRefreshReset()
   stopDeepSeekNativeNavSuppression()
 })
 </script>

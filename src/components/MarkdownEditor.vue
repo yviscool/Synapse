@@ -2,6 +2,7 @@
   <div class="flex flex-col h-full min-h-0">
     <div class="flex-1 min-h-0 overflow-hidden">
       <MilkdownEditorCore
+        ref="editorCoreRef"
         v-model="model"
         :placeholder="props.placeholder"
         :readonly="props.readonly"
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{ (e: 'change', value: string): void }>()
 
 const model = defineModel<string>({ required: true })
+const editorCoreRef = ref<{ getCurrentMarkdown?: () => string } | null>(null)
 
 const stats = ref({
   lines: model.value.split('\n').length,
@@ -45,6 +47,15 @@ const stats = ref({
 const handleChange = (value: string) => {
   emit('change', value)
 }
+
+function getCurrentMarkdown(): string {
+  const markdown = editorCoreRef.value?.getCurrentMarkdown?.()
+  return typeof markdown === 'string' ? markdown : model.value
+}
+
+defineExpose({
+  getCurrentMarkdown,
+})
 
 </script>
 

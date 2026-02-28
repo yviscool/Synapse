@@ -83,6 +83,7 @@ import { useI18n } from 'vue-i18n'
 import { useOutline } from '@/content/outline/useOutline'
 import type { OutlineEngine } from '@/content/outline/useOutline'
 import type { SiteConfig } from '@/content/site-configs'
+import { flashOutlineHighlight, scrollToOutlineElement } from './useOutlineJump'
 
 // 图标常量
 const ICONS = {
@@ -90,6 +91,7 @@ const ICONS = {
   scrollCenter: 'i-ph-crosshair-bold',
   scrollDown: 'i-ph-arrow-down-bold',
 }
+const START_ALIGN_TOP_OFFSET = 80
 
 const props = defineProps<{
   config: SiteConfig
@@ -112,8 +114,6 @@ const hideSearch = computed(() => !!props.hideSearch)
 // 三段式悬停状态
 type HoverZone = 'start' | 'center' | 'end' | ''
 const hoveredItem = ref<{ index: number; zone: HoverZone }>({ index: -1, zone: '' })
-let hintTimeout: number | null = null
-let highlightTimeout: number | null = null
 
 // 大纲逻辑：允许复用外部状态（用于 Rail 与面板共用同一套 Observer）
 const internalTargetRef = ref<HTMLElement | null>(null)
@@ -170,7 +170,6 @@ function handleItemHover(event: MouseEvent, sourceIndex: number) {
 }
 
 function handleItemLeave(element: Element | null = null) {
-  if (hintTimeout) clearTimeout(hintTimeout)
   hoveredItem.value = { index: -1, zone: '' }
   // 通知父组件隐藏 hint
   emit('hint', { text: '', icon: '' })
@@ -194,56 +193,16 @@ function handleItemClick(event: MouseEvent, element: Element, sourceIndex: numbe
   lockHighlightDuringProgrammaticScroll(sourceIndex, 900)
   emit('active-change', sourceIndex)
 
-  const scrollContainerSelector = props.config.scrollContainer
-  let scrollContainer: HTMLElement | null = null
-  if (typeof scrollContainerSelector === 'string') {
-    scrollContainer = document.querySelector<HTMLElement>(scrollContainerSelector)
-  }
+  const zone = getHoverZone(event)
+  const align = (zone === '' ? 'center' : zone) as 'start' | 'center' | 'end'
+  scrollToOutlineElement(element, {
+    scrollContainer: props.config.scrollContainer,
+    align,
+    topOffset: align === 'start' ? START_ALIGN_TOP_OFFSET : 0,
+    durationMs: 400,
+  })
 
-  if (scrollContainer) {
-    // 手动平滑滚动（绕过网站劫持）
-    const containerRect = scrollContainer.getBoundingClientRect()
-    const elementRect = element.getBoundingClientRect()
-    const zone = getHoverZone(event)
-
-    let blockPositionOffset = 0
-    if (zone === 'center') {
-      blockPositionOffset = containerRect.height / 2 - elementRect.height / 2
-    } else if (zone === 'end') {
-      blockPositionOffset = containerRect.height - elementRect.height
-    }
-
-    const targetScrollTop = scrollContainer.scrollTop + elementRect.top - containerRect.top - blockPositionOffset
-    const startScrollTop = scrollContainer.scrollTop
-    const distance = targetScrollTop - startScrollTop
-    const duration = 400
-    let startTime: number | null = null
-
-    const easeInOutQuad = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
-
-    const animateScroll = (currentTime: number) => {
-      if (startTime === null) startTime = currentTime
-      const timeElapsed = currentTime - startTime
-      const progress = Math.min(timeElapsed / duration, 1)
-      scrollContainer!.scrollTop = startScrollTop + distance * easeInOutQuad(progress)
-      if (timeElapsed < duration) requestAnimationFrame(animateScroll)
-    }
-
-    requestAnimationFrame(animateScroll)
-  } else {
-    // 原生 scrollIntoView
-    const zone = getHoverZone(event)
-    const block = (zone === '' ? 'center' : zone) as ScrollLogicalPosition
-    element.scrollIntoView({ behavior: 'smooth', block, inline: 'nearest' })
-  }
-
-  // 闪烁高亮
-  document.querySelectorAll('.outline-flash-highlight').forEach(el => el.classList.remove('outline-flash-highlight'))
-  element.classList.add('outline-flash-highlight')
-  if (highlightTimeout) clearTimeout(highlightTimeout)
-  highlightTimeout = window.setTimeout(() => {
-    element.classList.remove('outline-flash-highlight')
-  }, 2000)
+  flashOutlineHighlight(element, 2000)
 
   // 隐藏 hint
   emit('hint', { text: '', icon: '' })
@@ -292,11 +251,9 @@ async function refresh() {
 defineExpose({ refresh })
 
 onUnmounted(() => {
-  if (hintTimeout) clearTimeout(hintTimeout)
-  if (highlightTimeout) clearTimeout(highlightTimeout)
   // 清理所有高亮
-  document.querySelectorAll('.outline-hover-highlight, .outline-active-highlight').forEach(el => {
-    el.classList.remove('outline-hover-highlight', 'outline-active-highlight')
+  document.querySelectorAll('.outline-hover-highlight, .outline-active-highlight, .outline-flash-highlight').forEach(el => {
+    el.classList.remove('outline-hover-highlight', 'outline-active-highlight', 'outline-flash-highlight')
   })
 })
 </script>

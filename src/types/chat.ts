@@ -78,6 +78,34 @@ export function getOriginalContent(message: ChatMessage): string {
   return message.content.original
 }
 
+/**
+ * 统计对话轮次：
+ * - 优先按「用户消息数」计（用户 + 助手视为一轮）
+ * - 若无用户消息，则回退为可见对话消息数 / 2 向上取整
+ */
+export function countConversationTurns(messages?: readonly ChatMessage[] | null): number {
+  if (!messages || messages.length === 0) return 0
+
+  let userTurns = 0
+  let dialogMessageCount = 0
+
+  for (const message of messages) {
+    if (message.isDeleted) continue
+
+    const content = getMessageContent(message).trim()
+    if (!content) continue
+    if (message.role === 'system') continue
+
+    dialogMessageCount += 1
+    if (message.role === 'user') {
+      userTurns += 1
+    }
+  }
+
+  if (userTurns > 0) return userTurns
+  return Math.ceil(dialogMessageCount / 2)
+}
+
 /** 对话记录 */
 export interface ChatConversation {
   id: string
@@ -225,6 +253,6 @@ export interface SyncState {
   enabled: boolean            // 是否启用实时同步
   status: 'idle' | 'syncing' | 'success' | 'error'
   lastSyncAt?: number         // 最后同步时间
-  messageCount: number        // 已采集消息数
+  messageCount: number        // 已采集轮次（用户+助手计 1）
   error?: string              // 错误信息
 }

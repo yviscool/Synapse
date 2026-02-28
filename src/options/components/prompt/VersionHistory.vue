@@ -155,9 +155,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onKeyStroke, useMutationObserver } from '@vueuse/core'
+import { useMutationObserver } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
 import type { PromptVersion } from '@/types/prompt'
 import { handleMarkdownCodeCopyClick, handleMermaidBlockClick, renderMermaidInElement, reRenderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
@@ -374,11 +374,21 @@ function formatDate(timestamp: number): string {
   }).format(new Date(timestamp))
 }
 
-onKeyStroke('Escape', (event) => {
-  if (!showComparison.value) return
+function handleGlobalEscapeCapture(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !showComparison.value) return
+  event.preventDefault()
   event.stopPropagation()
+  event.stopImmediatePropagation()
   closeComparison()
-}, { target: window, eventName: 'keydown' })
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleGlobalEscapeCapture, true)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalEscapeCapture, true)
+})
 
 useMutationObserver(
   document.documentElement,

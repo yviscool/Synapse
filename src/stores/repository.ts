@@ -564,8 +564,10 @@ export const repository = {
         db.snippets,
         db.snippet_folders,
         db.snippet_tags,
+        db.snippet_search_index,
         db.chat_conversations,
         db.chat_tags,
+        db.chat_search_index,
         db.chat_message_search_index,
       ],
       async () => {
@@ -594,6 +596,7 @@ export const repository = {
         await db.snippets.clear();
         await db.snippet_folders.clear();
         await db.snippet_tags.clear();
+        await db.snippet_search_index.clear();
         if (Array.isArray(importedData.snippets)) {
           await db.snippets.bulkPut(importedData.snippets as Snippet[]);
         }
@@ -607,6 +610,7 @@ export const repository = {
         // --- Chats ---
         await db.chat_conversations.clear();
         await db.chat_tags.clear();
+        await db.chat_search_index.clear();
         await db.chat_message_search_index.clear();
         if (Array.isArray(importedData.chat_conversations)) {
           await db.chat_conversations.bulkPut(importedData.chat_conversations as ChatConversation[]);
@@ -649,8 +653,10 @@ export const repository = {
         db.snippets,
         db.snippet_folders,
         db.snippet_tags,
+        db.snippet_search_index,
         db.chat_conversations,
         db.chat_tags,
+        db.chat_search_index,
         db.chat_message_search_index,
       ],
       async () => {
@@ -667,10 +673,12 @@ export const repository = {
         await db.snippets.clear();
         await db.snippet_folders.clear();
         await db.snippet_tags.clear();
+        await db.snippet_search_index.clear();
 
         // --- Chats ---
         await db.chat_conversations.clear();
         await db.chat_tags.clear();
+        await db.chat_search_index.clear();
         await db.chat_message_search_index.clear();
 
         // --- Settings ---
