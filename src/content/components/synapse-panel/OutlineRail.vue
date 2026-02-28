@@ -40,7 +40,7 @@
       @mouseenter="handleRailEnter"
       @mouseleave="handleRailLeave"
     >
-      <div class="rail-panel-shell rounded-2xl border border-slate-200/60 bg-white/90 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden dark:border-white/10 dark:bg-[#0f172a]/90 dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
+      <div class="rail-panel-shell rounded-2xl border border-slate-200/60 bg-white/90 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden dark:border-slate-600/35 dark:bg-slate-900/95 dark:shadow-[0_24px_48px_-12px_rgba(2,6,23,0.78)]">
         <OutlineContent
           :config="config"
           :outline-state="outlineState"
@@ -176,7 +176,7 @@ function updatePanelPosition() {
   const target = railListRef.value || railRootRef.value
   if (!target) return
   const rect = target.getBoundingClientRect()
-  panelRight.value = Math.max(20, window.innerWidth - rect.left + 24)
+  panelRight.value = Math.max(16, window.innerWidth - rect.left + 14)
 }
 
 function clearHoveredElement() {
@@ -294,14 +294,14 @@ useEventListener(window, 'resize', updatePanelPosition)
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.08);
 }
 
-:global(.dark) .sp-outline-rail-list {
-  background: rgba(0, 0, 0, 0.15);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.2);
+:global(.dark .sp-outline-rail-list) {
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(148,163,184,0.24), 0 8px 20px rgba(2,6,23,0.35);
 }
 
-:global(.dark) .sp-outline-rail:hover .sp-outline-rail-list {
-  background: rgba(0, 0, 0, 0.3);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 8px 24px rgba(0,0,0,0.3);
+:global(.dark .sp-outline-rail:hover .sp-outline-rail-list) {
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(191,219,254,0.3), 0 12px 28px rgba(2,6,23,0.48);
 }
 
 .sp-outline-step-wrapper {
@@ -345,17 +345,17 @@ useEventListener(window, 'resize', updatePanelPosition)
   box-shadow: 0 0 14px rgba(59, 130, 246, 0.6);
 }
 
-:global(.dark) .sp-outline-step-bar {
-  color: rgba(148, 163, 184, 0.8);
+:global(.dark .sp-outline-step-bar) {
+  color: rgba(203, 213, 225, 0.95);
 }
 
-:global(.dark) .sp-outline-step-bar.is-hovered {
+:global(.dark .sp-outline-step-bar.is-hovered) {
   color: rgba(96, 165, 250, 1);
 }
 
-:global(.dark) .sp-outline-step-bar.is-active {
+:global(.dark .sp-outline-step-bar.is-active) {
   color: rgba(96, 165, 250, 1);
-  box-shadow: 0 0 18px rgba(96, 165, 250, 0.4);
+  box-shadow: 0 0 18px rgba(96, 165, 250, 0.52);
 }
 
 .sp-outline-rail-panel {

@@ -1,5 +1,5 @@
 <template>
-  <div class="outline-content">
+  <div class="outline-content" :class="{ 'is-compact': hideSearch }">
     <!-- 搜索框 -->
     <div v-if="!hideSearch" class="px-4 py-3 flex-shrink-0">
       <div class="relative">
@@ -15,7 +15,23 @@
     </div>
 
     <!-- 列表区域 -->
-    <div class="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar" ref="listContainerRef">
+    <div
+      v-if="hideSearch"
+      class="mx-3 mt-3 mb-1 px-3 py-2 rounded-xl border border-slate-200/80 bg-slate-50/85 dark:border-slate-600/40 dark:bg-slate-800/65 flex items-center justify-between gap-2 flex-shrink-0"
+    >
+      <span class="rail-compact-title text-[11px] font-semibold tracking-[0.08em] uppercase">
+        {{ t('content.outline.railTitle') }}
+      </span>
+      <span class="rail-compact-count inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-md text-[11px] font-semibold">
+        {{ filteredItems.length }}
+      </span>
+    </div>
+
+    <div
+      ref="listContainerRef"
+      class="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar"
+      :class="{ 'pt-1': hideSearch }"
+    >
       <TransitionGroup name="list-item" tag="ul" class="space-y-1" :key="listKey">
         <li
           v-for="(item, index) in filteredItems"
@@ -31,7 +47,7 @@
           @mouseenter="handleItemMouseEnter(item.element)"
         >
           <div class="outline-item-content">
-            <span class="item-index text-gray-400/80 dark:text-white/70">{{ index + 1 }}</span>
+            <span class="item-index">{{ index + 1 }}</span>
             <span
               class="item-icon transition-all duration-200"
               :class="[
@@ -304,12 +320,47 @@ onUnmounted(() => {
   transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.outline-content.is-compact .outline-item-wrapper {
+  @apply rounded-lg;
+}
+
+.outline-content.is-compact .outline-item-wrapper:hover {
+  transform: translateY(-1px);
+}
+
+.outline-content.is-compact .outline-item-wrapper.is-active:hover {
+  transform: translateY(-1px);
+}
+
 .outline-item-content {
   @apply flex items-center gap-2.5 py-1.5;
 }
 
 .item-index {
   @apply text-[10px] font-mono min-w-[16px] text-center;
+  color: rgba(100, 116, 139, 0.9);
+}
+
+:global(.dark .outline-content .item-index) {
+  color: rgba(226, 232, 240, 0.88);
+}
+
+.rail-compact-title {
+  color: rgba(100, 116, 139, 0.92);
+}
+
+.rail-compact-count {
+  color: rgba(100, 116, 139, 0.95);
+  background-color: rgba(255, 255, 255, 0.75);
+}
+
+:global(.dark .outline-content .rail-compact-title) {
+  color: rgba(226, 232, 240, 0.9);
+}
+
+:global(.dark .outline-content .rail-compact-count) {
+  color: rgba(226, 232, 240, 0.95);
+  background-color: rgba(51, 65, 85, 0.75);
 }
 
 .item-icon {
