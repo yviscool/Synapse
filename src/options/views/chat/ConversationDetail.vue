@@ -349,8 +349,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, watch, nextTick, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useEventListener, useMutationObserver } from '@vueuse/core'
 import { handleMarkdownCodeCopyClick, handleMermaidBlockClick, renderMarkdown, renderMermaidInElement, reRenderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
 import { getPlatformConfig, getPlatformIconUrl } from '@/content/site-configs'
 import MilkdownEditor from '@/components/Milkdown.vue'
@@ -377,7 +378,6 @@ const showTagInput = ref(false)
 const newTag = ref('')
 const tagInputRef = ref<HTMLInputElement | null>(null)
 const messageListRef = ref<HTMLElement | null>(null)
-let themeObserver: MutationObserver | null = null
 
 // 标题编辑
 const isEditingTitle = ref(false)
@@ -550,32 +550,23 @@ watch([() => props.conversation.id, visibleMessages], async () => {
   await renderMermaidInElement(messageListRef.value)
 }, { immediate: true })
 
-function handleWindowScroll() {
-  handleMessageScroll()
-}
-
 async function handleMarkdownContentClick(event: MouseEvent) {
   if (await handleMermaidBlockClick(event)) return
   await handleMarkdownCodeCopyClick(event)
 }
 
-onMounted(() => {
-  window.addEventListener('scroll', handleWindowScroll, true)
+useEventListener(window, 'scroll', handleMessageScroll, { capture: true })
 
-  // 监听主题切换，重新渲染 mermaid
-  themeObserver = new MutationObserver(() => {
-    reRenderMermaidInElement(messageListRef.value)
-  })
-  themeObserver.observe(document.documentElement, {
+useMutationObserver(
+  document.documentElement,
+  () => {
+    void reRenderMermaidInElement(messageListRef.value)
+  },
+  {
     attributes: true,
     attributeFilter: ['data-theme', 'class'],
-  })
-})
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', handleWindowScroll, true)
-  themeObserver?.disconnect()
-})
+  },
+)
 
 // 标签相关
 function getTagName(tagId: string): string {

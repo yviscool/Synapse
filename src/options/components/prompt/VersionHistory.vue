@@ -155,8 +155,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { onKeyStroke, useMutationObserver } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
 import type { PromptVersion } from '@/types/prompt'
 import { handleMarkdownCodeCopyClick, handleMermaidBlockClick, renderMermaidInElement, reRenderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
@@ -198,8 +199,6 @@ const comparisonData = ref<{
   newContent: string
   diff: VersionDiffResult
 } | null>(null)
-
-let themeObserver: MutationObserver | null = null
 
 // Watchers
 watch(() => props.promptId, () => {
@@ -375,32 +374,23 @@ function formatDate(timestamp: number): string {
   }).format(new Date(timestamp))
 }
 
-const handleEsc = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && showComparison.value) {
-    e.stopPropagation()
-    closeComparison()
-  }
-}
+onKeyStroke('Escape', (event) => {
+  if (!showComparison.value) return
+  event.stopPropagation()
+  closeComparison()
+}, { target: window, eventName: 'keydown' })
 
-// Lifecycle
-onMounted(() => {
-  loadVersions()
-  window.addEventListener('keydown', handleEsc, true)
-
-  // 监听主题切换，重新渲染 mermaid
-  themeObserver = new MutationObserver(() => {
-    reRenderMermaidInElement(comparisonContentRef.value)
-  })
-  themeObserver.observe(document.documentElement, {
+useMutationObserver(
+  document.documentElement,
+  () => {
+    if (!showComparison.value || !comparisonData.value?.diff) return
+    void reRenderMermaidInElement(comparisonContentRef.value)
+  },
+  {
     attributes: true,
     attributeFilter: ['data-theme', 'class'],
-  })
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleEsc, true)
-  themeObserver?.disconnect()
-})
+  },
+)
 </script>
 
 <style scoped>

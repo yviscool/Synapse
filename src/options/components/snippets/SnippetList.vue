@@ -74,7 +74,6 @@
     <div
       ref="listRef"
       class="flex-1 overflow-y-auto"
-      @scroll="handleScroll"
     >
       <!-- Empty state -->
       <div v-if="snippets.length === 0 && !isLoading" class="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 px-4">
@@ -144,15 +143,16 @@
         </div>
 
         <!-- Load more trigger -->
-        <div v-if="hasMore && !isLoading" ref="loadMoreRef" class="h-4"></div>
+        <div v-if="hasMore && !isLoading" class="h-4"></div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { onClickOutside, useInfiniteScroll } from '@vueuse/core'
 import type { Snippet, SnippetLanguage } from '@/types/snippet'
 import {
   generateHighlightedHtmlByQuery,
@@ -189,7 +189,6 @@ const { t } = useI18n()
 
 // Refs
 const listRef = ref<HTMLDivElement | null>(null)
-const loadMoreRef = ref<HTMLDivElement | null>(null)
 const languageDropdownRef = ref<HTMLDivElement | null>(null)
 
 // State
@@ -244,17 +243,6 @@ function navigateDown(currentIndex: number) {
   }
 }
 
-function handleScroll() {
-  if (!listRef.value || !loadMoreRef.value) return
-
-  const rect = loadMoreRef.value.getBoundingClientRect()
-  const listRect = listRef.value.getBoundingClientRect()
-
-  if (rect.top < listRect.bottom && props.hasMore && !props.isLoading) {
-    emit('load-more')
-  }
-}
-
 function getLanguageLabel(language: SnippetLanguage): string {
   return t(`tools.languages.${language}`)
 }
@@ -277,19 +265,15 @@ function formatTime(timestamp: number): string {
   return formatRelativeTime(timestamp)
 }
 
-// Click outside to close language filter
-function handleClickOutside(e: MouseEvent) {
-  if (languageDropdownRef.value && !languageDropdownRef.value.contains(e.target as Node)) {
-    showLanguageFilter.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
+onClickOutside(languageDropdownRef, () => {
+  showLanguageFilter.value = false
 })
 
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
+useInfiniteScroll(listRef, () => {
+  emit('load-more')
+}, {
+  distance: 80,
+  canLoadMore: () => props.hasMore && !props.isLoading,
 })
 </script>
 

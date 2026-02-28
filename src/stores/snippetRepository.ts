@@ -574,6 +574,13 @@ export const snippetRepository = {
       .count();
   },
 
+  async getStarredSnippetCount(): Promise<number> {
+    return db.snippets
+      .where("starred")
+      .equals(true)
+      .count();
+  },
+
   async getSnippetCountByFolder(): Promise<Map<string | null, number>> {
     const snippets = await db.snippets.toArray();
     const countMap = new Map<string | null, number>();

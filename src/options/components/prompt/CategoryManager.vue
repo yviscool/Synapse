@@ -280,8 +280,19 @@ async function loadCategories() {
 async function loadPrompts() {
     prompts.value = await db.prompts.toArray() as Prompt[]
 }
+
+const promptCountByCategory = computed(() => {
+    const countMap = new Map<string, number>()
+    for (const prompt of prompts.value) {
+        for (const categoryId of prompt.categoryIds || []) {
+            countMap.set(categoryId, (countMap.get(categoryId) || 0) + 1)
+        }
+    }
+    return countMap
+})
+
 function getPromptCount(categoryId: string) {
-    return prompts.value.filter(p => p.categoryIds?.includes(categoryId)).length
+    return promptCountByCategory.value.get(categoryId) || 0
 }
 
 // --- CRUD Operations (Refactored to use Repository) ---

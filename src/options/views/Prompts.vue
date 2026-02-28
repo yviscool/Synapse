@@ -475,9 +475,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from "vue";
+import { ref, computed, onMounted, watch, nextTick, defineAsyncComponent } from "vue";
 import { useI18n } from "vue-i18n";
-import { useTitle } from "@vueuse/core";
+import { useIntersectionObserver, useTitle } from "@vueuse/core";
 import { useUI } from "@/stores/ui";
 import { db } from "@/stores/db";
 import { type PromptWithMatches } from "@/stores/promptSearch";
@@ -599,7 +599,21 @@ const baseVersionForEdit = ref<{
     version: PromptVersion;
     versionNumber: number;
 } | null>(null); // 当从一个历史版本开始编辑时，记录其基准版本信息
-let listObserver: IntersectionObserver | null = null;
+
+useIntersectionObserver(
+    loaderRef,
+    (entries) => {
+        if (
+            entries[0]?.isIntersecting &&
+            hasMore.value &&
+            !isLoading.value
+        ) {
+            currentPage.value++;
+            void fetchPrompts();
+        }
+    },
+    { rootMargin: "200px" },
+);
 
 // --- Computed Properties ---
 type PromptCardView = PromptWithMatches & {
@@ -923,23 +937,6 @@ onMounted(async () => {
     try {
         await loadInitialData();
 
-        listObserver = new IntersectionObserver(
-            (entries) => {
-                if (
-                    entries[0].isIntersecting &&
-                    hasMore.value &&
-                    !isLoading.value
-                ) {
-                    currentPage.value++;
-                    fetchPrompts();
-                }
-            },
-            { rootMargin: "200px" },
-        );
-        if (loaderRef.value) {
-            listObserver.observe(loaderRef.value);
-        }
-
         await nextTick();
         initShelfScroll();
 
@@ -950,10 +947,6 @@ onMounted(async () => {
         console.error("Failed to open database:", error);
         showToast(t("common.toast.dbConnectionFailed"), "error");
     }
-});
-
-onUnmounted(() => {
-    if (listObserver) listObserver.disconnect();
 });
 </script>
 

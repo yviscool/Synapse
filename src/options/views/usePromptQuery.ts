@@ -60,41 +60,39 @@ export function usePromptQuery({
   }
 
   async function fetchPrompts() {
-    await fetchController.run(async () => {
-      const fetchStateKey = buildFetchStateKey();
-      const { categoryIds, categoryNames, tagNames } = resolveActiveFilters();
-      const activeSortBy: SortBy = plainSearchQuery.value
-        ? "relevance"
-        : "updatedAt";
+    try {
+      await fetchController.runWithStateGuard(
+        buildFetchStateKey,
+        async () => {
+          const { categoryIds, categoryNames, tagNames } = resolveActiveFilters();
+          const activeSortBy: SortBy = plainSearchQuery.value
+            ? "relevance"
+            : "updatedAt";
 
-      try {
-        const { prompts: newPrompts, total } = await queryPrompts({
-          page: currentPage.value,
-          limit: PAGE_SIZE,
-          sortBy: activeSortBy,
-          favoriteOnly: showFavoriteOnly.value,
-          searchQuery: plainSearchQuery.value,
-          categoryIds,
-          categoryNames,
-          tagNames,
-        });
-
-        if (fetchStateKey !== buildFetchStateKey()) {
-          fetchController.requestRefetch();
-          return;
-        }
-
-        if (currentPage.value === 1) {
-          prompts.value = newPrompts;
-        } else {
-          prompts.value.push(...newPrompts);
-        }
-        totalPrompts.value = total;
-      } catch (error) {
-        console.error("Failed to fetch prompts:", error);
-        onLoadError();
-      }
-    });
+          return queryPrompts({
+            page: currentPage.value,
+            limit: PAGE_SIZE,
+            sortBy: activeSortBy,
+            favoriteOnly: showFavoriteOnly.value,
+            searchQuery: plainSearchQuery.value,
+            categoryIds,
+            categoryNames,
+            tagNames,
+          });
+        },
+        ({ prompts: newPrompts, total }) => {
+          if (currentPage.value === 1) {
+            prompts.value = newPrompts;
+          } else {
+            prompts.value.push(...newPrompts);
+          }
+          totalPrompts.value = total;
+        },
+      );
+    } catch (error) {
+      console.error("Failed to fetch prompts:", error);
+      onLoadError();
+    }
   }
 
   async function refetchFromFirstPage() {

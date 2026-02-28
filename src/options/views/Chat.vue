@@ -394,9 +394,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, nextTick, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onClickOutside, useTitle } from '@vueuse/core'
+import { onClickOutside, useIntersectionObserver, useTitle } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
 import { db } from '@/stores/db'
 import { chatRepository } from '@/stores/chatRepository'
@@ -475,6 +475,19 @@ const outlineActiveIndex = computed(() => activeMessageIndex.value)
 // Platform scroll refs (composable initialized after visiblePlatforms)
 const platformViewportRef = ref<HTMLElement | null>(null)
 const platformContentRef = ref<HTMLElement | null>(null)
+
+useIntersectionObserver(
+  loaderRef,
+  (entries) => {
+    if (entries[0]?.isIntersecting && hasMore.value && !isLoading.value) {
+      void loadMore()
+    }
+  },
+  {
+    root: listRef,
+    rootMargin: '100px',
+  },
+)
 
 // Close sort menu on outside click
 onClickOutside(sortRef, () => {
@@ -689,33 +702,12 @@ function handleActiveIndexChange(index: number) {
   activeMessageIndex.value = index
 }
 
-// Observers
-let observer: IntersectionObserver | null = null
-
 onMounted(async () => {
   await db.open()
   await refreshAll()
 
-  // Setup infinite scroll
-  observer = new IntersectionObserver(
-    (entries) => {
-      if (entries[0].isIntersecting && hasMore.value && !isLoading.value) {
-        loadMore()
-      }
-    },
-    { rootMargin: '100px' }
-  )
-
-  if (loaderRef.value) {
-    observer.observe(loaderRef.value)
-  }
-
   // Setup platform scroll observer
   await nextTick()
   initPlatformScroll()
-})
-
-onUnmounted(() => {
-  observer?.disconnect()
 })
 </script>

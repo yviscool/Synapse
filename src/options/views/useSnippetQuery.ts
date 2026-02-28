@@ -91,36 +91,36 @@ export function useSnippetQuery(options: UseSnippetQueryOptions = {}) {
   }
 
   async function fetchSnippets() {
-    await fetchController.run(async () => {
-      const fetchStateKey = buildFetchStateKey();
+    try {
+      await fetchController.runWithStateGuard(
+        buildFetchStateKey,
+        async () => {
+          // Determine folder filter based on special folder
+          let folderId: string | null | undefined = selectedFolderId.value;
+          let starredOnly = showStarredOnly.value;
 
-      try {
-        // Determine folder filter based on special folder
-        let folderId: string | null | undefined = selectedFolderId.value;
-        let starredOnly = showStarredOnly.value;
+          if (specialFolder.value === "starred") {
+            starredOnly = true;
+            folderId = undefined;
+          } else if (specialFolder.value === "uncategorized") {
+            folderId = null;
+          } else if (specialFolder.value === "all") {
+            folderId = undefined;
+          }
+          // For "recent", we'll handle it differently
 
-        if (specialFolder.value === "starred") {
-          starredOnly = true;
-          folderId = undefined;
-        } else if (specialFolder.value === "uncategorized") {
-          folderId = null;
-        } else if (specialFolder.value === "all") {
-          folderId = undefined;
-        }
-        // For "recent", we'll handle it differently
+          if (specialFolder.value === "recent") {
+            const [recentSnippets, recentTotal] = await Promise.all([
+              snippetRepository.getRecentSnippets(PAGE_SIZE * currentPage.value),
+              snippetRepository.getRecentSnippetCount(),
+            ]);
+            return {
+              snippets: recentSnippets.slice((currentPage.value - 1) * PAGE_SIZE, currentPage.value * PAGE_SIZE),
+              total: recentTotal,
+            };
+          }
 
-        let result;
-        if (specialFolder.value === "recent") {
-          const [recentSnippets, recentTotal] = await Promise.all([
-            snippetRepository.getRecentSnippets(PAGE_SIZE * currentPage.value),
-            snippetRepository.getRecentSnippetCount(),
-          ]);
-          result = {
-            snippets: recentSnippets.slice((currentPage.value - 1) * PAGE_SIZE, currentPage.value * PAGE_SIZE),
-            total: recentTotal,
-          };
-        } else {
-          result = await snippetRepository.querySnippets({
+          return snippetRepository.querySnippets({
             page: currentPage.value,
             limit: PAGE_SIZE,
             sortBy: sortBy.value,
@@ -130,24 +130,20 @@ export function useSnippetQuery(options: UseSnippetQueryOptions = {}) {
             tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
             languages: selectedLanguages.value.length > 0 ? selectedLanguages.value : undefined,
           });
-        }
-
-        if (fetchStateKey !== buildFetchStateKey()) {
-          fetchController.requestRefetch();
-          return;
-        }
-
-        if (currentPage.value === 1) {
-          snippets.value = result.snippets;
-        } else {
-          snippets.value.push(...result.snippets);
-        }
-        totalSnippets.value = result.total;
-      } catch (error) {
-        console.error("Failed to fetch snippets:", error);
-        onLoadError?.();
-      }
-    });
+        },
+        (result) => {
+          if (currentPage.value === 1) {
+            snippets.value = result.snippets;
+          } else {
+            snippets.value.push(...result.snippets);
+          }
+          totalSnippets.value = result.total;
+        },
+      );
+    } catch (error) {
+      console.error("Failed to fetch snippets:", error);
+      onLoadError?.();
+    }
   }
 
   async function refetchFromFirstPage() {

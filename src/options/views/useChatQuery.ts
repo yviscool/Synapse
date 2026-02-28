@@ -65,63 +65,59 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
   }
 
   async function fetchConversations() {
-    await fetchController.run(async () => {
-      const fetchStateKey = buildFetchStateKey();
+    try {
+      await fetchController.runWithStateGuard(
+        buildFetchStateKey,
+        async () => {
+          if (isSearchMode.value) {
+            const result = await chatRepository.queryMessageHits({
+              page: currentPage.value,
+              limit: PAGE_SIZE,
+              searchQuery: searchQueryDebounced.value,
+              starredOnly: showStarredOnly.value,
+              platforms: selectedPlatforms.value.length > 0 ? selectedPlatforms.value : undefined,
+              tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
+              dateRange: (dateRange.value.start || dateRange.value.end) ? dateRange.value : undefined,
+            });
+            return { mode: "search" as const, result };
+          }
 
-      try {
-        if (isSearchMode.value) {
-          const result = await chatRepository.queryMessageHits({
+          const result = await chatRepository.queryConversations({
             page: currentPage.value,
             limit: PAGE_SIZE,
-            searchQuery: searchQueryDebounced.value,
+            sortBy: sortBy.value,
             starredOnly: showStarredOnly.value,
             platforms: selectedPlatforms.value.length > 0 ? selectedPlatforms.value : undefined,
             tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
             dateRange: (dateRange.value.start || dateRange.value.end) ? dateRange.value : undefined,
           });
-
-          if (fetchStateKey !== buildFetchStateKey()) {
-            fetchController.requestRefetch();
+          return { mode: "conversation" as const, result };
+        },
+        (payload) => {
+          if (payload.mode === "search") {
+            if (currentPage.value === 1) {
+              messageHits.value = payload.result.hits;
+            } else {
+              messageHits.value.push(...payload.result.hits);
+            }
+            totalMessageHits.value = payload.result.total;
             return;
           }
 
           if (currentPage.value === 1) {
-            messageHits.value = result.hits;
+            conversations.value = payload.result.conversations;
+            messageHits.value = [];
           } else {
-            messageHits.value.push(...result.hits);
+            conversations.value.push(...payload.result.conversations);
           }
-          totalMessageHits.value = result.total;
-          return;
-        }
-
-        const result = await chatRepository.queryConversations({
-          page: currentPage.value,
-          limit: PAGE_SIZE,
-          sortBy: sortBy.value,
-          starredOnly: showStarredOnly.value,
-          platforms: selectedPlatforms.value.length > 0 ? selectedPlatforms.value : undefined,
-          tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
-          dateRange: (dateRange.value.start || dateRange.value.end) ? dateRange.value : undefined,
-        });
-
-        if (fetchStateKey !== buildFetchStateKey()) {
-          fetchController.requestRefetch();
-          return;
-        }
-
-        if (currentPage.value === 1) {
-          conversations.value = result.conversations;
-          messageHits.value = [];
-        } else {
-          conversations.value.push(...result.conversations);
-        }
-        totalConversations.value = result.total;
-        totalMessageHits.value = 0;
-      } catch (error) {
-        console.error("Failed to fetch conversations:", error);
-        onLoadError?.();
-      }
-    });
+          totalConversations.value = payload.result.total;
+          totalMessageHits.value = 0;
+        },
+      );
+    } catch (error) {
+      console.error("Failed to fetch conversations:", error);
+      onLoadError?.();
+    }
   }
 
   async function refetchFromFirstPage() {

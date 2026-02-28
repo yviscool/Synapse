@@ -1,4 +1,5 @@
-import { computed, onBeforeUnmount, ref, type ComputedRef, type InjectionKey } from 'vue'
+import { computed, ref, watch, type ComputedRef, type InjectionKey } from 'vue'
+import { usePreferredDark } from '@vueuse/core'
 
 import { getSettings } from '@/stores/db'
 
@@ -32,10 +33,7 @@ function applyThemeToDocument(theme: ResolvedTheme) {
 
 export function useOptionsTheme() {
   const themePreference = ref<OptionsThemePreference>('auto')
-  const mediaDark = ref(false)
-
-  let mediaQuery: MediaQueryList | null = null
-  let removeMediaListener: (() => void) | null = null
+  const preferredDark = usePreferredDark()
 
   const resolvedTheme = computed<ResolvedTheme>(() => {
     if (themePreference.value === 'dark') {
@@ -44,52 +42,13 @@ export function useOptionsTheme() {
     if (themePreference.value === 'light') {
       return 'light'
     }
-    return mediaDark.value ? 'dark' : 'light'
+    return preferredDark.value ? 'dark' : 'light'
   })
 
   const isDark = computed(() => resolvedTheme.value === 'dark')
 
-  const updateMediaTheme = () => {
-    if (!mediaQuery) {
-      mediaDark.value = false
-      return
-    }
-    mediaDark.value = mediaQuery.matches
-  }
-
-  const setupMediaListener = () => {
-    if (mediaQuery || typeof window === 'undefined') {
-      return
-    }
-
-    mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    updateMediaTheme()
-
-    const handleMediaChange = (event: MediaQueryListEvent) => {
-      mediaDark.value = event.matches
-      if (themePreference.value === 'auto') {
-        applyThemeToDocument(event.matches ? 'dark' : 'light')
-      }
-    }
-
-    mediaQuery.addEventListener('change', handleMediaChange)
-    removeMediaListener = () => {
-      mediaQuery?.removeEventListener('change', handleMediaChange)
-    }
-  }
-
-  const disposeMediaListener = () => {
-    if (removeMediaListener) {
-      removeMediaListener()
-      removeMediaListener = null
-    }
-    mediaQuery = null
-  }
-
   function applyThemePreference(preference: OptionsThemePreference) {
     themePreference.value = normalizeThemePreference(preference)
-    updateMediaTheme()
-    applyThemeToDocument(resolvedTheme.value)
   }
 
   async function refreshThemeFromSettings() {
@@ -98,13 +57,12 @@ export function useOptionsTheme() {
   }
 
   async function initTheme() {
-    setupMediaListener()
     await refreshThemeFromSettings()
   }
 
-  onBeforeUnmount(() => {
-    disposeMediaListener()
-  })
+  watch(resolvedTheme, (theme) => {
+    applyThemeToDocument(theme)
+  }, { immediate: true })
 
   return {
     themePreference,

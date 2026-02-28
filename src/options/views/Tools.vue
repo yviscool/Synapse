@@ -151,15 +151,15 @@ onMounted(async () => {
 
 // Refresh counts
 async function refreshCounts() {
-  snippetCounts.value = await snippetRepository.getSnippetCountByFolder()
+  const [folderCounts, starredTotal, recentTotal] = await Promise.all([
+    snippetRepository.getSnippetCountByFolder(),
+    snippetRepository.getStarredSnippetCount(),
+    snippetRepository.getRecentSnippetCount(),
+  ])
 
-  // Count starred
-  const allSnippets = await snippetRepository.querySnippets({ starredOnly: true, limit: 1000 })
-  starredCount.value = allSnippets.total
-
-  // Count recent (used in last 7 days)
-  const recentSnippets = await snippetRepository.getRecentSnippets(100)
-  recentCount.value = recentSnippets.length
+  snippetCounts.value = folderCounts
+  starredCount.value = starredTotal
+  recentCount.value = recentTotal
 }
 
 const handleCountsChanged = () => {
