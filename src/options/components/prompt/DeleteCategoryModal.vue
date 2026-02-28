@@ -239,6 +239,7 @@ const tagsInCategory = ref<Tag[]>([]);
 const selectedTagIds = ref<string[]>([]);
 const isLoading = ref(false);
 const isProcessing = ref(false);
+let categoryRequestToken = 0;
 
 const selectedCategoryName = computed(
     () =>
@@ -277,6 +278,7 @@ const previewMessage = computed(() => {
 
 watch(selectedCategoryId, async (newId) => {
     resetSelectionState();
+    const requestToken = ++categoryRequestToken;
     if (!newId) return;
 
     isLoading.value = true;
@@ -285,22 +287,40 @@ watch(selectedCategoryId, async (newId) => {
             .where("categoryIds")
             .equals(newId)
             .toArray();
+        if (
+            requestToken !== categoryRequestToken ||
+            selectedCategoryId.value !== newId
+        ) {
+            return;
+        }
         promptsInCategory.value = prompts;
 
         if (prompts.length > 0) {
             const tagIds = new Set(prompts.flatMap((p) => p.tagIds));
             if (tagIds.size > 0) {
-                tagsInCategory.value = await db.tags
+                const matchedTags = await db.tags
                     .where("id")
                     .anyOf([...tagIds])
                     .toArray();
+                if (
+                    requestToken !== categoryRequestToken ||
+                    selectedCategoryId.value !== newId
+                ) {
+                    return;
+                }
+                tagsInCategory.value = matchedTags;
             }
         }
     } catch (error) {
         console.error("Failed to fetch data for category:", error);
         showToast(t("categories.batchDeleteModal.loadFailed"), "error");
     } finally {
-        isLoading.value = false;
+        if (
+            requestToken === categoryRequestToken &&
+            selectedCategoryId.value === newId
+        ) {
+            isLoading.value = false;
+        }
     }
 });
 
@@ -312,6 +332,7 @@ function resetSelectionState() {
 }
 
 function resetAllState() {
+    categoryRequestToken++;
     selectedCategoryId.value = "";
     isProcessing.value = false;
     isLoading.value = false;

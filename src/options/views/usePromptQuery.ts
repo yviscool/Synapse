@@ -4,6 +4,7 @@ import { db } from "@/stores/db";
 import { queryPrompts, type PromptWithMatches } from "@/stores/promptSearch";
 import type { Tag } from "@/types/prompt";
 import { parseQuery } from "@/utils/queryParser";
+import { useQueuedFetchController } from "@/options/composables/useQueuedFetchController";
 
 type SortBy = "relevance" | "updatedAt" | "createdAt" | "title";
 
@@ -32,7 +33,7 @@ export function usePromptQuery({
   const currentPage = ref(1);
   const isLoading = ref(false);
   const hasMore = computed(() => prompts.value.length < totalPrompts.value);
-  let hasPendingRefetch = false;
+  const fetchController = useQueuedFetchController(isLoading);
 
   function resolveActiveFilters() {
     const categoryIds = [...selectedCategories.value];
@@ -59,51 +60,41 @@ export function usePromptQuery({
   }
 
   async function fetchPrompts() {
-    if (isLoading.value) {
-      hasPendingRefetch = true;
-      return;
-    }
+    await fetchController.run(async () => {
+      const fetchStateKey = buildFetchStateKey();
+      const { categoryIds, categoryNames, tagNames } = resolveActiveFilters();
+      const activeSortBy: SortBy = plainSearchQuery.value
+        ? "relevance"
+        : "updatedAt";
 
-    isLoading.value = true;
-    const fetchStateKey = buildFetchStateKey();
-    const { categoryIds, categoryNames, tagNames } = resolveActiveFilters();
-    const activeSortBy: SortBy = plainSearchQuery.value
-      ? "relevance"
-      : "updatedAt";
+      try {
+        const { prompts: newPrompts, total } = await queryPrompts({
+          page: currentPage.value,
+          limit: PAGE_SIZE,
+          sortBy: activeSortBy,
+          favoriteOnly: showFavoriteOnly.value,
+          searchQuery: plainSearchQuery.value,
+          categoryIds,
+          categoryNames,
+          tagNames,
+        });
 
-    try {
-      const { prompts: newPrompts, total } = await queryPrompts({
-        page: currentPage.value,
-        limit: PAGE_SIZE,
-        sortBy: activeSortBy,
-        favoriteOnly: showFavoriteOnly.value,
-        searchQuery: plainSearchQuery.value,
-        categoryIds,
-        categoryNames,
-        tagNames,
-      });
+        if (fetchStateKey !== buildFetchStateKey()) {
+          fetchController.requestRefetch();
+          return;
+        }
 
-      if (fetchStateKey !== buildFetchStateKey()) {
-        hasPendingRefetch = true;
-        return;
+        if (currentPage.value === 1) {
+          prompts.value = newPrompts;
+        } else {
+          prompts.value.push(...newPrompts);
+        }
+        totalPrompts.value = total;
+      } catch (error) {
+        console.error("Failed to fetch prompts:", error);
+        onLoadError();
       }
-
-      if (currentPage.value === 1) {
-        prompts.value = newPrompts;
-      } else {
-        prompts.value.push(...newPrompts);
-      }
-      totalPrompts.value = total;
-    } catch (error) {
-      console.error("Failed to fetch prompts:", error);
-      onLoadError();
-    } finally {
-      isLoading.value = false;
-      if (hasPendingRefetch) {
-        hasPendingRefetch = false;
-        await fetchPrompts();
-      }
-    }
+    });
   }
 
   async function refetchFromFirstPage() {

@@ -267,7 +267,7 @@
                 v-for="(conv, idx) in conversations"
                 :key="conv.id"
                 @click="selectConversation(conv)"
-                class="relative flex gap-3 p-3 rounded-lg cursor-pointer transition-all mb-1"
+                class="group relative flex gap-3 p-3 rounded-lg cursor-pointer transition-all mb-1"
                 :class="[
                     selectedId === conv.id
                     ? 'bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-blue-600/60'

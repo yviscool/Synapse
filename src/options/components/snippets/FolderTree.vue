@@ -53,7 +53,7 @@
           type="text"
           class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           :placeholder="t('tools.folder.namePlaceholder')"
-          @keydown.enter="createFolder(null)"
+          @keydown.enter="createFolder(newFolderParentId)"
           @keydown.escape="cancelNewFolder"
           @blur="cancelNewFolder"
         />

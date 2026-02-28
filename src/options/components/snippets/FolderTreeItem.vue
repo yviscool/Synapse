@@ -109,8 +109,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useEventListener } from '@vueuse/core'
 import type { SnippetFolder } from '@/types/snippet'
 
 const props = defineProps<{
@@ -145,6 +146,7 @@ const contextMenuY = ref(0)
 const isDragOver = ref(false)
 const isDraggingSelf = ref(false)
 const dropPosition = ref<'before' | 'after' | 'inside' | null>(null)
+let stopOutsideClickListener: (() => void) | null = null
 
 // Computed
 const isSelected = computed(() => props.selectedFolderId === props.folder.id)
@@ -256,12 +258,17 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
+watch(contextMenuVisible, (visible) => {
+  stopOutsideClickListener?.()
+  stopOutsideClickListener = null
+  if (visible) {
+    stopOutsideClickListener = useEventListener(document, 'click', handleClickOutside)
+  }
 })
 
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
+onBeforeUnmount(() => {
+  stopOutsideClickListener?.()
+  stopOutsideClickListener = null
 })
 </script>
 

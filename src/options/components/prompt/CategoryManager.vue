@@ -36,7 +36,7 @@
                 </div>
 
                 <div class="flex-1 space-y-2 overflow-y-auto -mr-3 pr-3" @dragover.prevent @drop="handleCategoryDrop">
-                    <div v-for="category in orderedCategories" :key="category.id"
+                    <div v-for="category in displayCategories" :key="category.id"
                         class="group flex items-center justify-between p-3 rounded-lg transition-all duration-300 relative"
                         :class="{
                             'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700': editingCategoryId !== category.id,
@@ -195,9 +195,13 @@ onKeyStroke('Escape', (e) => {
 
 // --- Data & Computed ---
 const orderedCategories = computed(() =>
-    categories.value.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0)).map(c => ({
-        ...c,
-        name: isDefaultCategory(c.id) ? getCategoryNameById(c.id) : c.name
+    categories.value.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0))
+)
+
+const displayCategories = computed(() =>
+    orderedCategories.value.map(category => ({
+        ...category,
+        name: isDefaultCategory(category.id) ? getCategoryNameById(category.id) : category.name,
     }))
 )
 

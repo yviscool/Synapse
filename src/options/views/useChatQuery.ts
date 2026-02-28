@@ -1,6 +1,7 @@
 import { computed, onScopeDispose, ref, watch } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { chatRepository } from "@/stores/chatRepository";
+import { useQueuedFetchController } from "@/options/composables/useQueuedFetchController";
 import type {
   ChatConversation,
   ChatMessageHit,
@@ -47,7 +48,7 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
     return conversations.value.length < totalConversations.value;
   });
 
-  let hasPendingRefetch = false;
+  const fetchController = useQueuedFetchController(isLoading);
 
   // Build fetch state key for deduplication
   function buildFetchStateKey() {
@@ -64,20 +65,39 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
   }
 
   async function fetchConversations() {
-    if (isLoading.value) {
-      hasPendingRefetch = true;
-      return;
-    }
+    await fetchController.run(async () => {
+      const fetchStateKey = buildFetchStateKey();
 
-    isLoading.value = true;
-    const fetchStateKey = buildFetchStateKey();
+      try {
+        if (isSearchMode.value) {
+          const result = await chatRepository.queryMessageHits({
+            page: currentPage.value,
+            limit: PAGE_SIZE,
+            searchQuery: searchQueryDebounced.value,
+            starredOnly: showStarredOnly.value,
+            platforms: selectedPlatforms.value.length > 0 ? selectedPlatforms.value : undefined,
+            tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
+            dateRange: (dateRange.value.start || dateRange.value.end) ? dateRange.value : undefined,
+          });
 
-    try {
-      if (isSearchMode.value) {
-        const result = await chatRepository.queryMessageHits({
+          if (fetchStateKey !== buildFetchStateKey()) {
+            fetchController.requestRefetch();
+            return;
+          }
+
+          if (currentPage.value === 1) {
+            messageHits.value = result.hits;
+          } else {
+            messageHits.value.push(...result.hits);
+          }
+          totalMessageHits.value = result.total;
+          return;
+        }
+
+        const result = await chatRepository.queryConversations({
           page: currentPage.value,
           limit: PAGE_SIZE,
-          searchQuery: searchQueryDebounced.value,
+          sortBy: sortBy.value,
           starredOnly: showStarredOnly.value,
           platforms: selectedPlatforms.value.length > 0 ? selectedPlatforms.value : undefined,
           tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
@@ -85,52 +105,23 @@ export function useChatQuery(options: UseChatQueryOptions = {}) {
         });
 
         if (fetchStateKey !== buildFetchStateKey()) {
-          hasPendingRefetch = true;
+          fetchController.requestRefetch();
           return;
         }
 
         if (currentPage.value === 1) {
-          messageHits.value = result.hits;
+          conversations.value = result.conversations;
+          messageHits.value = [];
         } else {
-          messageHits.value.push(...result.hits);
+          conversations.value.push(...result.conversations);
         }
-        totalMessageHits.value = result.total;
-        return;
+        totalConversations.value = result.total;
+        totalMessageHits.value = 0;
+      } catch (error) {
+        console.error("Failed to fetch conversations:", error);
+        onLoadError?.();
       }
-
-      const result = await chatRepository.queryConversations({
-        page: currentPage.value,
-        limit: PAGE_SIZE,
-        sortBy: sortBy.value,
-        starredOnly: showStarredOnly.value,
-        platforms: selectedPlatforms.value.length > 0 ? selectedPlatforms.value : undefined,
-        tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
-        dateRange: (dateRange.value.start || dateRange.value.end) ? dateRange.value : undefined,
-      });
-
-      if (fetchStateKey !== buildFetchStateKey()) {
-        hasPendingRefetch = true;
-        return;
-      }
-
-      if (currentPage.value === 1) {
-        conversations.value = result.conversations;
-        messageHits.value = [];
-      } else {
-        conversations.value.push(...result.conversations);
-      }
-      totalConversations.value = result.total;
-      totalMessageHits.value = 0;
-    } catch (error) {
-      console.error("Failed to fetch conversations:", error);
-      onLoadError?.();
-    } finally {
-      isLoading.value = false;
-      if (hasPendingRefetch) {
-        hasPendingRefetch = false;
-        await fetchConversations();
-      }
-    }
+    });
   }
 
   async function refetchFromFirstPage() {

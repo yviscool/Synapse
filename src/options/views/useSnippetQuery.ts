@@ -1,6 +1,7 @@
 import { computed, onScopeDispose, ref, watch, type Ref } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { snippetRepository } from "@/stores/snippetRepository";
+import { useQueuedFetchController } from "@/options/composables/useQueuedFetchController";
 import type {
   Snippet,
   SnippetFolder,
@@ -40,8 +41,7 @@ export function useSnippetQuery(options: UseSnippetQueryOptions = {}) {
   const currentPage = ref(1);
   const isLoading = ref(false);
   const hasMore = computed(() => snippets.value.length < totalSnippets.value);
-
-  let hasPendingRefetch = false;
+  const fetchController = useQueuedFetchController(isLoading);
 
   // Folder tree helpers
   const folderTree = computed(() => {
@@ -91,70 +91,63 @@ export function useSnippetQuery(options: UseSnippetQueryOptions = {}) {
   }
 
   async function fetchSnippets() {
-    if (isLoading.value) {
-      hasPendingRefetch = true;
-      return;
-    }
+    await fetchController.run(async () => {
+      const fetchStateKey = buildFetchStateKey();
 
-    isLoading.value = true;
-    const fetchStateKey = buildFetchStateKey();
+      try {
+        // Determine folder filter based on special folder
+        let folderId: string | null | undefined = selectedFolderId.value;
+        let starredOnly = showStarredOnly.value;
 
-    try {
-      // Determine folder filter based on special folder
-      let folderId: string | null | undefined = selectedFolderId.value;
-      let starredOnly = showStarredOnly.value;
+        if (specialFolder.value === "starred") {
+          starredOnly = true;
+          folderId = undefined;
+        } else if (specialFolder.value === "uncategorized") {
+          folderId = null;
+        } else if (specialFolder.value === "all") {
+          folderId = undefined;
+        }
+        // For "recent", we'll handle it differently
 
-      if (specialFolder.value === "starred") {
-        starredOnly = true;
-        folderId = undefined;
-      } else if (specialFolder.value === "uncategorized") {
-        folderId = null;
-      } else if (specialFolder.value === "all") {
-        folderId = undefined;
+        let result;
+        if (specialFolder.value === "recent") {
+          const [recentSnippets, recentTotal] = await Promise.all([
+            snippetRepository.getRecentSnippets(PAGE_SIZE * currentPage.value),
+            snippetRepository.getRecentSnippetCount(),
+          ]);
+          result = {
+            snippets: recentSnippets.slice((currentPage.value - 1) * PAGE_SIZE, currentPage.value * PAGE_SIZE),
+            total: recentTotal,
+          };
+        } else {
+          result = await snippetRepository.querySnippets({
+            page: currentPage.value,
+            limit: PAGE_SIZE,
+            sortBy: sortBy.value,
+            starredOnly,
+            searchQuery: searchQueryDebounced.value || undefined,
+            folderId,
+            tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
+            languages: selectedLanguages.value.length > 0 ? selectedLanguages.value : undefined,
+          });
+        }
+
+        if (fetchStateKey !== buildFetchStateKey()) {
+          fetchController.requestRefetch();
+          return;
+        }
+
+        if (currentPage.value === 1) {
+          snippets.value = result.snippets;
+        } else {
+          snippets.value.push(...result.snippets);
+        }
+        totalSnippets.value = result.total;
+      } catch (error) {
+        console.error("Failed to fetch snippets:", error);
+        onLoadError?.();
       }
-      // For "recent", we'll handle it differently
-
-      let result;
-      if (specialFolder.value === "recent") {
-        const recentSnippets = await snippetRepository.getRecentSnippets(PAGE_SIZE * currentPage.value);
-        result = {
-          snippets: recentSnippets.slice((currentPage.value - 1) * PAGE_SIZE, currentPage.value * PAGE_SIZE),
-          total: recentSnippets.length,
-        };
-      } else {
-        result = await snippetRepository.querySnippets({
-          page: currentPage.value,
-          limit: PAGE_SIZE,
-          sortBy: sortBy.value,
-          starredOnly,
-          searchQuery: searchQueryDebounced.value || undefined,
-          folderId,
-          tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
-          languages: selectedLanguages.value.length > 0 ? selectedLanguages.value : undefined,
-        });
-      }
-
-      if (fetchStateKey !== buildFetchStateKey()) {
-        hasPendingRefetch = true;
-        return;
-      }
-
-      if (currentPage.value === 1) {
-        snippets.value = result.snippets;
-      } else {
-        snippets.value.push(...result.snippets);
-      }
-      totalSnippets.value = result.total;
-    } catch (error) {
-      console.error("Failed to fetch snippets:", error);
-      onLoadError?.();
-    } finally {
-      isLoading.value = false;
-      if (hasPendingRefetch) {
-        hasPendingRefetch = false;
-        await fetchSnippets();
-      }
-    }
+    });
   }
 
   async function refetchFromFirstPage() {

@@ -69,9 +69,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject, onMounted, watch } from 'vue'
+import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useTitle } from '@vueuse/core'
+import { useTitle, useDebounceFn } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
 import { optionsThemeKey } from '@/options/composables/useOptionsTheme'
 import { snippetRepository } from '@/stores/snippetRepository'
@@ -121,6 +121,9 @@ const selectedSnippetId = ref<string | null>(null)
 const snippetCounts = ref<Map<string | null, number>>(new Map())
 const starredCount = ref(0)
 const recentCount = ref(0)
+const scheduleRefreshCounts = useDebounceFn(() => {
+  void refreshCounts()
+}, 200)
 
 // Computed
 const selectedSnippet = computed(() => {
@@ -159,9 +162,18 @@ async function refreshCounts() {
   recentCount.value = recentSnippets.length
 }
 
-// Watch for data changes to refresh counts
-watch([snippets, folders], () => {
-  refreshCounts()
+const handleCountsChanged = () => {
+  scheduleRefreshCounts()
+}
+
+snippetRepository.events.on('snippetsChanged', handleCountsChanged)
+snippetRepository.events.on('foldersChanged', handleCountsChanged)
+snippetRepository.events.on('allSnippetDataChanged', handleCountsChanged)
+
+onUnmounted(() => {
+  snippetRepository.events.off('snippetsChanged', handleCountsChanged)
+  snippetRepository.events.off('foldersChanged', handleCountsChanged)
+  snippetRepository.events.off('allSnippetDataChanged', handleCountsChanged)
 })
 
 // Handlers
