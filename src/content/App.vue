@@ -318,8 +318,7 @@ watch([searchQueryDebounced, selectedCategory], () => {
  * 打开提示词选择面板
  */
 async function openPanel() {
-    visible.value = true;
-    resetComposerState();
+    if (visible.value) return;
 
     // 记录当前焦点元素，用于关闭面板后恢复
     lastActiveEl = document.activeElement as HTMLElement | null;
@@ -335,6 +334,9 @@ async function openPanel() {
     } else {
         openerFingerprint = null;
     }
+
+    visible.value = true;
+    resetComposerState();
 
     // 重置搜索和分类状态
     isResettingFilters.value = true;

@@ -42,11 +42,12 @@ let lastSavedKey = '' // url + ':' + hash
 let lastConversationId: string | null = null
 
 function hashString(input: string): string {
-  let hash = 0
+  // FNV-1a 64-bit (reduced collision risk for sync dedupe keys).
+  let hash = 0xcbf29ce484222325n
+  const prime = 0x100000001b3n
   for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash &= hash
+    hash ^= BigInt(input.charCodeAt(i))
+    hash = (hash * prime) & 0xffffffffffffffffn
   }
   return hash.toString(36)
 }
@@ -179,14 +180,32 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
   )
 
   function hashContent(title: string, messages: ChatMessage[]): string {
-    const content = title + '||' + messages
-      .map((m) => {
+    const normalizedTitle = title || ''
+    const content = [
+      `title:${normalizedTitle.length}:${hashString(normalizedTitle)}`,
+      `count:${messages.length}`,
+      ...messages.map((m, index) => {
         const text = typeof m.content === 'string'
           ? m.content
           : (m.content.edited || m.content.original || '')
-        return `${m.role}:${text.slice(0, 100)}`
-      })
-      .join('|')
+        const thinking = m.thinking || ''
+        const attachmentDigest = (m.attachments || [])
+          .map((a) => `${a.type}:${a.name || ''}:${a.url || ''}:${a.size || 0}:${a.content ? hashString(a.content) : ''}`)
+          .join('|')
+        return [
+          index,
+          m.id || '',
+          m.role,
+          m.isDeleted ? 1 : 0,
+          text.length,
+          hashString(text),
+          thinking.length,
+          thinking ? hashString(thinking) : '',
+          attachmentDigest ? hashString(attachmentDigest) : '',
+        ].join(':')
+      }),
+    ].join('||')
+
     return hashString(content)
   }
 

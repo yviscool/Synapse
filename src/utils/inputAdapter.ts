@@ -245,13 +245,19 @@ export function findActiveInput(customSelectors: string[] = []): InputTarget | n
 
   pushCandidate(active)
   selectors.forEach((selector) => {
-    const el = document.querySelector<HTMLElement>(selector)
-    pushCandidate(el)
+    try {
+      const elements = document.querySelectorAll<HTMLElement>(selector)
+      elements.forEach((el) => pushCandidate(el))
+    } catch {
+      // Ignore invalid selector from host-specific hints.
+    }
   })
 
   for (const candidate of candidates) {
     if (candidate.tagName === 'TEXTAREA') {
       if (!isVisibleElement(candidate)) continue
+      const textarea = candidate as HTMLTextAreaElement
+      if (textarea.disabled || textarea.readOnly) continue
       return { kind: 'textarea', el: candidate as HTMLTextAreaElement }
     }
 

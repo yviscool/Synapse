@@ -145,7 +145,7 @@ export function insertWithRetry(
   }
   if (primary && retryTarget.el === primary.el) {
     trace?.('insert.retry.sameTarget')
-    return false
+    retryTarget.el.focus()
   }
   const ok = appendToTarget(retryTarget, content, trace)
   trace?.('insert.retry.done', { ok })
