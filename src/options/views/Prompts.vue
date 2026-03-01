@@ -112,7 +112,7 @@
                                     :class="[
                                         'flex-shrink-0 flex items-center gap-2 px-4 py-2 h-10 border rounded-lg transition-colors',
                                         showFavoriteOnly
-                                            ? 'bg-yellow-100 border-yellow-300 text-yellow-800'
+                                            ? 'bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-slate-800 dark:border-yellow-400/60 dark:text-yellow-200'
                                             : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800',
                                     ]"
                                 >
@@ -299,7 +299,7 @@
                                     :class="[
                                         'p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
                                         {
-                                            'text-yellow-500 hover:text-yellow-600':
+                                            'text-yellow-500 hover:text-yellow-600 dark:text-yellow-300 dark:hover:text-yellow-200 dark:bg-yellow-400/10':
                                                 prompt.favorite,
                                         },
                                     ]"
@@ -765,6 +765,11 @@ async function toggleFavorite(prompt: Prompt) {
     });
     if (ok) {
         showToast(newFavoriteState ? t("common.toast.addedToFavorites") : t("common.toast.removedFromFavorites"), "success");
+        if (showFavoriteOnly.value && !newFavoriteState) {
+            await refetchFromFirstPage();
+            return;
+        }
+
         const p = prompts.value.find((p) => p.id === prompt.id);
         if (p) p.favorite = newFavoriteState;
     } else {

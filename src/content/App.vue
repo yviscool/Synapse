@@ -22,6 +22,7 @@
             @load-more="handleLoadMore"
         />
         <PromptComposerPanel
+            ref="composerRef"
             v-model="editorContent"
             :visible="visible && editorVisible"
             :promptTitle="editorPromptTitle"
@@ -157,6 +158,8 @@ async function initSettings() {
 // === 组件引用和状态 ===
 /** 提示词选择器组件引用 */
 const selectorRef = ref<InstanceType<typeof PromptSelector> | null>(null);
+type PromptComposerExpose = { getCurrentContent?: () => string }
+const composerRef = ref<PromptComposerExpose | null>(null);
 /** 面板是否可见 */
 const visible = ref(false);
 const editorVisible = ref(false);
@@ -324,14 +327,16 @@ async function openPanel() {
     lastActiveEl = document.activeElement as HTMLElement | null;
 
     // 查找并记录触发面板的输入元素
-    opener = findActiveInput(INPUT_SELECTOR_HINTS);
-    if (opener && opener.el) {
+    const currentOpener = findActiveInput(INPUT_SELECTOR_HINTS);
+    if (currentOpener && currentOpener.el) {
+        opener = currentOpener;
         openerFingerprint = {
-            id: opener.el.id,
-            className: opener.el.className,
-            tagName: opener.el.tagName,
+            id: currentOpener.el.id,
+            className: currentOpener.el.className,
+            tagName: currentOpener.el.tagName,
         };
     } else {
+        opener = null;
         openerFingerprint = null;
     }
 
@@ -491,25 +496,54 @@ function handleSelect(p: PromptDTO) {
 }
 
 async function handleInsert() {
+    const promptId = selectedPromptId.value || "";
+    const hasLiveComposerReader = typeof composerRef.value?.getCurrentContent === "function";
+    const liveComposerContent = hasLiveComposerReader
+        ? (composerRef.value?.getCurrentContent?.() ?? "")
+        : "";
+    const modelContent = editorContent.value || "";
+    const contentToInsert = hasLiveComposerReader ? liveComposerContent : modelContent;
     const trace = createInsertTrace({
         hostname: window.location.hostname,
-        promptId: selectedPromptId.value || "",
-        contentLength: editorContent.value.length,
+        promptId,
+        contentLength: contentToInsert.length,
+        liveComposerLength: liveComposerContent.length,
+        modelLength: modelContent.length,
+        contentSource: hasLiveComposerReader ? "live" : "model",
     });
+
+    if (!contentToInsert.trim()) {
+        trace("insert.skip.emptyContent");
+        showToast(t("common.toast.operationFailed"), "error");
+        closePanel();
+        return;
+    }
+
     try {
-        if (selectedPromptId.value) {
+        if (promptId) {
             chrome.runtime.sendMessage({
                 type: MSG.UPDATE_PROMPT_LAST_USED,
-                data: { promptId: selectedPromptId.value },
+                data: { promptId },
             });
         }
-        trace("prompt.lastUsed.sent", { hasPromptId: !!selectedPromptId.value });
+        trace("prompt.lastUsed.sent", { hasPromptId: !!promptId });
 
-        // 获取目标输入元素（优先使用打开面板时记录的元素）
-        const contentToInsert = editorContent.value || "";
-        
-        const inserted = insertWithRetry(contentToInsert, opener, openerFingerprint, INPUT_SELECTOR_HINTS, trace);
-        trace("insert.result", { inserted });
+        // 先关闭面板并恢复宿主焦点，再执行插入，降低宿主编辑器重建导致的随机失败。
+        closePanel();
+        trace("panel.closed.beforeInsert");
+        await nextTick();
+
+        const attemptDelays = [0, 36, 72, 120, 180];
+        let inserted = false;
+        for (let i = 0; i < attemptDelays.length; i += 1) {
+            const delayMs = attemptDelays[i];
+            if (delayMs > 0) {
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+            inserted = insertWithRetry(contentToInsert, opener, openerFingerprint, INPUT_SELECTOR_HINTS, trace);
+            trace("insert.result.attempt", { attempt: i + 1, delayMs, inserted });
+            if (inserted) break;
+        }
 
         // 如果没有找到输入元素，则复制到剪贴板
         if (!inserted) {
@@ -531,11 +565,12 @@ async function handleInsert() {
         trace("insert.exception", {
             error: error instanceof Error ? error.message : String(error),
         });
+        if (visible.value) {
+            closePanel();
+            trace("insert.exception.closePanel");
+        }
         console.error("处理提示词选择时出错:", error);
         showToast(t("common.toast.operationFailed"), "error");
-    } finally {
-        trace("insert.finally.closePanel");
-        closePanel();
     }
 }
 

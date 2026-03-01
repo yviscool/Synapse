@@ -46,7 +46,6 @@
         <div v-if="showVersionHistoryLocal && modelValue?.id" class="w-80 border-l border-gray-200 dark:border-gray-700 flex flex-col flex-shrink-0 min-w-0">
           <VersionHistory
             :prompt-id="modelValue.id"
-            :current-content="contentProxy"
             @version-restored="$emit('version-restored', $event)"
             @version-deleted="$emit('version-deleted', $event)"
             @preview-version="$emit('preview-version', $event)"

@@ -56,6 +56,7 @@
         <div class="flex-1 min-h-0 bg-white dark:bg-[#000000] relative editor-container" :class="{ dark: isDark }">
           <MilkdownEditor
             v-if="hasMountedEditor"
+            ref="milkdownRef"
             v-model="draft"
             :placeholder="t('content.composer.placeholder')"
             @update:stats="handleStatsUpdate"
@@ -97,6 +98,8 @@ const { t } = useI18n()
 
 const stats = ref({ lines: 1, words: 0, characters: 0 })
 const hasMountedEditor = ref(false)
+type MilkdownExpose = { getCurrentMarkdown?: () => string }
+const milkdownRef = ref<MilkdownExpose | null>(null)
 type ComposerStats = { lines: number; words: number; characters: number }
 
 watch(() => props.visible, (v) => { if (v) hasMountedEditor.value = true }, { immediate: true })
@@ -104,6 +107,16 @@ watch(() => props.visible, (v) => { if (v) hasMountedEditor.value = true }, { im
 function handleStatsUpdate(nextStats: ComposerStats) {
   stats.value = nextStats
 }
+
+function getCurrentContent(): string {
+  const markdown = milkdownRef.value?.getCurrentMarkdown?.()
+  if (typeof markdown === 'string') return markdown
+  return draft.value || ''
+}
+
+defineExpose({
+  getCurrentContent,
+})
 </script>
 
 <style>

@@ -27,6 +27,7 @@ const emit = defineEmits<{
 const rootRef = ref<HTMLElement | null>(null)
 const crepeRef = shallowRef<Crepe | null>(null)
 const isUpdatingFromEditor = ref(false)
+const isEditorReady = ref(false)
 
 let statsEmitTimer: ReturnType<typeof setTimeout> | null = null
 let pendingStatsMarkdown = props.modelValue
@@ -73,6 +74,7 @@ function extractMarkdownFromListenerArgs(args: unknown[]): string | null {
 }
 
 function handleEditorMarkdownUpdate(markdown: string) {
+  if (!isEditorReady.value) return
   if (props.modelValue === markdown) return
   isUpdatingFromEditor.value = true
   emit('update:modelValue', markdown)
@@ -170,7 +172,13 @@ onMounted(async () => {
   await crepe.create()
   crepe.setReadonly(Boolean(props.readonly))
   crepeRef.value = crepe
-  emitStats(props.modelValue || '')
+  const expectedMarkdown = props.modelValue || ''
+  const currentMarkdown = crepe.editor.action(getMarkdown())
+  if (currentMarkdown !== expectedMarkdown) {
+    crepe.editor.action(replaceAll(expectedMarkdown))
+  }
+  isEditorReady.value = true
+  emitStats(crepe.editor.action(getMarkdown()))
 })
 
 watch(
@@ -205,6 +213,7 @@ watch(
 
 onBeforeUnmount(async () => {
   clearStatsTimer()
+  isEditorReady.value = false
   const crepe = crepeRef.value
   crepeRef.value = null
   if (!crepe) return

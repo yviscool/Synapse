@@ -130,8 +130,8 @@
               <span class="text-sm text-gray-500 dark:text-gray-400">{{ formatDate(comparisonData?.oldVersion.createdAt || 0) }}</span>
             </div>
             <div class="text-center">
-              <h4 class="font-semibold text-gray-900 dark:text-gray-100">{{ t('prompts.versionHistory.currentVersion') }}</h4>
-              <span class="text-sm text-gray-500 dark:text-gray-400">{{ formatDate(Date.now()) }}</span>
+              <h4 class="font-semibold text-gray-900 dark:text-gray-100">{{ t('prompts.versionHistory.version', { version: getVersionNumber(comparisonData?.newVersion) }) }}</h4>
+              <span class="text-sm text-gray-500 dark:text-gray-400">{{ formatDate(comparisonData?.newVersion.createdAt || 0) }}</span>
             </div>
           </div>
           
@@ -155,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutationObserver } from '@vueuse/core'
 import { useUI } from '@/stores/ui'
@@ -172,7 +172,6 @@ import {
 
 interface Props {
   promptId: string
-  currentContent: string
 }
 
 interface Emits {
@@ -196,9 +195,28 @@ const comparisonContentRef = ref<HTMLElement | null>(null)
 
 const comparisonData = ref<{
   oldVersion: PromptVersion
+  newVersion: PromptVersion
   newContent: string
   diff: VersionDiffResult
 } | null>(null)
+
+const headVersionId = computed<string | undefined>(() => {
+  if (versions.value.length === 0) return undefined
+  const first = versions.value[0]
+  const head = versions.value.reduce((best, current) => {
+    const bestNumber = Number.isFinite(best.versionNumber) ? best.versionNumber : Number.NEGATIVE_INFINITY
+    const currentNumber = Number.isFinite(current.versionNumber) ? current.versionNumber : Number.NEGATIVE_INFINITY
+
+    if (currentNumber !== bestNumber) {
+      return currentNumber > bestNumber ? current : best
+    }
+    if (current.createdAt !== best.createdAt) {
+      return current.createdAt > best.createdAt ? current : best
+    }
+    return best
+  }, first)
+  return head.id
+})
 
 // Watchers
 watch(() => props.promptId, () => {
@@ -246,18 +264,9 @@ async function loadVersions() {
   }
 }
 
-// Helper to determine latest version (兼容旧数据：versionNumber 可能缺失)
+// Determine latest version id for UI state and compare base.
 function isLatestVersion(version: PromptVersion): boolean {
-  if (versions.value.length === 0) return false
-  // 使用安全的版本号获取，缺失时回退到 0
-  const safeVersionNumber = (v: PromptVersion) => 
-    typeof v.versionNumber === 'number' && !isNaN(v.versionNumber) ? v.versionNumber : 0
-  const maxVersionNumber = Math.max(...versions.value.map(safeVersionNumber))
-  // 如果所有版本都没有版本号，则使用第一个（时间最新）
-  if (maxVersionNumber === 0) {
-    return version.id === versions.value[0].id
-  }
-  return safeVersionNumber(version) === maxVersionNumber
+  return version.id === headVersionId.value
 }
 
 async function refreshVersions() {
@@ -278,10 +287,16 @@ function selectVersion(version: PromptVersion) {
 
 async function compareWithCurrent(version: PromptVersion) {
   try {
-    const diff = await compareVersions(version.content, props.currentContent)
+    const headVersion = versions.value.find(v => v.id === headVersionId.value)
+    if (!headVersion) {
+      showToast(t('prompts.versionHistory.toast.compareFailed'), 'error')
+      return
+    }
+    const diff = await compareVersions(version.content, headVersion.content)
     comparisonData.value = {
       oldVersion: version,
-      newContent: props.currentContent,
+      newVersion: headVersion,
+      newContent: headVersion.content,
       diff
     }
     showComparison.value = true
@@ -346,13 +361,13 @@ function closeComparison() {
   comparisonData.value = null
 }
 
-// 获取版本号显示文本（兼容旧数据）
+// Fallback display for legacy data without versionNumber.
 function getVersionNumber(version?: PromptVersion): number | string {
   if (!version) return 0
   if (typeof version.versionNumber === 'number' && !isNaN(version.versionNumber)) {
     return version.versionNumber
   }
-  // 旧数据：使用在列表中的位置（从后往前计数）
+  // For legacy versions, infer label by list position.
   const index = versions.value.findIndex(v => v.id === version.id)
   return index >= 0 ? versions.value.length - index : '?'
 }
@@ -457,3 +472,4 @@ useMutationObserver(
   padding: 0 !important;
 }
 </style>
+

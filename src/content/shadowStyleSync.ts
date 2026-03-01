@@ -11,6 +11,10 @@ const STYLE_MARKERS = [
   '.prompt-selector-panel',
   '.composer-panel',
   '.milkdown-host',
+  '.synapse-toast-host',
+  '.synapse-toast-shell',
+  '.synapse-confirm-overlay',
+  '.synapse-confirm-shell',
   '--crepe-color-background',
 ]
 

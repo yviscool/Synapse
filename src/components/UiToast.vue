@@ -7,9 +7,9 @@
     leave-from-class="opacity-100 scale-100"
     leave-to-class="opacity-0 -translate-y-2 scale-[0.98]"
   >
-    <div class="synapse-toast-host fixed top-6 left-1/2 z-[2147483647] w-full -translate-x-1/2 px-3 pointer-events-none">
+    <div class="synapse-toast-host">
       <div
-        class="synapse-toast-shell pointer-events-auto"
+        class="synapse-toast-shell"
         :class="type === 'success' ? 'is-success' : 'is-error'"
         :role="type === 'error' ? 'alert' : 'status'"
         :aria-live="type === 'error' ? 'assertive' : 'polite'"
@@ -49,6 +49,15 @@ defineEmits<{
 
 <style scoped>
 .synapse-toast-host {
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  z-index: 2147483647;
+  transform: translateX(-50%);
+  width: 100%;
+  padding-inline: 12px;
+  box-sizing: border-box;
+  pointer-events: none;
   display: flex;
   justify-content: center;
 }
@@ -60,9 +69,12 @@ defineEmits<{
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  width: min(92vw, 560px);
+  width: auto;
+  min-width: 280px;
+  max-width: min(92vw, 380px);
   min-height: 56px;
   padding: 10px 12px;
+  pointer-events: auto;
   border-radius: 16px;
   border: 1px solid rgba(148, 163, 184, 0.26);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.92));
@@ -171,6 +183,9 @@ defineEmits<{
 
 @media (max-width: 480px) {
   .synapse-toast-shell {
+    width: 100%;
+    min-width: 0;
+    max-width: calc(100vw - 24px);
     min-height: 52px;
     padding: 9px 10px;
     gap: 10px;
