@@ -97,6 +97,9 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · 豆包 · 腾讯
 ### Chrome 商店下载
 [点击前往 Chrome 商店安装](https://chromewebstore.google.com/detail/synapse/mdnfmfgnnbeodhpfnkeobmhifodhhjcj?authuser=0&hl=zh-CN)
 
+### Edge 商店下载
+[点击前往 Edge 商店安装](https://microsoftedge.microsoft.com/addons/detail/foicpmidihacnocjmdbkjanbjncckoaa)
+
 ### Releases 手动安装
 1. 前往 [Releases](https://github.com/yviscool/synapse/releases) 页面
 2. 下载 `extension-版本号.zip`

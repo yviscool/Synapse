@@ -97,6 +97,9 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ### Chrome ウェブストア
 [Chrome ウェブストアからインストール](https://chromewebstore.google.com/detail/synapse/mdnfmfgnnbeodhpfnkeobmhifodhhjcj?authuser=0&hl=ja)
 
+### Microsoft Edge Add-ons
+[Microsoft Edge Add-ons からインストール](https://microsoftedge.microsoft.com/addons/detail/foicpmidihacnocjmdbkjanbjncckoaa)
+
 ### 手動インストール
 1. [Releases](https://github.com/yviscool/synapse/releases) ページへ移動
 2. `extension-vX.X.X.zip` をダウンロード

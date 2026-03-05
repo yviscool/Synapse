@@ -97,6 +97,9 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ### Chrome Web Store
 [Hier im Chrome Web Store installieren](https://chromewebstore.google.com/detail/synapse/mdnfmfgnnbeodhpfnkeobmhifodhhjcj?authuser=0&hl=de)
 
+### Microsoft Edge Add-ons
+[Hier in Microsoft Edge Add-ons installieren](https://microsoftedge.microsoft.com/addons/detail/foicpmidihacnocjmdbkjanbjncckoaa)
+
 ### Manuelle Installation
 1. Zur [Releases](https://github.com/yviscool/synapse/releases)-Seite gehen
 2. `extension-vX.X.X.zip` herunterladen
