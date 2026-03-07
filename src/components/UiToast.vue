@@ -24,7 +24,7 @@
         <button
           type="button"
           class="synapse-toast-close"
-          aria-label="Close notification"
+          :aria-label="t('common.close')"
           @click="$emit('close')"
         >
           <div class="i-carbon-close"></div>
@@ -35,6 +35,10 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 withDefaults(defineProps<{
   message: string
   type?: 'success' | 'error'

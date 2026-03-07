@@ -13,6 +13,7 @@ export default {
   feedback: "Обратная связь / вклад",
   more: "Ещё",
   edit: "Редактировать",
+  close: "Закрыть",
   add: "Добавить",
   allLoaded: "Всё загружено",
   refresh: "Обновить",

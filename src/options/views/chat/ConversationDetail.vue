@@ -43,7 +43,7 @@
             />
           </div>
           <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            <span>{{ getPlatformConfig(conversation.platform).name }}</span>
+            <span>{{ getPlatformLocalizedName(conversation.platform, t) }}</span>
             <span>·</span>
             <span>{{ t('chat.list.messages', { count: conversation.messageCount }) }}</span>
           </div>
@@ -302,7 +302,7 @@
                   class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
                 >
                   <div class="i-carbon-image text-sm"></div>
-                  {{ att.name || 'image' }}
+                  {{ att.name || t('chat.detail.imageAttachment') }}
                   <div class="i-carbon-launch text-xs text-gray-400 dark:text-gray-500"></div>
                 </a>
               </div>
@@ -312,7 +312,7 @@
                 <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900 edit-milkdown-wrapper">
                   <MilkdownEditor
                     v-model="editContent"
-                    placeholder="编辑消息..."
+                    :placeholder="t('chat.detail.editPlaceholder')"
                   />
                 </div>
                 <div class="flex justify-end gap-2 mt-2">
@@ -360,7 +360,7 @@ import { ref, watch, nextTick, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEventListener, useMutationObserver, useThrottleFn } from '@vueuse/core'
 import { handleMarkdownCodeCopyClick, handleMermaidBlockClick, renderMarkdown, renderMermaidInElement, reRenderMermaidInElement, setMarkdownCodeCopyLabels } from '@/utils/markdown'
-import { getPlatformConfig, getPlatformIconUrl } from '@/content/site-configs'
+import { getPlatformConfig, getPlatformIconUrl, getPlatformLocalizedName } from '@/content/site-configs'
 import MilkdownEditor from '@/components/Milkdown.vue'
 import { countConversationTurns, type ChatConversation, type ChatMessage, type ChatPlatform } from '@/types/chat'
 

@@ -30,6 +30,7 @@ import { ref, computed, watch, onMounted, onUnmounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as monaco from 'monaco-editor'
 import type { SnippetLanguage } from '@/types/snippet'
+import { ensureMonacoEnvironment } from '@/options/utils/monacoEnvironment'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -145,6 +146,7 @@ function getMonacoTheme(isDark: boolean): 'github-light' | 'github-dark' {
 // Initialize Monaco Editor
 onMounted(() => {
   if (!editorContainer.value) return
+  ensureMonacoEnvironment()
 
   // 定义 GitHub Light 主题
   monaco.editor.defineTheme('github-light', {

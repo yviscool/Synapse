@@ -17,6 +17,7 @@ import type {
 } from "@/types/chat";
 import { countConversationTurns } from "@/types/chat";
 import { compareLocalizedText } from "@/utils/intl";
+import i18n from "@/i18n";
 
 // ============================================
 // Event System
@@ -158,7 +159,7 @@ function createSafeConversation(data: Partial<ChatConversation>): ChatConversati
     id: data.id || crypto.randomUUID(),
     platform: data.platform || "other",
     externalId: data.externalId,
-    title: data.title || "未命名对话",
+    title: data.title || i18n.global.t("chat.defaults.untitledConversation"),
     link: data.link,
     messages,
     starred: data.starred || false,

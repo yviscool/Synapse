@@ -7,6 +7,8 @@ export default {
     chatgpt: "ChatGPT",
     claude: "Claude",
     gemini: "Gemini",
+    aistudio: "AI Studio",
+    inception: "Inception",
     deepseek: "DeepSeek",
     kimi: "Kimi",
     doubao: "豆包",
@@ -14,6 +16,8 @@ export default {
     yuanbao: "腾讯元宝",
     grok: "Grok",
     copilot: "Copilot",
+    minimax: "MiniMax",
+    zai: "智谱清言",
     other: "其他",
   },
 
@@ -69,6 +73,12 @@ export default {
     deleteMessage: "删除消息",
     edited: "已编辑",
     user: "用户",
+    editPlaceholder: "编辑消息...",
+    imageAttachment: "图片",
+  },
+
+  defaults: {
+    untitledConversation: "未命名对话",
   },
 
   // 操作

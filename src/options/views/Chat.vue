@@ -250,7 +250,7 @@
                     v-html="getHighlightedHitTitle(hit)"
                   ></h4>
                   <div class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 mb-1.5">
-                    <span>{{ getPlatformConfig(hit.platform).name }}</span>
+                    <span>{{ getPlatformLocalizedName(hit.platform, t) }}</span>
                     <span>·</span>
                     <span>{{ formatRelativeTime(hit.collectedAt || hit.createdAt) }}</span>
                   </div>
@@ -314,9 +314,9 @@
                     </button>
                   </div>
                   <div class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 mb-1.5">
-                    <span>{{ getPlatformConfig(conv.platform).name }}</span>
+                    <span>{{ getPlatformLocalizedName(conv.platform, t) }}</span>
                     <span>·</span>
-                    <span>{{ conv.messageCount }}条</span>
+                    <span>{{ t('chat.list.messages', { count: conv.messageCount }) }}</span>
                     <span>·</span>
                     <span>{{ formatRelativeTime(conv.collectedAt || conv.createdAt) }}</span>
                   </div>
@@ -411,6 +411,7 @@ import {
   getAllPlatforms,
   getPlatformConfig,
   getPlatformIconUrl,
+  getPlatformLocalizedName,
 } from '@/content/site-configs'
 import type { ChatConversation, ChatMessageHit, ChatPlatform, PlatformConfig } from '@/types/chat'
 

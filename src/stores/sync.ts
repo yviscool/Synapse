@@ -12,6 +12,7 @@ import * as gdrive from '@/utils/googleDriveApi'
 import type { Category, Prompt, PromptVersion, Settings, Tag } from '@/types/prompt'
 import type { Snippet, SnippetFolder, SnippetTag } from '@/types/snippet'
 import type { ChatConversation, ChatTag } from '@/types/chat'
+import { createI18nError } from '@/utils/i18nError'
 
 
 const MAX_BACKUPS_TO_KEEP = 10;
@@ -60,7 +61,7 @@ class SyncManager {
    */
   async enableSync(provider: 'google-drive'): Promise<SyncRunResult> {
     if (provider !== 'google-drive') {
-      throw new Error('Only Google Drive is supported at the moment.')
+      throw createI18nError('common.errors.sync.onlyGoogleDriveSupported')
     }
 
     try {
@@ -112,7 +113,7 @@ class SyncManager {
     try {
       const settings = await getSettings()
       if (!settings.syncEnabled || settings.syncProvider !== 'google-drive') {
-        throw new Error('Sync is not enabled or provider is not Google Drive.')
+        throw createI18nError('common.errors.sync.notEnabledOrProviderInvalid')
       }
 
       const [remoteFiles, localPayload] = await Promise.all([
@@ -273,7 +274,7 @@ class SyncManager {
   private async downloadRemoteData(fileId: string): Promise<void> {
     const importedData = await gdrive.downloadBackupFile<BackupImportData>(fileId)
     if (!importedData || typeof importedData !== 'object') {
-      throw new Error('Invalid backup payload from cloud.')
+      throw createI18nError('common.errors.sync.invalidBackupPayload')
     }
 
     const prompts = Array.isArray(importedData.prompts) ? importedData.prompts : []

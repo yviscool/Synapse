@@ -9,9 +9,11 @@
 import { countConversationTurns, type ChatMessage, type ChatPlatform, type ChatConversation } from '@/types/chat'
 import type { SiteConfig } from '../../site-configs'
 import { promiseTimeout } from '@vueuse/core'
+import i18n from '@/i18n'
+import { getI18nErrorMessage, isI18nError } from '@/utils/i18nError'
 
 /** 默认对话标题（所有适配器共用） */
-export const DEFAULT_TITLE = '未命名对话'
+export const DEFAULT_TITLE = i18n.global.t('chat.defaults.untitledConversation') as string
 
 export interface CollectResult {
   success: boolean
@@ -321,12 +323,12 @@ export abstract class BaseAdapter implements PlatformAdapter {
   collect(_options?: CollectOptions): CollectResult | Promise<CollectResult> {
     try {
       if (!this.isConversationPage()) {
-        return { success: false, error: '当前页面不是对话页面' }
+        return { success: false, error: getI18nErrorMessage('common.errors.collect.notConversationPage') }
       }
 
       const messages = this.collectMessages()
       if (messages.length === 0) {
-        return { success: false, error: '未找到任何消息' }
+        return { success: false, error: getI18nErrorMessage('common.errors.collect.noMessages') }
       }
 
       const conversation: Partial<ChatConversation> = {
@@ -342,7 +344,11 @@ export abstract class BaseAdapter implements PlatformAdapter {
       return { success: true, conversation }
     } catch (error) {
       console.error(`[${this.platform}] 采集失败:`, error)
-      return { success: false, error: (error as Error).message }
+      const message = isI18nError(error) ? error.message : ''
+      return {
+        success: false,
+        error: message || getI18nErrorMessage('common.errors.collect.collectFailed'),
+      }
     }
   }
 }

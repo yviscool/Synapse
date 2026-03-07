@@ -17,12 +17,7 @@
     "message": "提示词已保存！"
   },
   "saveFailed": {
-    "message": "保存失败: $ERROR$",
-    "placeholders": {
-      "error": {
-        "content": "$1"
-      }
-    }
+    "message": "保存失败"
   },
   "contextMenuSaveAsPrompt": {
     "message": "保存为提示词"

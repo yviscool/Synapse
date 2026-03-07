@@ -94,6 +94,10 @@ const INPUT_SELECTOR_HINTS = [
     '.ProseMirror[contenteditable="true"]',
     'textarea[placeholder*="Message"]',
     'textarea[placeholder*="发送"]',
+    'textarea[placeholder*="Nachricht"]',
+    'textarea[placeholder*="메시지"]',
+    'textarea[placeholder*="メッセージ"]',
+    'textarea[placeholder*="сообщ"]',
 ];
 
 type ContentSettingsPayload = {
@@ -151,7 +155,7 @@ async function initSettings() {
         // Handle Theme
         theme.value = settings.theme || "system";
     } catch (e) {
-        console.error("获取设置失败:", e);
+        console.error("Failed to load settings:", e);
     }
 }
 
@@ -264,7 +268,7 @@ async function fetchData() {
             dataVersion = res.version || "0";
         }
     } catch (e) {
-        console.error("获取提示词失败:", e);
+        console.error("Failed to fetch prompts:", e);
     } finally {
         isLoading.value = false;
     }
@@ -293,7 +297,7 @@ async function fetchCategories() {
             ];
         }
     } catch (e) {
-        console.error("获取分类失败:", e);
+        console.error("Failed to fetch categories:", e);
     }
 }
 
@@ -569,7 +573,7 @@ async function handleInsert() {
             closePanel();
             trace("insert.exception.closePanel");
         }
-        console.error("处理提示词选择时出错:", error);
+        console.error("Error while handling prompt selection:", error);
         showToast(t("common.toast.operationFailed"), "error");
     }
 }

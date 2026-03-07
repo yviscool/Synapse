@@ -13,6 +13,7 @@ export default {
   feedback: "フィードバック / 貢献",
   more: "その他",
   edit: "編集",
+  close: "閉じる",
   add: "追加",
   allLoaded: "すべて読み込み済み",
   refresh: "更新",

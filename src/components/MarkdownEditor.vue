@@ -4,7 +4,7 @@
       <MilkdownEditorCore
         ref="editorCoreRef"
         v-model="model"
-        :placeholder="props.placeholder"
+        :placeholder="resolvedPlaceholder"
         :readonly="props.readonly"
         @change="handleChange"
         @update:stats="stats = $event"
@@ -13,15 +13,14 @@
 
     <div
       class="flex items-center gap-6 px-4 py-2 text-xs text-gray-500 border-t border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400">
-      <span>{{ stats.lines }} 行</span>
-      <span>{{ stats.words }} 词</span>
-      <span>{{ stats.characters }} 字符</span>
+      <span>{{ t('content.composer.stats', stats) }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import MilkdownEditorCore from './Milkdown.vue'
 
 interface Props {
@@ -29,10 +28,11 @@ interface Props {
   readonly?: boolean
 }
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: '开始编写你的 Prompt...',
   readonly: false
 })
+const { t } = useI18n()
 const emit = defineEmits<{ (e: 'change', value: string): void }>()
+const resolvedPlaceholder = computed(() => props.placeholder || t('prompts.editor.contentPlaceholder'))
 
 const model = defineModel<string>({ required: true })
 const editorCoreRef = ref<{ getCurrentMarkdown?: () => string } | null>(null)

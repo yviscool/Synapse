@@ -57,4 +57,5 @@ export interface Settings {
     email: string
     picture?: string
   }
+  defaultPromptsSeeded?: boolean
 }

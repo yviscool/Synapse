@@ -50,6 +50,7 @@ export default {
     comparisonTitle: "バージョン比較",
     version: "バージョン {version}",
     currentVersion: "現在のバージョン",
+    revertNote: "v{version} に復元",
     additions: "+{count} 追加",
     deletions: "-{count} 削除",
     justNow: "たった今",

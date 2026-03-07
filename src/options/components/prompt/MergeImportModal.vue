@@ -422,9 +422,15 @@ async function processFile(file: File) {
             fileName.value = "";
         }
     } catch (error) {
+        console.error("Parse import file failed:", error);
+        const invalidFormatMessage = t("categories.mergeImportModal.toast.invalidFormat");
+        const message = error instanceof Error ? error.message : "";
         showToast(
             t("categories.mergeImportModal.toast.parseError", {
-                error: (error as Error).message,
+                error:
+                    message === invalidFormatMessage
+                        ? invalidFormatMessage
+                        : t("common.toast.operationFailed"),
             }),
             "error",
         );
@@ -459,9 +465,10 @@ async function executeMerge() {
             );
         }
     } catch (error) {
+        console.error("Merge import failed:", error);
         showToast(
             t("categories.mergeImportModal.toast.mergeFailed", {
-                error: (error as Error).message,
+                error: t("common.toast.operationFailed"),
             }),
             "error",
         );
@@ -497,14 +504,14 @@ function downloadTemplate() {
         exportTime: new Date().toISOString(),
         prompts: [
             {
-                title: "生成一张小狗的油画",
+                title: "Generate an oil painting of a puppy",
                 content:
                     "A detailed oil painting of a small, fluffy puppy sitting in a field of wildflowers, impressionist style, warm sunlight.",
                 categoryIds: ["creation"],
                 tagIds: ["midjourney", "image-generation"],
             },
             {
-                title: "撰写一封营销邮件",
+                title: "Write a marketing email",
                 content:
                     "Write a marketing email for a new productivity app. The email should be friendly, concise, and highlight three key features: AI-powered scheduling, cross-device sync, and focus mode. Include a clear call-to-action button.",
             },

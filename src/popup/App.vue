@@ -87,7 +87,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { db, getSettings } from '@/stores/db'
-import { getPlatformConfig } from '@/content/site-configs'
+import { getPlatformLocalizedName } from '@/content/site-configs'
 import { MSG, type DataUpdatedPayload, type RequestMessage } from '@/utils/messaging'
 import type { ChatPlatform } from '@/types/chat'
 import { resolveLocalePreference } from '@/utils/locale'
@@ -187,13 +187,13 @@ async function loadActivities() {
   }
 
   for (const c of chats) {
-    const platform = getPlatformConfig(c.platform as ChatPlatform)
+    const platformName = getPlatformLocalizedName(c.platform as ChatPlatform, t)
     items.push({
       id: `chat-${c.id}`,
       icon: '💬',
       iconClass: '',
       label: t('popup.activity.capturedChat', { title: c.title }),
-      sub: `${platform.name} · ${timeAgo(c.updatedAt)}`,
+      sub: `${platformName} · ${timeAgo(c.updatedAt)}`,
       time: c.updatedAt,
       route: 'options.html#/chat',
     })

@@ -109,14 +109,14 @@
                 @change="handleLocaleChange(($event.target as HTMLSelectElement).value as LocaleOption)"
                 class="w-full appearance-none px-4 py-2.5 pr-10 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 outline-none transition-shadow cursor-pointer"
               >
-                <option value="zh-CN">简体中文</option>
-                <option value="en">English</option>
+                <option value="zh-CN">{{ getLocaleLabel('zh-CN') }}</option>
+                <option value="en">{{ getLocaleLabel('en') }}</option>
                 <option disabled class="text-gray-300">──────────</option>
-                <option value="zh-TW">繁體中文</option>
-                <option value="de">Deutsch</option>
-                <option value="ja-JP">日本語</option>
-                <option value="ko">한국어</option>
-                <option value="ru-RU">Русский</option>
+                <option value="zh-TW">{{ getLocaleLabel('zh-TW') }}</option>
+                <option value="de">{{ getLocaleLabel('de') }}</option>
+                <option value="ja-JP">{{ getLocaleLabel('ja-JP') }}</option>
+                <option value="ko">{{ getLocaleLabel('ko') }}</option>
+                <option value="ru-RU">{{ getLocaleLabel('ru-RU') }}</option>
                 <option disabled class="text-gray-300">──────────</option>
                 <option value="system">{{ t('settings.language.followSystem') }}</option>
               </select>
@@ -529,7 +529,8 @@ async function loadBackupHistory() {
   try {
     backupHistory.value = await syncManager.listCloudBackups();
   } catch (error) {
-    showToast(`${t('common.error')}: ${(error as Error).message}`, 'error');
+    console.error('Load backup history failed:', error);
+    showToast(t('common.toast.operationFailed'), 'error');
   } finally {
     isHistoryLoading.value = false;
   }
@@ -546,7 +547,8 @@ async function handleRestoreFromCloud(fileId: string) {
     showToast(t('common.toast.operationSuccess'), 'success');
     scheduleReload();
   } catch (error) {
-    showToast(`${t('common.error')}: ${(error as Error).message}`, 'error');
+    console.error('Restore from cloud failed:', error);
+    showToast(t('common.toast.operationFailed'), 'error');
   }
 }
 
@@ -558,7 +560,8 @@ async function handleDownloadFromCloud(fileId: string, fileName: string) {
 
     showToast(t('common.toast.operationSuccess'), 'success');
   } catch (error) {
-    showToast(`${t('common.error')}: ${(error as Error).message}`, 'error');
+    console.error('Download from cloud failed:', error);
+    showToast(t('common.toast.operationFailed'), 'error');
   }
 }
 
@@ -573,7 +576,8 @@ async function handleDeleteFromCloud(fileId: string) {
     await loadBackupHistory();
     showToast(t('common.toast.deleteSuccess'), 'success');
   } catch (error) {
-    showToast(`${t('common.error')}: ${(error as Error).message}`, 'error');
+    console.error('Delete cloud backup failed:', error);
+    showToast(t('common.toast.operationFailed'), 'error');
   } finally {
     isDeletingMap.value[fileId] = false;
   }
@@ -594,7 +598,7 @@ async function handleEnableSync(provider: 'google-drive') {
     showToast(getSyncResultMessage(result), 'success')
   } catch (error) {
     console.error(error)
-    showToast(`${t('common.error')}: ${(error as Error).message}`, 'error')
+    showToast(t('common.toast.operationFailed'), 'error')
   } finally {
     isLoading.value = false
     isEnablingSync.value = false
@@ -612,7 +616,8 @@ async function handleDisconnect() {
     await refreshSettings()
     showToast(t('common.toast.operationSuccess'), 'success')
   } catch (error) {
-    showToast(`${t('common.error')}: ${(error as Error).message}`, 'error')
+    console.error('Disconnect sync failed:', error)
+    showToast(t('common.toast.operationFailed'), 'error')
   } finally {
     isDisconnecting.value = false
   }
@@ -628,7 +633,8 @@ async function handleSyncNow() {
     }
     showToast(getSyncResultMessage(result), 'success')
   } catch (error) {
-    showToast(`${t('common.error')}: ${(error as Error).message}`, 'error')
+    console.error('Sync now failed:', error)
+    showToast(t('common.toast.operationFailed'), 'error')
   } finally {
     isSyncing.value = false
   }
@@ -690,7 +696,9 @@ const importData = async (event: Event) => {
 
   } catch (error) {
     console.error('Import failed:', error)
-    showToast(`${t('common.error')}: ${(error as Error).message}`, 'error')
+    const invalidFileMessage = t('settings.data.local.invalidFileError')
+    const message = error instanceof Error ? error.message : ''
+    showToast(message === invalidFileMessage ? invalidFileMessage : t('common.toast.operationFailed'), 'error')
   } finally {
     if (importInput.value) importInput.value.value = ''
   }

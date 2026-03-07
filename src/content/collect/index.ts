@@ -24,6 +24,7 @@ import { CopilotAdapter } from './adapters/copilot'
 import { GenericAdapter } from './adapters/generic'
 import type { ChatPlatform } from '@/types/chat'
 import { detectPlatformFromUrl } from '@/content/site-configs'
+import { getI18nErrorMessage } from '@/utils/i18nError'
 
 function isQwenIntlHost(hostname: string): boolean {
   const normalized = hostname.trim().toLowerCase()
@@ -80,7 +81,7 @@ export async function collect(options?: CollectOptions): Promise<CollectResult> 
   if (!adapter) {
     return {
       success: false,
-      error: '当前页面不支持采集，请在 AI 对话页面使用此功能',
+      error: getI18nErrorMessage('common.errors.collect.pageNotSupported'),
     }
   }
 

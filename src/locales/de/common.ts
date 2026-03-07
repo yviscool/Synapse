@@ -13,6 +13,7 @@ export default {
   feedback: "Feedback oder Mitwirken",
   more: "Mehr",
   edit: "Bearbeiten",
+  close: "Schließen",
   add: "Hinzufügen",
   allLoaded: "Alles geladen",
   refresh: "Aktualisieren",

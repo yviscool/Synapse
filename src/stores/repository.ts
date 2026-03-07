@@ -1,6 +1,7 @@
 import {
   db,
   DEFAULT_SETTINGS,
+  normalizeSettings,
   ensureDefaultCategories,
 } from "./db";
 import {
@@ -21,6 +22,10 @@ import type {
 import type { Snippet, SnippetFolder, SnippetTag } from "@/types/snippet";
 import type { ChatConversation, ChatTag } from "@/types/chat";
 import { createSafePrompt } from "@/utils/promptUtils";
+import { resolveLocalePreference } from "@/utils/locale";
+import { getDefaultPromptSeeds } from "@/utils/defaultPromptUtils";
+import i18n from "@/i18n";
+import { createI18nError, isI18nError } from "@/utils/i18nError";
 
 // Event system using shared factory
 type EventType =
@@ -57,10 +62,16 @@ type BackupImportData = {
 };
 
 function toError(error: unknown): Error {
-  if (error instanceof Error) {
+  if (isI18nError(error)) {
     return error;
   }
-  return new Error(typeof error === "string" ? error : "Unknown repository error");
+  if (error instanceof Error) {
+    return createI18nError("common.errors.repository.unknownRepositoryError");
+  }
+  if (typeof error === "string") {
+    return createI18nError("common.errors.repository.unknownRepositoryError");
+  }
+  return createI18nError("common.errors.repository.unknownRepositoryError");
 }
 
 function getNextPromptVersionNumber(versions: PromptVersion[]): number {
@@ -97,12 +108,167 @@ function isSearchRelevantPatch(patch: Partial<Prompt>): boolean {
   );
 }
 
+function createDefaultPromptRecord(
+  title: string,
+  content: string,
+  categoryId: string,
+  existingCategoryIds: Set<string>,
+  now: number,
+): { prompt: Prompt; version: PromptVersion } {
+  const prompt = createSafePrompt({
+    title,
+    content,
+    categoryIds: existingCategoryIds.has(categoryId) ? [categoryId] : [],
+    tagIds: [],
+    favorite: false,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const version: PromptVersion = {
+    id: crypto.randomUUID(),
+    promptId: prompt.id,
+    versionNumber: 1,
+    content: prompt.content,
+    title: prompt.title,
+    type: "initial",
+    createdAt: now,
+  };
+
+  return { prompt, version };
+}
+
 // --- Public Repository API ---
 
 export const repository = {
   events,
 
   // == Initialization ==
+  async initializeDefaultData(): Promise<{
+    ok: boolean;
+    initialized: {
+      categories: boolean;
+      prompts: boolean;
+    };
+    error?: Error;
+  }> {
+    try {
+      const categoriesInitialized = await ensureDefaultCategories();
+      const currentSettings = await db.settings.get("global");
+      if (currentSettings?.defaultPromptsSeeded) {
+        return {
+          ok: true,
+          initialized: {
+            categories: categoriesInitialized,
+            prompts: false,
+          },
+        };
+      }
+
+      const promptCount = await db.prompts.count();
+      if (promptCount > 0) {
+        await db.settings.put({
+          ...normalizeSettings(currentSettings),
+          id: "global",
+          defaultPromptsSeeded: true,
+        });
+        return {
+          ok: true,
+          initialized: {
+            categories: categoriesInitialized,
+            prompts: false,
+          },
+        };
+      }
+
+      const promptInitResult = await withCommitNotification(
+        ["prompts", "prompt_versions", "prompt_search_index", "categories", "settings", "tags"],
+        async () => {
+          const settingsRecord = await db.settings.get("global");
+          if (settingsRecord?.defaultPromptsSeeded) {
+            return false;
+          }
+          const locale = resolveLocalePreference(settingsRecord?.locale);
+          const seeds = getDefaultPromptSeeds(locale);
+          if (seeds.length === 0) {
+            await db.settings.put({
+              ...normalizeSettings(settingsRecord),
+              id: "global",
+              defaultPromptsSeeded: true,
+            });
+            return false;
+          }
+
+          const categories = await db.categories.toArray();
+          const categoryIds = new Set(categories.map((category) => category.id));
+          const now = Date.now();
+
+          const prompts: Prompt[] = [];
+          const versions: PromptVersion[] = [];
+          for (const seed of seeds) {
+            const { prompt, version } = createDefaultPromptRecord(
+              seed.title,
+              seed.content,
+              seed.categoryId,
+              categoryIds,
+              now,
+            );
+            prompts.push(prompt);
+            versions.push(version);
+          }
+
+          if (prompts.length === 0) {
+            return false;
+          }
+
+          await db.prompts.bulkPut(prompts);
+          await db.prompt_versions.bulkPut(versions);
+          await bulkUpsertPromptSearchIndex(prompts);
+          await db.settings.put({
+            ...normalizeSettings(settingsRecord),
+            id: "global",
+            defaultPromptsSeeded: true,
+          });
+
+          return true;
+        },
+        "allChanged",
+      );
+
+      if (!promptInitResult.ok) {
+        return {
+          ok: false,
+          initialized: {
+            categories: categoriesInitialized,
+            prompts: false,
+          },
+          error: promptInitResult.error,
+        };
+      }
+
+      return {
+        ok: true,
+        initialized: {
+          categories: categoriesInitialized,
+          prompts: Boolean(promptInitResult.data),
+        },
+      };
+    } catch (error) {
+      console.error(
+        "[Repository] Failed to initialize default data:",
+        error,
+      );
+      return {
+        ok: false,
+        initialized: {
+          categories: false,
+          prompts: false,
+        },
+        error: toError(error),
+      };
+    }
+  },
+
   async initializeDefaultCategories(): Promise<{
     ok: boolean;
     initialized: boolean;
@@ -474,10 +640,10 @@ export const repository = {
       async () => {
         const versionToApply = await db.prompt_versions.get(versionId);
         if (!versionToApply || versionToApply.promptId !== promptId)
-          throw new Error("版本不存在或不匹配");
+          throw createI18nError("common.errors.repository.versionNotFoundOrMismatch");
 
         const prompt = await db.prompts.get(promptId);
-        if (!prompt) throw new Error("Prompt 不存在");
+        if (!prompt) throw createI18nError("common.errors.repository.promptNotFound");
 
         // 获取当前最大版本号（兼容旧数据：旧版本可能没有 versionNumber 字段）
         const allVersions = await db.prompt_versions
@@ -498,7 +664,9 @@ export const repository = {
           content: versionToApply.content,
           title: safeTitle,
           type: "revert",
-          note: `恢复到 v${targetVersionNumber}`,
+          note: i18n.global.t("prompts.versionHistory.revertNote", {
+            version: targetVersionNumber,
+          }),
           createdAt: Date.now(),
         };
         await db.prompt_versions.add(revertVersion);
@@ -526,13 +694,13 @@ export const repository = {
       ["prompt_versions"],
       async () => {
         const version = await db.prompt_versions.get(versionId);
-        if (!version) throw new Error("版本不存在");
+        if (!version) throw createI18nError("common.errors.repository.versionNotFound");
 
         const versions = await db.prompt_versions
           .where("promptId")
           .equals(version.promptId)
           .toArray();
-        if (versions.length <= 1) throw new Error("不能删除最后一个版本");
+        if (versions.length <= 1) throw createI18nError("common.errors.repository.cannotDeleteLastVersion");
 
         await db.prompt_versions.delete(versionId);
       },
@@ -631,6 +799,7 @@ export const repository = {
           settingsToApply.userProfile = currentSettings.userProfile;
           settingsToApply.lastSyncTimestamp = currentSettings.lastSyncTimestamp;
         }
+        settingsToApply.defaultPromptsSeeded = true;
         await db.settings.put(settingsToApply);
 
         // --- Rebuild search indexes ---
@@ -693,6 +862,7 @@ export const repository = {
           newSettings.userProfile = currentSettings.userProfile;
           newSettings.lastSyncTimestamp = currentSettings.lastSyncTimestamp;
         }
+        newSettings.defaultPromptsSeeded = true;
         await db.settings.put(newSettings);
       },
       "allChanged",

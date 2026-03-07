@@ -50,6 +50,7 @@ export default {
     "comparisonTitle": "Version Comparison",
     "version": "Version {version}",
     "currentVersion": "Current Version",
+    "revertNote": "Reverted to v{version}",
     "additions": "+{count} additions",
     "deletions": "-{count} deletions",
     "justNow": "Just now",

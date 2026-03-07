@@ -12,6 +12,7 @@ import {
   type ChatSavePayload,
   type OpenOptionsPayload,
 } from '@/utils/messaging'
+import { isI18nError } from '@/utils/i18nError'
 
 // --- Initialize Background ---
 console.log('[Background] Script loaded. Setting up repository listeners.')
@@ -25,6 +26,15 @@ type PromptLookupCache = {
 }
 
 let promptLookupCache: PromptLookupCache | null = null
+
+function getBackgroundErrorMessage(error: unknown, fallbackMessageName = 'saveFailed'): string {
+  if (isI18nError(error)) {
+    return error.message
+  }
+
+  const fallback = chrome.i18n.getMessage(fallbackMessageName)
+  return fallback || chrome.i18n.getMessage('saveFailed')
+}
 
 async function getPromptLookupCache(forceRefresh = false): Promise<PromptLookupCache> {
   if (promptLookupCache && !forceRefresh) {
@@ -64,7 +74,7 @@ chrome.runtime.onMessage.addListener((msg: RequestMessage, sender, sendResponse)
       .then(res => sendResponse({ ok: true, ...res }))
       .catch((e: unknown) => sendResponse({
         ok: false,
-        error: e instanceof Error ? e.message : String(e),
+        error: getBackgroundErrorMessage(e),
       }))
     return true
   }
@@ -324,7 +334,11 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
         message: chrome.i18n.getMessage('chatUpdated'),
       })
     }
-    return { ok, error: error?.message, messageCount: countConversationTurns(finalMessages) }
+    return {
+      ok,
+      error: error ? getBackgroundErrorMessage(error) : undefined,
+      messageCount: countConversationTurns(finalMessages),
+    }
   }
 
   const { ok, data: savedConversation, error } = await chatRepository.saveConversation(conversation, tags)
@@ -342,7 +356,7 @@ async function handleChatSave(payload: ChatSavePayload): Promise<{ ok: boolean; 
 
   return {
     ok,
-    error: error?.message,
+    error: error ? getBackgroundErrorMessage(error) : undefined,
     messageCount: savedConversation?.messageCount ?? countConversationTurns(conversation.messages || []),
   }
 }
@@ -370,7 +384,7 @@ async function saveSelectionAsPrompt(text: string) {
       type: 'basic',
       iconUrl: 'icons/icon-128.png',
       title: 'Synapse',
-      message: chrome.i18n.getMessage('saveFailed', [(error as Error).message]),
+      message: chrome.i18n.getMessage('saveFailed'),
     })
   }
 }

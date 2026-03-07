@@ -73,7 +73,7 @@
                 @click.stop="showSettings = true"
                 class="control-btn"
                 :style="{ color: 'var(--sp-icon-color)' }"
-                aria-label="Settings"
+                :aria-label="t('content.panel.settings')"
               >
                 <span class="i-ph-gear-bold text-lg"></span>
               </button>
@@ -85,7 +85,7 @@
                 @click.stop="handleRefresh"
                 class="control-btn"
                 :style="{ color: 'var(--sp-icon-color)' }"
-                aria-label="Refresh"
+                :aria-label="t('common.refresh')"
               >
                 <span
                   :class="[
@@ -102,7 +102,7 @@
                 @click.stop="toggleCollapse"
                 class="control-btn"
                 :style="{ color: 'var(--sp-icon-color)' }"
-                aria-label="Collapse"
+                :aria-label="t('common.collapse')"
               >
                 <span class="i-ph-minus-bold text-lg"></span>
               </button>

@@ -50,6 +50,7 @@ export default {
     comparisonTitle: "버전 비교",
     version: "버전 {version}",
     currentVersion: "현재 버전",
+    revertNote: "v{version}로 복원",
     additions: "+{count} 추가",
     deletions: "-{count} 삭제",
     justNow: "방금",

@@ -51,6 +51,7 @@ export default {
     comparisonTitle: "Versionsvergleich",
     version: "Version {version}",
     currentVersion: "Aktuelle Version",
+    revertNote: "Auf v{version} zurückgesetzt",
     additions: "+{count} Ergänzungen",
     deletions: "-{count} Löschungen",
     justNow: "Gerade eben",

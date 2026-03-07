@@ -6,6 +6,7 @@ import type {
 import { getMessageContent } from "@/types/chat";
 import { resolveLocalePreference } from "@/utils/locale";
 import { getPlatformConfig } from "@/content/site-configs";
+import i18n from "@/i18n";
 
 type ExportLocaleKey =
   | "zh-CN"
@@ -104,6 +105,19 @@ function resolveExportLocale(locale?: string): ExportLocaleKey {
   return resolveLocalePreference(locale) as ExportLocaleKey;
 }
 
+function getLocalizedPlatformName(
+  platform: ChatConversation["platform"],
+  locale: ExportLocaleKey,
+): string {
+  const message = i18n.global.getLocaleMessage(locale) as {
+    chat?: { platforms?: Partial<Record<ChatConversation["platform"], string>> };
+  };
+  const name = message?.chat?.platforms?.[platform];
+  return typeof name === "string" && name.trim()
+    ? name
+    : getPlatformConfig(platform).name;
+}
+
 /**
  * 格式化时间戳
  */
@@ -197,7 +211,7 @@ function exportToMarkdown(
 
   // 元数据
   if (options.includeMetadata) {
-    lines.push(`> **${labels.platform}**: ${getPlatformConfig(conversation.platform).name}`);
+    lines.push(`> **${labels.platform}**: ${getLocalizedPlatformName(conversation.platform, locale)}`);
     if (conversation.link) {
       lines.push(`> **${labels.link}**: [${labels.originalConversation}](${conversation.link})`);
     }
@@ -259,7 +273,7 @@ function exportToTxt(
 
   // 元数据
   if (options.includeMetadata) {
-    lines.push(`${labels.platform}: ${getPlatformConfig(conversation.platform).name}`);
+    lines.push(`${labels.platform}: ${getLocalizedPlatformName(conversation.platform, locale)}`);
     if (conversation.link) {
       lines.push(`${labels.link}: ${conversation.link}`);
     }
@@ -341,7 +355,7 @@ function exportToHtml(
   const metadata = options.includeMetadata
     ? `
       <div class="metadata">
-        <p><strong>${labels.platform}:</strong> ${getPlatformConfig(conversation.platform).name}</p>
+        <p><strong>${labels.platform}:</strong> ${getLocalizedPlatformName(conversation.platform, locale)}</p>
         ${conversation.link ? `<p><strong>${labels.link}:</strong> <a href="${conversation.link}" target="_blank">${labels.originalConversation}</a></p>` : ""}
         <p><strong>${labels.collectedAt}:</strong> ${formatTimestamp(conversation.collectedAt, locale)}</p>
         <p><strong>${labels.messageCount}:</strong> ${conversation.messageCount}</p>

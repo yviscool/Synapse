@@ -9,6 +9,8 @@ export default {
     chatgpt: "ChatGPT",
     claude: "Claude",
     gemini: "Gemini",
+    aistudio: "AI Studio",
+    inception: "Inception",
     deepseek: "DeepSeek",
     kimi: "Kimi",
     doubao: "Doubao",
@@ -16,6 +18,8 @@ export default {
     yuanbao: "Tencent Yuanbao",
     grok: "Grok",
     copilot: "Copilot",
+    minimax: "MiniMax",
+    zai: "ZAI",
     other: "Другие",
   },
 
@@ -68,6 +72,12 @@ export default {
     deleteMessage: "Удалить сообщение",
     edited: "Изменено",
     user: "Пользователь",
+    editPlaceholder: "Редактировать сообщение...",
+    imageAttachment: "изображение",
+  },
+
+  defaults: {
+    untitledConversation: "Диалог без названия",
   },
 
   actions: {

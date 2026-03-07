@@ -83,10 +83,11 @@ export async function fetchTagNameMap(
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   const uniqueTagIds = [...new Set(tagIds || [])].filter(Boolean);
+  if (uniqueTagIds.length === 0) {
+    return map;
+  }
 
-  const tags = uniqueTagIds.length
-    ? await table.where("id").anyOf(uniqueTagIds).toArray()
-    : await table.toArray();
+  const tags = await table.where("id").anyOf(uniqueTagIds).toArray();
 
   tags.forEach((tag) => map.set(tag.id, tag.name));
   return map;

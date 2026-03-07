@@ -117,6 +117,7 @@ export const DEFAULT_SETTINGS: Settings = {
   outlineEnabled: true,
   locale: "system",
   syncEnabled: false,
+  defaultPromptsSeeded: false,
 };
 
 export function normalizeSettings(

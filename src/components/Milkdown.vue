@@ -6,6 +6,7 @@
 import { Crepe } from '@milkdown/crepe'
 import { getMarkdown, replaceAll } from '@milkdown/utils'
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import "@/styles/milkdown-theme.css"
 import '@milkdown/crepe/theme/nord.css'
@@ -17,6 +18,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
@@ -112,50 +114,50 @@ onMounted(async () => {
         },
       },
       [Crepe.Feature.CodeMirror]: {
-        searchPlaceholder: '搜索语言',
-        copyText: '复制',
-        noResultText: '无匹配结果',
+        searchPlaceholder: t('common.milkdown.searchLanguage'),
+        copyText: t('chat.detail.copy'),
+        noResultText: t('common.milkdown.noResult'),
         previewToggleText: (previewOnlyMode: boolean) =>
-          previewOnlyMode ? '编辑' : '隐藏',
-        previewLabel: '预览',
+          previewOnlyMode ? t('common.edit') : t('common.milkdown.hide'),
+        previewLabel: t('common.milkdown.preview'),
       },
       [Crepe.Feature.BlockEdit]: {
         textGroup: {
-          label: '文本',
-          text: { label: '正文' },
-          h1: { label: '一级标题' },
-          h2: { label: '二级标题' },
-          h3: { label: '三级标题' },
-          h4: { label: '四级标题' },
-          h5: { label: '五级标题' },
-          h6: { label: '六级标题' },
-          quote: { label: '引用' },
-          divider: { label: '分割线' },
+          label: t('common.milkdown.groups.text'),
+          text: { label: t('common.milkdown.text.body') },
+          h1: { label: t('common.milkdown.text.h1') },
+          h2: { label: t('common.milkdown.text.h2') },
+          h3: { label: t('common.milkdown.text.h3') },
+          h4: { label: t('common.milkdown.text.h4') },
+          h5: { label: t('common.milkdown.text.h5') },
+          h6: { label: t('common.milkdown.text.h6') },
+          quote: { label: t('common.milkdown.text.quote') },
+          divider: { label: t('common.milkdown.text.divider') },
         },
         listGroup: {
-          label: '列表',
-          bulletList: { label: '无序列表' },
-          orderedList: { label: '有序列表' },
-          taskList: { label: '任务列表' },
+          label: t('common.milkdown.groups.list'),
+          bulletList: { label: t('common.milkdown.list.bullet') },
+          orderedList: { label: t('common.milkdown.list.ordered') },
+          taskList: { label: t('common.milkdown.list.task') },
         },
         advancedGroup: {
-          label: '高级',
-          image: { label: '图片', icon: 'image' },
-          codeBlock: { label: '代码块', icon: 'code' },
-          table: { label: '表格', icon: 'table' },
-          math: { label: '数学公式', icon: 'math' },
+          label: t('common.milkdown.groups.advanced'),
+          image: { label: t('common.milkdown.advanced.image'), icon: 'image' },
+          codeBlock: { label: t('common.milkdown.advanced.codeBlock'), icon: 'code' },
+          table: { label: t('common.milkdown.advanced.table'), icon: 'table' },
+          math: { label: t('common.milkdown.advanced.math'), icon: 'math' },
         },
       },
       [Crepe.Feature.ImageBlock]: {
-        inlineUploadButton: '上传',
-        inlineUploadPlaceholderText: '或粘贴图片链接',
-        blockUploadButton: '上传文件',
-        blockConfirmButton: '确认 ⏎',
-        blockCaptionPlaceholderText: '输入图片说明',
-        blockUploadPlaceholderText: '或粘贴图片链接',
+        inlineUploadButton: t('common.milkdown.image.inlineUpload'),
+        inlineUploadPlaceholderText: t('common.milkdown.image.pasteUrl'),
+        blockUploadButton: t('common.milkdown.image.blockUpload'),
+        blockConfirmButton: `${t('common.milkdown.image.confirm')} ⏎`,
+        blockCaptionPlaceholderText: t('common.milkdown.image.captionPlaceholder'),
+        blockUploadPlaceholderText: t('common.milkdown.image.pasteUrl'),
       },
       [Crepe.Feature.LinkTooltip]: {
-        inputPlaceholder: '输入链接地址',
+        inputPlaceholder: t('common.milkdown.linkPlaceholder'),
       },
     },
   })

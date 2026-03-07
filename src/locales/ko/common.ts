@@ -13,6 +13,7 @@ export default {
   feedback: "피드백 또는 기여",
   more: "더보기",
   edit: "편집",
+  close: "닫기",
   add: "추가",
   allLoaded: "모두 불러옴",
   refresh: "새로고침",

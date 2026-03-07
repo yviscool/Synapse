@@ -9,6 +9,8 @@ export default {
     chatgpt: "ChatGPT",
     claude: "Claude",
     gemini: "Gemini",
+    aistudio: "AI Studio",
+    inception: "Inception",
     deepseek: "DeepSeek",
     kimi: "Kimi",
     doubao: "Doubao",
@@ -16,6 +18,8 @@ export default {
     yuanbao: "Tencent Yuanbao",
     grok: "Grok",
     copilot: "Copilot",
+    minimax: "MiniMax",
+    zai: "ZAI",
     other: "기타",
   },
 
@@ -68,6 +72,12 @@ export default {
     deleteMessage: "메시지 삭제",
     edited: "편집됨",
     user: "사용자",
+    editPlaceholder: "메시지 편집...",
+    imageAttachment: "이미지",
+  },
+
+  defaults: {
+    untitledConversation: "제목 없는 대화",
   },
 
   actions: {

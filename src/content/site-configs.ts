@@ -142,6 +142,24 @@ export const platformMetaConfigs: Record<ChatPlatform, PlatformMetaConfig> = {
   },
 }
 
+const platformLocaleKeys: Record<ChatPlatform, string> = {
+  chatgpt: 'chat.platforms.chatgpt',
+  claude: 'chat.platforms.claude',
+  gemini: 'chat.platforms.gemini',
+  aistudio: 'chat.platforms.aistudio',
+  inception: 'chat.platforms.inception',
+  deepseek: 'chat.platforms.deepseek',
+  kimi: 'chat.platforms.kimi',
+  doubao: 'chat.platforms.doubao',
+  qianwen: 'chat.platforms.qianwen',
+  yuanbao: 'chat.platforms.yuanbao',
+  grok: 'chat.platforms.grok',
+  copilot: 'chat.platforms.copilot',
+  minimax: 'chat.platforms.minimax',
+  zai: 'chat.platforms.zai',
+  other: 'chat.platforms.other',
+}
+
 export const siteConfigs: Record<string, SiteConfig> = {
   'chatgpt.com': {
     platform: 'chatgpt',
@@ -441,6 +459,18 @@ export const platformConfigs: Record<ChatPlatform, PlatformConfig> = (
 
 export function getPlatformConfig(platform: ChatPlatform): PlatformConfig {
   return platformConfigs[platform] || platformConfigs.other
+}
+
+export function getPlatformLocalizedName(
+  platform: ChatPlatform,
+  translate: (key: string) => string,
+): string {
+  const key = platformLocaleKeys[platform]
+  const translated = translate(key)
+  if (translated && translated !== key) {
+    return translated
+  }
+  return getPlatformConfig(platform).name
 }
 
 export function getAllPlatforms(): PlatformConfig[] {

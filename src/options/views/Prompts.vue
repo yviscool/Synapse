@@ -700,12 +700,15 @@ const {
 
 async function loadInitialData() {
     await db.open();
+    const initResult = await repository.initializeDefaultData();
+    if (!initResult.ok) {
+        throw initResult.error;
+    }
     await Promise.all([loadCategories(), loadTags(), fetchPrompts()]);
 }
 
 async function loadCategories() {
     try {
-        await repository.initializeDefaultCategories();
         categories.value = await db.categories.toArray();
     } catch (error) {
         console.error("Failed to load categories:", error);
@@ -805,11 +808,11 @@ async function savePrompt(modelFromEditor?: Partial<Prompt>) {
             closeEditor();
             showToast(t("common.toast.saveSuccess"), "success");
         } else {
-            throw error || new Error("保存 Prompt 时发生未知错误");
+            throw error || new Error(t("common.toast.operationFailed"));
         }
     } catch (error) {
         console.error("Failed to save prompt:", error);
-        showToast(t("common.toast.saveFailed", { message: (error as Error).message }), "error");
+        showToast(t("common.toast.operationFailed"), "error");
     }
 }
 

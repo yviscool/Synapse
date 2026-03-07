@@ -8,6 +8,7 @@ import type {
   QuerySnippetsResult,
 } from "@/types/snippet";
 import { compareLocalizedText } from "@/utils/intl";
+import { createI18nError } from "@/utils/i18nError";
 
 // Event system using shared factory
 type EventType =
@@ -227,7 +228,7 @@ export const snippetRepository = {
       if (parent?.parentId) {
         const grandparent = await db.snippet_folders.get(parent.parentId);
         if (grandparent?.parentId) {
-          return { ok: false, error: new Error("Maximum folder depth (3 levels) exceeded") };
+          return { ok: false, error: createI18nError("common.errors.snippet.maxFolderDepthExceeded") };
         }
       }
     }
@@ -306,7 +307,7 @@ export const snippetRepository = {
   ): Promise<{ ok: boolean; error?: Error }> {
     // Validate: can't move to self or descendant
     if (newParentId === id) {
-      return { ok: false, error: new Error("Cannot move folder to itself") };
+      return { ok: false, error: createI18nError("common.errors.snippet.cannotMoveFolderToItself") };
     }
 
     // Check if newParentId is a descendant of id
@@ -314,7 +315,7 @@ export const snippetRepository = {
       let current = await db.snippet_folders.get(newParentId);
       while (current) {
         if (current.parentId === id) {
-          return { ok: false, error: new Error("Cannot move folder to its descendant") };
+          return { ok: false, error: createI18nError("common.errors.snippet.cannotMoveFolderToDescendant") };
         }
         current = current.parentId
           ? await db.snippet_folders.get(current.parentId)
@@ -344,7 +345,7 @@ export const snippetRepository = {
       };
       const subtreeDepth = await getMaxSubtreeDepth(id);
       if (depth + 1 + subtreeDepth > 3) {
-        return { ok: false, error: new Error("Maximum folder depth (3 levels) exceeded") };
+        return { ok: false, error: createI18nError("common.errors.snippet.maxFolderDepthExceeded") };
       }
     }
 
@@ -576,8 +577,7 @@ export const snippetRepository = {
 
   async getStarredSnippetCount(): Promise<number> {
     return db.snippets
-      .where("starred")
-      .equals(true)
+      .filter((snippet) => snippet.starred)
       .count();
   },
 

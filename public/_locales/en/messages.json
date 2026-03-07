@@ -17,12 +17,7 @@
     "message": "Prompt saved!"
   },
   "saveFailed": {
-    "message": "Save failed: $ERROR$",
-    "placeholders": {
-      "error": {
-        "content": "$1"
-      }
-    }
+    "message": "Save failed"
   },
   "contextMenuSaveAsPrompt": {
     "message": "Save as Prompt"

@@ -18,7 +18,7 @@ function resolveScrollContainer(target: ScrollTarget): HTMLElement | null {
   return null
 }
 
-function isScrollableElement(el: Element | null): el is HTMLElement {
+function isScrollableElement(el: Element | null): boolean {
   if (!(el instanceof HTMLElement)) return false
   const style = window.getComputedStyle(el)
   const overflowY = style.overflowY
@@ -28,7 +28,10 @@ function isScrollableElement(el: Element | null): el is HTMLElement {
 
 function findNearestScrollableAncestor(element: Element): HTMLElement | null {
   let current = element.parentElement
-  while (current && current !== document.body && current !== document.documentElement) {
+  while (current) {
+    if (current === document.body) {
+      break
+    }
     if (isScrollableElement(current)) {
       return current
     }

@@ -93,7 +93,7 @@ import { computed, watch, type CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SyncEngineInstance } from './useSyncEngine'
 import { getCurrentPlatformInfo } from '@/content/collect'
-import { getPlatformConfig, getPlatformIconUrl } from '@/content/site-configs'
+import { getPlatformConfig, getPlatformIconUrl, getPlatformLocalizedName } from '@/content/site-configs'
 import { MSG } from '@/utils/messaging'
 
 const { t, locale } = useI18n()
@@ -129,7 +129,7 @@ const platformInfo = computed(() => {
   const config = getPlatformConfig(info.platform)
   return {
     id: info.platform,
-    name: config.name,
+    name: getPlatformLocalizedName(info.platform, t),
     icon: config.icon,
     iconUrl: getPlatformIconUrl(config),
     color: config.color,

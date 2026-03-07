@@ -311,7 +311,7 @@ export class ChatGPTAdapter extends BaseAdapter {
 
     const iframeSrc = iframe.getAttribute('src')?.trim() || ''
     const inlineTitle = this.extractText(container.querySelector('h1, h2, h3'))
-    const title = inlineTitle || '深度调研报告'
+    const title = inlineTitle || 'Deep Research Report'
     const cached = iframeSrc ? deepResearchFrameCache.get(this.normalizeUrl(iframeSrc)) : undefined
 
     let finalContent = content.trim()
@@ -327,7 +327,7 @@ export class ChatGPTAdapter extends BaseAdapter {
     }
 
     if (iframeSrc) {
-      const linkLine = `报告链接：${iframeSrc}`
+      const linkLine = `Report URL: ${iframeSrc}`
       if (!finalContent) {
         // 深度调研正文在跨域 iframe 内，主文档侧通常不可直接读取
         finalContent = `${title}\n\n${linkLine}`

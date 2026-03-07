@@ -50,6 +50,7 @@ export default {
     "comparisonTitle": "版本比较",
     "version": "版本 {version}",
     "currentVersion": "当前版本",
+    "revertNote": "恢复到 v{version}",
     "additions": "+{count} 处增加",
     "deletions": "-{count} 处删除",
     "justNow": "刚刚",

@@ -53,6 +53,7 @@ export default {
     comparisonTitle: "版本比較",
     version: "版本 {version}",
     currentVersion: "目前版本",
+    revertNote: "還原到 v{version}",
     additions: "+{count} 處新增",
     deletions: "-{count} 處刪除",
     justNow: "剛剛",

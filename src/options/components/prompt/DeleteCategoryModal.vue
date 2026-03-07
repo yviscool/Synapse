@@ -402,7 +402,7 @@ async function handleDelete() {
         console.error("Deletion failed:", error);
         showToast(
             t("categories.batchDeleteModal.deleteFailedWithError", {
-                error: (error as Error).message,
+                error: t("categories.batchDeleteModal.operationFailedError"),
             }),
             "error",
         );

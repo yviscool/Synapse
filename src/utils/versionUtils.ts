@@ -3,6 +3,7 @@ import { db } from '@/stores/db' // Keep for read-only
 import { repository } from '@/stores/repository'
 import type { PromptVersion } from '@/types/prompt'
 import DiffMatchPatch from 'diff-match-patch'
+import { createI18nError } from '@/utils/i18nError'
 
 const dmp = new DiffMatchPatch()
 type TextDiff = [number, string]
@@ -69,7 +70,7 @@ async function renderDiffAsMarkdown(diffs: TextDiff[]): Promise<string> {
 export async function applyVersion(promptId: string, versionId: string): Promise<void> {
   const { ok, error } = await repository.applyVersion(promptId, versionId)
   if (!ok) {
-    throw error || new Error('Failed to apply version')
+    throw error || createI18nError('common.errors.version.applyFailed')
   }
 }
 
@@ -79,7 +80,7 @@ export async function applyVersion(promptId: string, versionId: string): Promise
 export async function deleteVersion(versionId: string): Promise<void> {
   const { ok, error } = await repository.deleteVersion(versionId)
   if (!ok) {
-    throw error || new Error('Failed to delete version')
+    throw error || createI18nError('common.errors.version.deleteFailed')
   }
 }
 

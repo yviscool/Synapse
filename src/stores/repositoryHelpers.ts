@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { MSG } from "@/utils/messaging";
 import type { Dexie, Transaction } from "dexie";
+import { createI18nError, isI18nError } from "@/utils/i18nError";
 
 // ============================================
 // Generic Event Bus Factory
@@ -8,10 +9,16 @@ import type { Dexie, Transaction } from "dexie";
 type Handler = (data?: unknown) => void;
 
 function normalizeError(error: unknown): Error {
-  if (error instanceof Error) {
+  if (isI18nError(error)) {
     return error;
   }
-  return new Error(typeof error === "string" ? error : "Unknown repository error");
+  if (error instanceof Error) {
+    return createI18nError("common.errors.repository.unknownRepositoryError");
+  }
+  if (typeof error === "string") {
+    return createI18nError("common.errors.repository.unknownRepositoryError");
+  }
+  return createI18nError("common.errors.repository.unknownRepositoryError");
 }
 
 export interface EventBus<T extends string> {
@@ -93,7 +100,11 @@ export function createCommitNotifier<T extends string>(
     } catch (error) {
       const normalizedError = normalizeError(error);
       console.error(
-        `[${logTag}] Error during transaction for event '${eventType}':`,
+        `[${logTag}] Error during transaction for event '${eventType}' (raw):`,
+        error,
+      );
+      console.error(
+        `[${logTag}] Error during transaction for event '${eventType}' (normalized):`,
         normalizedError,
       );
       return { ok: false, error: normalizedError };

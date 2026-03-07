@@ -50,6 +50,7 @@ export default {
     comparisonTitle: "Сравнение версий",
     version: "Версия {version}",
     currentVersion: "Текущая версия",
+    revertNote: "Восстановлено до v{version}",
     additions: "+{count} добавлений",
     deletions: "-{count} удалений",
     justNow: "Только что",

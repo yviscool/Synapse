@@ -7,6 +7,8 @@ export default {
     chatgpt: "ChatGPT",
     claude: "Claude",
     gemini: "Gemini",
+    aistudio: "AI Studio",
+    inception: "Inception",
     deepseek: "DeepSeek",
     kimi: "Kimi",
     doubao: "Doubao",
@@ -14,6 +16,8 @@ export default {
     yuanbao: "Tencent Yuanbao",
     grok: "Grok",
     copilot: "Copilot",
+    minimax: "MiniMax",
+    zai: "ZAI",
     other: "Other",
   },
 
@@ -69,6 +73,12 @@ export default {
     deleteMessage: "Delete message",
     edited: "Edited",
     user: "User",
+    editPlaceholder: "Edit message...",
+    imageAttachment: "image",
+  },
+
+  defaults: {
+    untitledConversation: "Untitled Conversation",
   },
 
   // Actions

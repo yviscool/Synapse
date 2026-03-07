@@ -11,6 +11,7 @@ import { getSiteConfig } from '@/content/site-configs'
 import { MSG } from '@/utils/messaging'
 import { countConversationTurns, type SyncState, type ChatConversation, type ChatMessage } from '@/types/chat'
 import { getNavigationApi } from '@/types/navigation'
+import { getI18nErrorMessage } from '@/utils/i18nError'
 
 export interface UseSyncEngineOptions {
   /** Debounce delay for observer-triggered sync */
@@ -280,7 +281,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
 
       const result = await collect({ isAutoSync })
       if (!result.success || !result.conversation) {
-        throw new Error(result.error || 'collect failed')
+        throw new Error(result.error || getI18nErrorMessage('common.errors.collect.collectFailed'))
       }
 
       const messages = result.conversation.messages || []
@@ -336,7 +337,7 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       })
 
       if (!response?.ok) {
-        throw new Error(response?.error || 'save failed')
+        throw new Error(response?.error || getI18nErrorMessage('common.errors.collect.saveFailed'))
       }
 
       lastSavedKey = saveKey
@@ -353,7 +354,9 @@ export function useSyncEngine(options: UseSyncEngineOptions = {}) {
       stopStatusReset()
       startStatusReset()
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'sync failed'
+      const errorMsg = error instanceof Error
+        ? error.message
+        : getI18nErrorMessage('common.errors.collect.syncFailed')
       syncState.value.status = 'error'
       syncState.value.error = errorMsg
       stopStatusReset()

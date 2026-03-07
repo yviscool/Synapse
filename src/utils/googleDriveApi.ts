@@ -4,6 +4,8 @@
  * This module encapsulates all interactions with the Google Drive API.
  */
 
+import { createI18nError } from '@/utils/i18nError'
+
 const API_BASE_URL = 'https://www.googleapis.com/drive/v3'
 const API_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files'
 const APP_FOLDER_NAME = 'SynapseApp'
@@ -68,7 +70,7 @@ export async function listBackupFiles(): Promise<FileMetadata[]> {
     headers: { 'Authorization': `Bearer ${token}` },
   });
   if (!response.ok) {
-    throw new Error('Failed to list backup files.');
+    throw createI18nError('common.errors.drive.listBackupFilesFailed');
   }
   const data: unknown = await response.json();
   return readFileList(data);
@@ -95,7 +97,7 @@ async function getAuthToken(): Promise<string> {
     chrome.identity.getAuthToken({ interactive: true }, (result) => {
       const token = typeof result === 'string' ? result : result?.token
       if (chrome.runtime.lastError || !token) {
-        reject(new Error(chrome.runtime.lastError?.message || 'Failed to get auth token.'))
+        reject(createI18nError('common.errors.drive.getAuthTokenFailed'))
       } else {
         resolve(token)
       }
@@ -113,11 +115,11 @@ export async function getUserProfile(): Promise<GoogleUserProfile> {
     headers: { 'Authorization': `Bearer ${token}` },
   })
   if (!response.ok) {
-    throw new Error('Failed to fetch user profile.')
+    throw createI18nError('common.errors.drive.fetchUserProfileFailed')
   }
   const payload: unknown = await response.json()
   if (!isJsonObject(payload) || typeof payload.name !== 'string' || typeof payload.email !== 'string') {
-    throw new Error('Invalid user profile payload.')
+    throw createI18nError('common.errors.drive.invalidUserProfilePayload')
   }
 
   return {
@@ -138,7 +140,7 @@ export async function findOrCreateAppFolder(): Promise<string> {
     headers: { 'Authorization': `Bearer ${token}` },
   })
   if (!response.ok) {
-    throw new Error('Failed to query app folder.')
+    throw createI18nError('common.errors.drive.queryAppFolderFailed')
   }
 
   const data: unknown = await response.json()
@@ -164,7 +166,7 @@ export async function findOrCreateAppFolder(): Promise<string> {
   })
   const createData = await createResponse.json()
   if (!isJsonObject(createData) || typeof createData.id !== 'string' || !createData.id) {
-    throw new Error('Invalid app folder creation response.')
+    throw createI18nError('common.errors.drive.invalidAppFolderCreationResponse')
   }
   return createData.id
 }
@@ -182,7 +184,7 @@ export async function getBackupFileMetadata(appFolderId: string, fileName: strin
     headers: { 'Authorization': `Bearer ${token}` },
   })
   if (!response.ok) {
-    throw new Error('Failed to fetch backup file metadata.')
+    throw createI18nError('common.errors.drive.fetchBackupFileMetadataFailed')
   }
   const data: unknown = await response.json()
   const files = readFileList(data)
@@ -200,7 +202,7 @@ export async function downloadBackupFile<T = unknown>(fileId: string): Promise<T
     headers: { 'Authorization': `Bearer ${token}` },
   })
   if (!response.ok) {
-    throw new Error('Failed to download backup file.')
+    throw createI18nError('common.errors.drive.downloadBackupFileFailed')
   }
   return await response.json() as T
 }
@@ -241,7 +243,7 @@ export async function uploadNewBackup(data: object): Promise<void> {
   });
 
   if (!createResponse.ok) {
-    throw new Error('Failed to create remote file metadata.');
+    throw createI18nError('common.errors.drive.createRemoteFileMetadataFailed');
   }
 
   const newFile = await createResponse.json();
@@ -257,6 +259,6 @@ export async function uploadNewBackup(data: object): Promise<void> {
   });
 
   if (!uploadResponse.ok) {
-    throw new Error('Failed to upload content to new file.');
+    throw createI18nError('common.errors.drive.uploadRemoteFileContentFailed');
   }
 }

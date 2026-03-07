@@ -13,6 +13,7 @@ export default {
   feedback: "回饋或貢獻",
   more: "更多",
   edit: "編輯",
+  close: "關閉",
   add: "新增",
   allLoaded: "已載入全部",
   refresh: "重新整理",
