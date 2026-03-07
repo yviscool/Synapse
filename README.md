@@ -1,4 +1,4 @@
-[简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md) | [日本語](docs/README.ja-JP.md) | [한국어](docs/README.ko.md) | [Deutsch](docs/README.de.md) | [Русский](docs/README.ru-RU.md)
+[简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md) | [English](README.md) | [Español](docs/README.es.md) | [Français](docs/README.fr.md) | [Português (Brasil)](docs/README.pt-BR.md) | [Italiano](docs/README.it.md) | [Türkçe](docs/README.tr.md) | [Bahasa Indonesia](docs/README.id.md) | [日本語](docs/README.ja-JP.md) | [한국어](docs/README.ko.md) | [Deutsch](docs/README.de.md) | [Русский](docs/README.ru-RU.md)
 
 # Synapse - Your AI Toolbox
 
@@ -85,6 +85,24 @@ Synapse is a browser extension built for your AI workflow — combining prompt m
 
 ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencent Yuanbao · Grok · Copilot · MiniMax · Zhipu ChatGLM and more
 
+## 🌎 Supported UI Languages
+
+* 简体中文 (`zh-CN`)
+* 繁體中文 (`zh-TW`)
+* English (`en`)
+* Español (`es`)
+* Français (`fr`)
+* Português (Brasil) (`pt-BR`)
+* Italiano (`it`)
+* Türkçe (`tr`)
+* Bahasa Indonesia (`id`)
+* Deutsch (`de`)
+* 日本語 (`ja-JP`)
+* 한국어 (`ko`)
+* Русский (`ru-RU`)
+
+> Note: `es/fr/pt-BR/it/tr/id` are newly added locale entries and currently use the English message set as the baseline.
+
 ## 🚀 Usage Guide
 
 * In the **AI website input box**, type `/p` or press `Alt + K` to bring up the **Prompt Selector**
@@ -114,3 +132,4 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ## 📜 License
 
 This project is licensed under the [MIT License](./LICENSE)
+

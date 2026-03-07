@@ -113,6 +113,12 @@
                 <option value="en">{{ getLocaleLabel('en') }}</option>
                 <option disabled class="text-gray-300">──────────</option>
                 <option value="zh-TW">{{ getLocaleLabel('zh-TW') }}</option>
+                <option value="es">{{ getLocaleLabel('es') }}</option>
+                <option value="fr">{{ getLocaleLabel('fr') }}</option>
+                <option value="pt-BR">{{ getLocaleLabel('pt-BR') }}</option>
+                <option value="it">{{ getLocaleLabel('it') }}</option>
+                <option value="tr">{{ getLocaleLabel('tr') }}</option>
+                <option value="id">{{ getLocaleLabel('id') }}</option>
                 <option value="de">{{ getLocaleLabel('de') }}</option>
                 <option value="ja-JP">{{ getLocaleLabel('ja-JP') }}</option>
                 <option value="ko">{{ getLocaleLabel('ko') }}</option>
@@ -333,6 +339,12 @@ const LOCALE_NAME_KEY_MAP: Record<SupportedLocale, string> = {
   'zh-CN': 'zhCN',
   'zh-TW': 'zhTW',
   en: 'en',
+  es: 'es',
+  fr: 'fr',
+  'pt-BR': 'ptBR',
+  it: 'it',
+  tr: 'tr',
+  id: 'id',
   de: 'de',
   'ja-JP': 'jaJP',
   ko: 'ko',
