@@ -10,7 +10,7 @@
  *           └── .markdown-pc-special-class .qk-markdown       ← 主回复
  */
 
-import { BaseAdapter, DEFAULT_TITLE } from './base'
+import { BaseAdapter } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 const USER_ITEM_SELECTOR = '[class^="questionItem-"], [class*=" questionItem-"]'
@@ -52,21 +52,12 @@ export class QianwenAdapter extends BaseAdapter {
   }
 
   override getTitle(): string {
-    const pageTitle = document.title
-      .replace(/\s*[-–—|·]\s*(通义千问|千问|Qwen)\s*$/i, '')
-      .trim()
-
-    if (pageTitle && pageTitle.length > 1) return pageTitle
-
-    const firstUser = document.querySelector(
-      `#qwen-message-list-area ${USER_ITEM_SELECTOR} ${USER_BUBBLE_SELECTOR}`,
-    )
-    if (firstUser) {
-      const text = this.extractText(firstUser)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—|·]\s*(通义千问|千问|Qwen)\s*$/i],
+      denylist: ['通义千问', '千问', 'Qwen'],
+      firstUserSelectors: [`#qwen-message-list-area ${USER_ITEM_SELECTOR} ${USER_BUBBLE_SELECTOR}`],
+      minLength: 1,
+    })
   }
 
   /**

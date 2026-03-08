@@ -190,10 +190,68 @@ export abstract class BaseAdapter implements PlatformAdapter {
    * UI 交互策略：
    * - 手动采集：允许交互（可展开思考/切换 tab）
    * - 自动同步：允许交互，优先保证完整采集（站点可在子类中自行收敛）
+   *
+   * 手术记录（2026-03）：
+   * 曾尝试按 isAutoSync + visibilityState 收敛自动同步交互，以减少页面扰动，
+   * 但会在前台自动同步时降低 thinking / 折叠内容采集完整度。
+   * 当前按“完整采集优先”恢复为恒 true。
+   *
+   * 后续若要升级为“可配置策略”，建议提供三档：
+   * 1) full: 恒 true（完整优先）
+   * 2) background-only: 仅 document.visibilityState === 'hidden' 时交互
+   * 3) manual-only: 仅手动采集时交互
    */
   protected shouldInteractWithUi(options?: CollectOptions): boolean {
     void options
     return true
+  }
+
+  /**
+   * 标题截断：统一“首条用户消息 → 对话标题”的降级策略
+   */
+  protected truncateTitle(text: string, maxLength = 50): string {
+    const normalized = this.cleanText(text)
+    if (!normalized) return ''
+    return normalized.slice(0, maxLength) + (normalized.length > maxLength ? '...' : '')
+  }
+
+  /**
+   * 平台标题回退：
+   * 1) document.title 去品牌后缀
+   * 2) 若不可用则回退首条用户消息
+   */
+  protected resolveTitleFallback(options: {
+    removeSuffixPatterns?: RegExp[]
+    denylist?: string[]
+    firstUserSelectors?: string[]
+    minLength?: number
+    maxLength?: number
+  }): string {
+    const {
+      removeSuffixPatterns = [],
+      denylist = [],
+      firstUserSelectors = [],
+      minLength = 2,
+      maxLength = 50,
+    } = options
+
+    let pageTitle = this.cleanText(document.title)
+    for (const pattern of removeSuffixPatterns) {
+      pageTitle = pageTitle.replace(pattern, '').trim()
+    }
+
+    if (pageTitle && pageTitle.length > minLength) {
+      const lowered = pageTitle.toLowerCase()
+      const blocked = denylist.some((item) => lowered === this.cleanText(item).toLowerCase())
+      if (!blocked) return pageTitle
+    }
+
+    for (const selector of firstUserSelectors) {
+      const text = this.extractText(document.querySelector(selector))
+      if (text) return this.truncateTitle(text, maxLength)
+    }
+
+    return DEFAULT_TITLE
   }
 
   /**

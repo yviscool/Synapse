@@ -15,6 +15,7 @@
 
 import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
+import { startsWithMermaidSyntax } from './shared/mermaid'
 
 export class CopilotAdapter extends BaseAdapter {
   private resolveConversationRoot(): ParentNode {
@@ -40,11 +41,6 @@ export class CopilotAdapter extends BaseAdapter {
     return best
   }
 
-  private isMermaidContent(code: string): boolean {
-    const trimmed = code.trim()
-    return /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|xychart|block-beta|packet-beta|architecture-beta|kanban)/i.test(trimmed)
-  }
-
   override isConversationPage(): boolean {
     if (!super.isConversationPage()) return false
     return !!document.querySelector('[data-content="user-message"], [data-content="ai-message"]')
@@ -54,18 +50,11 @@ export class CopilotAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title
-      .replace(/\s*[-–—|]\s*(Microsoft\s+)?Copilot\s*$/i, '')
-      .trim()
-    if (pageTitle && !/^copilot$/i.test(pageTitle)) return pageTitle
-
-    const firstUser = document.querySelector('[data-content="user-message"]')
-    if (firstUser) {
-      const text = this.extractText(firstUser)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—|]\s*(Microsoft\s+)?Copilot\s*$/i],
+      denylist: ['Copilot', 'Microsoft Copilot'],
+      firstUserSelectors: ['[data-content="user-message"]'],
+    })
   }
 
   override getConversationId(): string | null {
@@ -137,7 +126,7 @@ export class CopilotAdapter extends BaseAdapter {
 
       const cardLang = (codeCard?.querySelector('span.capitalize')?.textContent || '').trim().toLowerCase()
       const rawLang = (classLang || cardLang).trim().toLowerCase()
-      const lang = this.isMermaidContent(codeText)
+      const lang = startsWithMermaidSyntax(codeText)
         ? 'mermaid'
         : (rawLang === 'text' ? '' : rawLang)
       const fenced = `\n\`\`\`${lang}\n${codeText}\n\`\`\`\n\n`

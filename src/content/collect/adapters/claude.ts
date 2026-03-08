@@ -10,16 +10,11 @@ export class ClaudeAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title.replace(' - Claude', '').trim()
-    if (pageTitle && pageTitle !== 'Claude') return pageTitle
-
-    const firstUserMessage = document.querySelector('[data-testid="user-message"]')
-    if (firstUserMessage) {
-      const text = this.extractText(firstUserMessage)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*-\s*Claude\s*$/i],
+      denylist: ['Claude'],
+      firstUserSelectors: ['[data-testid="user-message"]'],
+    })
   }
 
   collectMessages(): ChatMessage[] {

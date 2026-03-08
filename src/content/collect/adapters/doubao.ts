@@ -25,18 +25,11 @@ export class DoubaoAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title.replace(/\s*[-–—]\s*豆包\s*$/i, '').trim()
-    if (pageTitle && pageTitle !== '豆包') return pageTitle
-
-    const firstUser = document.querySelector(
-      '[data-testid="send_message"] [data-testid="message_text_content"]'
-    )
-    if (firstUser) {
-      const text = this.extractText(firstUser)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—]\s*豆包\s*$/i],
+      denylist: ['豆包'],
+      firstUserSelectors: ['[data-testid="send_message"] [data-testid="message_text_content"]'],
+    })
   }
 
   /**

@@ -32,20 +32,11 @@ export class AIStudioAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title
-      .replace(/\s*[-–—]\s*(Google\s+)?AI\s*Studio\s*$/i, '')
-      .trim()
-    if (pageTitle && pageTitle !== 'Google AI Studio') return pageTitle
-
-    const firstUser = document.querySelector(
-      'ms-chat-turn .chat-turn-container.user ms-cmark-node.user-chunk'
-    )
-    if (firstUser) {
-      const text = this.extractText(firstUser)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—]\s*(Google\s+)?AI\s*Studio\s*$/i],
+      denylist: ['Google AI Studio', 'AI Studio'],
+      firstUserSelectors: ['ms-chat-turn .chat-turn-container.user ms-cmark-node.user-chunk'],
+    })
   }
 
   /**

@@ -3,7 +3,7 @@
  * 尝试通过通用选择器采集对话
  */
 
-import { BaseAdapter, DEFAULT_TITLE } from './base'
+import { BaseAdapter } from './base'
 import type { ChatMessage } from '@/types/chat'
 
 export class GenericAdapter extends BaseAdapter {
@@ -57,47 +57,34 @@ export class GenericAdapter extends BaseAdapter {
   }
 
   getTitle(): string {
-    // 从页面标题获取
-    const pageTitle = document.title
-      .replace(/[-|·].*$/, '')
-      .trim()
-
-    if (pageTitle && pageTitle.length > 2) {
-      return pageTitle
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/[-|·].*$/],
+      minLength: 2,
+    })
   }
 
   collectMessages(): ChatMessage[] {
-    const messages: ChatMessage[] = []
-    let messageElements: Element[] = []
+    const candidates = this.collectCandidateElements()
+    const picked: Array<{ el: Element; role: 'user' | 'assistant'; content: string; score: number }> = []
 
-    // 尝试各种选择器
-    for (const selector of this.MESSAGE_SELECTORS) {
-      const elements = document.querySelectorAll(selector)
-      if (elements.length > 0) {
-        messageElements = Array.from(elements)
-        break
+    for (const candidate of candidates) {
+      if (picked.some((item) => item.el.contains(candidate.el) || candidate.el.contains(item.el))) {
+        continue
       }
+      picked.push(candidate)
     }
 
-    messageElements.forEach((el) => {
-      const role = this.detectRole(el)
-      if (!role) return
-
-      const content = this.extractContent(el)
-      if (!content) return
-
-      messages.push({
-        id: this.generateMessageId(),
-        role,
-        content,
-        timestamp: Date.now(),
-      })
+    const ordered = picked.sort((a, b) => {
+      if (a.el === b.el) return 0
+      return a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
     })
 
-    return messages
+    return ordered.map((item) => ({
+      id: this.generateMessageId(),
+      role: item.role,
+      content: item.content,
+      timestamp: Date.now(),
+    }))
   }
 
   /**
@@ -116,7 +103,7 @@ export class GenericAdapter extends BaseAdapter {
     }
 
     // 检查类名
-    const className = element.className.toLowerCase()
+    const className = (element.getAttribute('class') || '').toLowerCase()
     if (this.USER_INDICATORS.some(i => className.includes(i))) return 'user'
     if (this.AI_INDICATORS.some(i => className.includes(i))) return 'assistant'
 
@@ -128,6 +115,31 @@ export class GenericAdapter extends BaseAdapter {
     if (hasAiAvatar) return 'assistant'
 
     return null
+  }
+
+  private collectCandidateElements(): Array<{ el: Element; role: 'user' | 'assistant'; content: string; score: number }> {
+    const scoreMap = new Map<Element, number>()
+
+    this.MESSAGE_SELECTORS.forEach((selector, index) => {
+      const weight = (this.MESSAGE_SELECTORS.length - index) * 10
+      const nodes = document.querySelectorAll(selector)
+      nodes.forEach((node) => {
+        scoreMap.set(node, (scoreMap.get(node) || 0) + weight)
+      })
+    })
+
+    const candidates: Array<{ el: Element; role: 'user' | 'assistant'; content: string; score: number }> = []
+    for (const [el, score] of scoreMap.entries()) {
+      const role = this.detectRole(el)
+      if (!role) continue
+
+      const content = this.extractContent(el).trim()
+      if (!content) continue
+
+      candidates.push({ el, role, content, score })
+    }
+
+    return candidates.sort((a, b) => b.score - a.score)
   }
 
   /**

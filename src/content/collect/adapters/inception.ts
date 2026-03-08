@@ -17,21 +17,9 @@
 
 import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
+import { sanitizeMermaidCode, startsWithMermaidSyntax } from './shared/mermaid'
 
 export class InceptionAdapter extends BaseAdapter {
-  private startsWithMermaidSyntax(code: string): boolean {
-    const normalized = code.trim().replace(/^(?:%%\{[\s\S]*?\}%%\s*)+/i, '').trimStart()
-    return /^(?:graph\b|flowchart\b|sequenceDiagram\b|classDiagram\b|stateDiagram(?:-v2)?\b|erDiagram\b|gantt\b|pie\b|gitgraph\b|journey\b|mindmap\b|timeline\b|quadrantChart\b|sankey\b|xychart(?:-beta)?\b|block-beta\b|packet-beta\b|architecture-beta\b|kanban\b)/i.test(normalized)
-  }
-
-  private sanitizeCode(text: string): string {
-    return (text || '')
-      .replace(/\u00A0/g, ' ')
-      .replace(/\u200B/g, '')
-      .replace(/\r\n?/g, '\n')
-      .trim()
-  }
-
   private extractMermaidCode(container: Element): string {
     const candidates = [
       ...Array.from(container.querySelectorAll('pre code.language-mermaid, code.language-mermaid')),
@@ -41,14 +29,14 @@ export class InceptionAdapter extends BaseAdapter {
 
     for (const el of candidates) {
       const values = [
-        this.sanitizeCode(el.textContent || ''),
-        this.sanitizeCode(el.getAttribute('data-mermaid-source') || ''),
-        this.sanitizeCode(el.getAttribute('data-source') || ''),
-        this.sanitizeCode(el.getAttribute('data-code') || ''),
-        this.sanitizeCode(el.getAttribute('data-clipboard-text') || ''),
+        sanitizeMermaidCode(el.textContent || ''),
+        sanitizeMermaidCode(el.getAttribute('data-mermaid-source') || ''),
+        sanitizeMermaidCode(el.getAttribute('data-source') || ''),
+        sanitizeMermaidCode(el.getAttribute('data-code') || ''),
+        sanitizeMermaidCode(el.getAttribute('data-clipboard-text') || ''),
       ]
       for (const value of values) {
-        if (value && this.startsWithMermaidSyntax(value)) return value
+        if (value && startsWithMermaidSyntax(value)) return value
       }
     }
 
@@ -89,18 +77,11 @@ export class InceptionAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title
-      .replace(/\s*[-–—|·]\s*Inception(?:\s*Labs)?\s*$/i, '')
-      .trim()
-    if (pageTitle && pageTitle.length > 2) return pageTitle
-
-    const firstUser = document.querySelector('.user-message .chat-user .rounded-3xl, .user-message .chat-user')
-    if (firstUser) {
-      const text = this.extractText(firstUser)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—|·]\s*Inception(?:\s*Labs)?\s*$/i],
+      denylist: ['Inception', 'Inception Labs'],
+      firstUserSelectors: ['.user-message .chat-user .rounded-3xl, .user-message .chat-user'],
+    })
   }
 
   collectMessages(): ChatMessage[] {

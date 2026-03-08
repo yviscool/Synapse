@@ -26,13 +26,9 @@
 
 import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { ChatMessage } from '@/types/chat'
+import { startsWithMermaidSyntax } from './shared/mermaid'
 
 export class KimiAdapter extends BaseAdapter {
-  private isMermaidContent(code: string): boolean {
-    const trimmed = code.trim()
-    return /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|xychart|block-beta|packet-beta|architecture-beta|kanban)/i.test(trimmed)
-  }
-
   private extractMermaidCode(container: Element): string {
     const directMermaid =
       container.querySelector('.markdown-code-content pre code.language-mermaid') ||
@@ -51,7 +47,7 @@ export class KimiAdapter extends BaseAdapter {
       .replace(/\u00A0/g, ' ')
       .replace(/\u200B/g, '')
       .trim()
-    if (this.isMermaidContent(fallbackText)) return fallbackText
+    if (startsWithMermaidSyntax(fallbackText)) return fallbackText
 
     return ''
   }
@@ -100,16 +96,11 @@ export class KimiAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title.replace(/\s*[-–—]\s*Kimi\s*$/i, '').trim()
-    if (pageTitle && pageTitle !== 'Kimi') return pageTitle
-
-    const firstUser = document.querySelector('.chat-content-item-user .user-content')
-    if (firstUser) {
-      const text = this.extractText(firstUser)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—]\s*Kimi\s*$/i],
+      denylist: ['Kimi'],
+      firstUserSelectors: ['.chat-content-item-user .user-content'],
+    })
   }
 
   collectMessages(): ChatMessage[] {

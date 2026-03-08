@@ -22,8 +22,8 @@ import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { CollectOptions, CollectResult } from './base'
 import type { ChatMessage } from '@/types/chat'
 import { MSG } from '@/utils/messaging'
+import { startsWithMermaidSyntax } from './shared/mermaid'
 
-const MERMAID_RE = /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|xychart|block-beta|packet-beta|architecture-beta|kanban)/i
 const DEEP_RESEARCH_IFRAME_SELECTOR = [
   'iframe[title="internal://deep-research"]',
   'iframe[src*="connector_openai_deep_research"]',
@@ -208,16 +208,11 @@ export class ChatGPTAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title.replace(' | ChatGPT', '').replace('ChatGPT', '').trim()
-    if (pageTitle && pageTitle !== 'ChatGPT') return pageTitle
-
-    const firstUserMessage = document.querySelector('[data-message-author-role="user"]')
-    if (firstUserMessage) {
-      const text = this.extractText(firstUserMessage)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*\|\s*ChatGPT\s*$/i, /\s*ChatGPT\s*$/i],
+      denylist: ['ChatGPT'],
+      firstUserSelectors: ['[data-message-author-role="user"]'],
+    })
   }
 
   protected override preprocessClone(clone: Element): void {
@@ -240,7 +235,7 @@ export class ChatGPTAdapter extends BaseAdapter {
       const codeText = cmContent.textContent || ''
 
       // 按内容检测 mermaid（语言标签可能缺失或为通用名）
-      if (MERMAID_RE.test(codeText.trim())) lang = 'mermaid'
+      if (startsWithMermaidSyntax(codeText)) lang = 'mermaid'
 
       pre.replaceWith(`\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`)
     })

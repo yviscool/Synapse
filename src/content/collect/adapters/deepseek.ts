@@ -392,16 +392,11 @@ export class DeepSeekAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title.replace(/\s*[-–—]\s*DeepSeek\s*$/i, '').trim()
-    if (pageTitle && pageTitle !== 'DeepSeek') return pageTitle
-
-    const firstUser = document.querySelector('.fbb737a4')
-    if (firstUser) {
-      const text = this.extractText(firstUser)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—]\s*DeepSeek\s*$/i],
+      denylist: ['DeepSeek'],
+      firstUserSelectors: ['.fbb737a4'],
+    })
   }
 
   /**

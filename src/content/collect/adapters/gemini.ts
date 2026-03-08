@@ -41,6 +41,7 @@
 import { BaseAdapter, DEFAULT_TITLE } from './base'
 import type { CollectResult, CollectOptions } from './base'
 import type { ChatMessage } from '@/types/chat'
+import { startsWithMermaidSyntax } from './shared/mermaid'
 
 // 模块级 thinking 缓存：按 container id 存储已展开过的 thinking 文本
 // 自动同步时 thinking 折叠无 DOM，从缓存读取；手动采集或用户展开时写入缓存
@@ -55,31 +56,21 @@ export class GeminiAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title
-      .replace(/\s*[-–—]\s*(Google\s+)?Gemini\s*$/i, '')
-      .trim()
-    if (pageTitle) return pageTitle
-
-    const firstQuery = document.querySelector('user-query .query-text')
-    if (firstQuery) {
-      const text = this.extractText(firstQuery)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
+    const fallback = this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—]\s*(Google\s+)?Gemini\s*$/i],
+      denylist: ['Gemini', 'Google Gemini'],
+      firstUserSelectors: ['user-query .query-text'],
+    })
+    if (fallback !== DEFAULT_TITLE) return fallback
 
     const deepResearchH1 = document.querySelector('#extended-response-markdown-content h1')
       || document.querySelector('deep-research-immersive-panel .markdown-main-panel h1')
     if (deepResearchH1) {
       const text = this.extractText(deepResearchH1)
-      if (text) return text.slice(0, 80) + (text.length > 80 ? '...' : '')
+      if (text) return this.truncateTitle(text, 80)
     }
 
     return DEFAULT_TITLE
-  }
-
-  /** 检测代码内容是否为 mermaid 图表语法 */
-  private isMermaidContent(code: string): boolean {
-    const trimmed = code.trim()
-    return /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|xychart|block-beta|packet-beta|architecture-beta|kanban)/i.test(trimmed)
   }
 
   /**
@@ -129,7 +120,7 @@ export class GeminiAdapter extends BaseAdapter {
       const codeText = codeEl?.textContent || ''
 
       // Gemini 有时用通用标签（如"代码段"）而非实际语言名，需按内容检测 mermaid
-      const lang = this.isMermaidContent(codeText) ? 'mermaid' : rawLang
+      const lang = startsWithMermaidSyntax(codeText) ? 'mermaid' : rawLang
 
       block
         .querySelectorAll('.code-block-decoration, [class*="code-block-decoration"], code-block-decoration')

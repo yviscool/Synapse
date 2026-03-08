@@ -22,16 +22,11 @@ export class MiniMaxAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title.replace(/\s*[-–—]\s*海螺AI\s*$/i, '').trim()
-    if (pageTitle && pageTitle !== '海螺AI') return pageTitle
-
-    const firstUser = document.querySelector('.message.sent .message-content .text-pretty')
-    if (firstUser) {
-      const text = this.extractText(firstUser)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—]\s*海螺AI\s*$/i],
+      denylist: ['海螺AI'],
+      firstUserSelectors: ['.message.sent .message-content .text-pretty'],
+    })
   }
 
   /** MiniMax 的 getConversationId 从 query param 提取 */

@@ -26,16 +26,11 @@ export class ZAIAdapter extends BaseAdapter {
     const base = super.getTitle()
     if (base !== DEFAULT_TITLE) return base
 
-    const pageTitle = document.title.replace(/\s*[-–—]\s*智谱清言\s*$/i, '').trim()
-    if (pageTitle && pageTitle !== '智谱清言') return pageTitle
-
-    const firstUser = document.querySelector('.user-message div[class*="rounded-xl"]')
-    if (firstUser) {
-      const text = this.extractText(firstUser)
-      return text.slice(0, 50) + (text.length > 50 ? '...' : '')
-    }
-
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—]\s*智谱清言\s*$/i],
+      denylist: ['智谱清言'],
+      firstUserSelectors: ['.user-message div[class*="rounded-xl"]'],
+    })
   }
 
   /**

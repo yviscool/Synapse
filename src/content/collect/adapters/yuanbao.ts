@@ -18,15 +18,11 @@
  * 标题：document.title
  */
 
-import { BaseAdapter, DEFAULT_TITLE } from './base'
+import { BaseAdapter } from './base'
 import type { ChatMessage } from '@/types/chat'
+import { startsWithMermaidSyntax } from './shared/mermaid'
 
 export class YuanbaoAdapter extends BaseAdapter {
-  private isMermaidContent(code: string): boolean {
-    const trimmed = code.trim()
-    return /^(?:graph\s|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|xychart|block-beta|packet-beta|architecture-beta|kanban)/i.test(trimmed)
-  }
-
   /**
    * 元宝 markdown 预处理
    * - .ybc-p 段落补换行
@@ -69,7 +65,7 @@ export class YuanbaoAdapter extends BaseAdapter {
       const isMermaid =
         block.classList.contains('hyc-common-markdown__code-mermaid') ||
         classLang === 'mermaid' ||
-        this.isMermaidContent(codeText)
+        startsWithMermaidSyntax(codeText)
 
       const lang = isMermaid ? 'mermaid' : classLang
       block.replaceWith(`\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`)
@@ -77,13 +73,11 @@ export class YuanbaoAdapter extends BaseAdapter {
   }
 
   override getTitle(): string {
-    const pageTitle = document.title
-      .replace(/\s*[-–—|·]\s*腾讯元宝\s*$/i, '')
-      .replace(/\s*[-–—|·]\s*元宝\s*$/i, '')
-      .trim()
-
-    if (pageTitle && pageTitle.length > 1) return pageTitle
-    return DEFAULT_TITLE
+    return this.resolveTitleFallback({
+      removeSuffixPatterns: [/\s*[-–—|·]\s*腾讯元宝\s*$/i, /\s*[-–—|·]\s*元宝\s*$/i],
+      denylist: ['腾讯元宝', '元宝'],
+      minLength: 1,
+    })
   }
 
   collectMessages(): ChatMessage[] {
