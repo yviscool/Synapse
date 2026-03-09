@@ -281,9 +281,42 @@ export class ChatGPTAdapter extends BaseAdapter {
     return messages
   }
 
+  private extractMessageContent(container: Element, role: 'user' | 'assistant'): string {
+    const segments: string[] = []
+    const seen = new Set<Element>()
+
+    const pushSegment = (el: Element | null) => {
+      if (!el || seen.has(el)) return
+      seen.add(el)
+      const text = this.extractMarkdown(el).trim()
+      if (text) segments.push(text)
+    }
+
+    // 新版 article[data-turn] 里可能包含多个 data-message-author-role（例如预告段 + 正文）
+    const roleNodes = container.querySelectorAll(`[data-message-author-role="${role}"]`)
+    if (roleNodes.length > 0) {
+      roleNodes.forEach((node) => {
+        const contentNodes = node.querySelectorAll('.markdown, .whitespace-pre-wrap')
+        if (contentNodes.length > 0) {
+          contentNodes.forEach((contentNode) => pushSegment(contentNode))
+        } else {
+          pushSegment(node)
+        }
+      })
+    } else {
+      const contentNodes = container.querySelectorAll('.markdown, .whitespace-pre-wrap')
+      if (contentNodes.length > 0) {
+        contentNodes.forEach((contentNode) => pushSegment(contentNode))
+      } else {
+        pushSegment(container)
+      }
+    }
+
+    return segments.join('\n\n').trim()
+  }
+
   private buildMessage(container: Element, role: 'user' | 'assistant'): ChatMessage | null {
-    const contentEl = container.querySelector('.markdown, .whitespace-pre-wrap')
-    const content = contentEl ? this.extractMarkdown(contentEl).trim() : ''
+    const content = this.extractMessageContent(container, role)
 
     if (role === 'assistant') {
       const deepResearchMsg = this.buildDeepResearchMessage(container, content)
