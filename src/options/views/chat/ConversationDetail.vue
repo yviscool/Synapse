@@ -235,6 +235,14 @@
                   <div class="i-carbon-copy text-sm"></div>
                 </button>
                 <button
+                  v-if="item.message.role === 'assistant'"
+                  @click="handleExportMessage(item.originalIndex)"
+                  class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-indigo-500 rounded"
+                  :title="t('chat.actions.export')"
+                >
+                  <div class="i-carbon-download text-sm"></div>
+                </button>
+                <button
                   @click="handleDeleteMessage(item.originalIndex)"
                   class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-500 rounded"
                   :title="t('chat.detail.deleteMessage')"
@@ -677,6 +685,30 @@ function handleDeleteMessage(index: number) {
     messages: updatedMessages,
     messageCount: countConversationTurns(updatedMessages),
   })
+}
+
+// 单条 assistant 消息导出
+function buildSingleMessageExportConversation(index: number): ChatConversation | null {
+  const message = props.conversation.messages[index]
+  if (!message || message.role !== 'assistant' || message.isDeleted) {
+    return null
+  }
+
+  return {
+    ...props.conversation,
+    id: `${props.conversation.id}:message:${message.id}`,
+    title: `${props.conversation.title} - ${t('chat.roles.assistant')} ${index + 1}`,
+    messages: [message],
+    createdAt: message.timestamp ?? props.conversation.createdAt,
+    updatedAt: message.timestamp ?? props.conversation.updatedAt,
+    messageCount: countConversationTurns([message]),
+  }
+}
+
+function handleExportMessage(index: number) {
+  const singleMessageConversation = buildSingleMessageExportConversation(index)
+  if (!singleMessageConversation) return
+  emit('export', singleMessageConversation)
 }
 
 // 格式化时间
