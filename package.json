@@ -1,6 +1,6 @@
 {
   "name": "synapse",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "管理你的 AI 提示词，增强你的网站。",
   "type": "module",
   "scripts": {
