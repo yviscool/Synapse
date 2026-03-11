@@ -320,6 +320,20 @@ export abstract class BaseAdapter implements PlatformAdapter {
     })
 
     // 6. 块级元素
+    clone.querySelectorAll('li').forEach((li) => {
+      Array.from(li.childNodes).forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE && !(node.textContent || '').trim()) {
+          node.remove()
+        }
+      })
+
+      const childElements = Array.from(li.children)
+      if (childElements.length === 1 && childElements[0].tagName === 'P') {
+        const paragraph = childElements[0]
+        paragraph.replaceWith(...Array.from(paragraph.childNodes))
+      }
+    })
+
     clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'))
     clone.querySelectorAll('p').forEach((p) => p.append('\n\n'))
     clone.querySelectorAll('hr').forEach((hr) => hr.replaceWith('\n---\n'))

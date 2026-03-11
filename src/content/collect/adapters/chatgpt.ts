@@ -32,6 +32,9 @@ const DEEP_RESEARCH_IFRAME_SELECTOR = [
 ].join(', ')
 const FRAME_DOM_BRIDGE_REQUEST_TYPE = 'synapse:frame-dom-collect'
 const FRAME_DOM_BRIDGE_RESPONSE_TYPE = 'synapse:frame-dom-result'
+const MERMAID_CODE_TAB_LABEL_RE = /^(?:代码|code)$/i
+const MERMAID_PREVIEW_TAB_LABEL_RE = /^(?:预览|preview)$/i
+const MERMAID_SOURCE_MISSING_PLACEHOLDER = '\n```text\n[Mermaid 图表已预览，源码未在 DOM 中暴露]\n```\n'
 
 interface DeepResearchFrameSnapshot {
   url?: string
@@ -41,9 +44,101 @@ interface DeepResearchFrameSnapshot {
   collectedAt: number
 }
 
+interface MermaidViewSwitchContext {
+  block: HTMLElement
+}
+
 const deepResearchFrameCache = new Map<string, DeepResearchFrameSnapshot>()
 
 export class ChatGPTAdapter extends BaseAdapter {
+  private simulateClick(el: HTMLElement): void {
+    const opts: MouseEventInit = { bubbles: true, cancelable: true, view: window }
+    el.dispatchEvent(new MouseEvent('mousedown', opts))
+    el.dispatchEvent(new MouseEvent('mouseup', opts))
+    el.dispatchEvent(new MouseEvent('click', opts))
+  }
+
+  private getToggleButtonLabel(el: Element): string {
+    return (el.getAttribute('aria-label') || el.textContent || '').trim()
+  }
+
+  private findToggleButton(root: ParentNode, labelRe: RegExp): HTMLElement | null {
+    return Array.from(root.querySelectorAll<HTMLElement>('button, [role="button"]'))
+      .find(el => labelRe.test(this.getToggleButtonLabel(el))) || null
+  }
+
+  private isToggleButtonSelected(button: HTMLElement | null): boolean {
+    if (!button) return false
+
+    const ariaPressed = button.getAttribute('aria-pressed')
+    const ariaSelected = button.getAttribute('aria-selected')
+    if (ariaPressed === 'true' || ariaSelected === 'true') return true
+
+    const className = button.className.toLowerCase()
+    return className.includes('selected') || className.includes('active')
+  }
+
+  private isMermaidInteractiveBlock(root: ParentNode): root is Element {
+    if (!(root instanceof Element)) return false
+
+    const codeButton = this.findToggleButton(root, MERMAID_CODE_TAB_LABEL_RE)
+    const previewButton = this.findToggleButton(root, MERMAID_PREVIEW_TAB_LABEL_RE)
+    if (!codeButton || !previewButton) return false
+
+    if (root.querySelector('img[src^="data:image/svg+xml"]')) return true
+
+    return /\bmermaid\b/i.test(this.extractText(root))
+  }
+
+  private async waitForMermaidCodeView(block: Element, timeoutMs = 1600): Promise<boolean> {
+    const start = Date.now()
+
+    while (Date.now() - start < timeoutMs) {
+      const codeButton = this.findToggleButton(block, MERMAID_CODE_TAB_LABEL_RE)
+      const cmContent = block.querySelector('.cm-content')
+      if (cmContent && this.isToggleButtonSelected(codeButton)) return true
+      await this.sleep(80)
+    }
+
+    return !!block.querySelector('.cm-content')
+  }
+
+  private async switchMermaidBlocksToCodeView(): Promise<MermaidViewSwitchContext[]> {
+    const switched: MermaidViewSwitchContext[] = []
+    const blocks = Array.from(document.querySelectorAll<HTMLElement>('pre'))
+      .filter(block => this.isMermaidInteractiveBlock(block))
+
+    for (const block of blocks) {
+      const codeButton = this.findToggleButton(block, MERMAID_CODE_TAB_LABEL_RE)
+      const previewButton = this.findToggleButton(block, MERMAID_PREVIEW_TAB_LABEL_RE)
+      if (!codeButton || !previewButton) continue
+
+      const previewSelected = this.isToggleButtonSelected(previewButton)
+      const codeSelected = this.isToggleButtonSelected(codeButton)
+      if (codeSelected && block.querySelector('.cm-content')) continue
+
+      this.simulateClick(codeButton)
+      await this.waitForMermaidCodeView(block)
+
+      if (previewSelected) {
+        switched.push({ block })
+      }
+    }
+
+    return switched
+  }
+
+  private restoreMermaidPreviewBlocks(switched: MermaidViewSwitchContext[]): void {
+    switched.forEach(({ block }) => {
+      if (!block.isConnected) return
+
+      const previewButton = this.findToggleButton(block, MERMAID_PREVIEW_TAB_LABEL_RE)
+      if (!previewButton || this.isToggleButtonSelected(previewButton)) return
+
+      this.simulateClick(previewButton)
+    })
+  }
+
   private extractMarkdownFromFrameHtml(html: string): string {
     if (!html.trim()) return ''
 
@@ -201,7 +296,16 @@ export class ChatGPTAdapter extends BaseAdapter {
   override async collect(options?: CollectOptions): Promise<CollectResult> {
     await this.preloadDeepResearchFrameContentFromBackground()
     await this.preloadDeepResearchFrameContent()
-    return super.collect(options)
+
+    const switchedMermaidBlocks = this.shouldInteractWithUi(options)
+      ? await this.switchMermaidBlocksToCodeView()
+      : []
+
+    try {
+      return await super.collect(options)
+    } finally {
+      this.restoreMermaidPreviewBlocks(switchedMermaidBlocks)
+    }
   }
 
   override getTitle(): string {
@@ -218,8 +322,14 @@ export class ChatGPTAdapter extends BaseAdapter {
   protected override preprocessClone(clone: Element): void {
     // 1. CodeMirror 代码块（新版 ChatGPT 使用 cm-editor 渲染代码）
     clone.querySelectorAll('pre').forEach((pre) => {
+      const isMermaidBlock = this.isMermaidInteractiveBlock(pre)
       const cmContent = pre.querySelector('.cm-content')
-      if (!cmContent) return
+      if (!cmContent) {
+        if (isMermaidBlock) {
+          pre.replaceWith(MERMAID_SOURCE_MISSING_PLACEHOLDER)
+        }
+        return
+      }
 
       // 提取语言标签：遍历 pre 内叶子 div（无子元素），取第一个短文本
       let lang = ''
@@ -236,6 +346,7 @@ export class ChatGPTAdapter extends BaseAdapter {
 
       // 按内容检测 mermaid（语言标签可能缺失或为通用名）
       if (startsWithMermaidSyntax(codeText)) lang = 'mermaid'
+      else if (!lang && isMermaidBlock) lang = 'mermaid'
 
       pre.replaceWith(`\n\`\`\`${lang}\n${codeText}\n\`\`\`\n`)
     })
