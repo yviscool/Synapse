@@ -9,12 +9,15 @@
 
 import type { ChatPlatform, PlatformConfig } from '@/types/chat'
 
+export type OutlineStrategy = 'deepseek'
+
 export interface SiteConfig {
   // --- 共用 ---
   platform: ChatPlatform
   observeTarget: string
 
   // --- Outline 用 ---
+  outlineStrategy?: OutlineStrategy
   userMessage: string
   messageText: string
   scrollContainer?: string | Window
@@ -215,10 +218,11 @@ export const siteConfigs: Record<string, SiteConfig> = {
   },
   'chat.deepseek.com': {
     platform: 'deepseek',
-    observeTarget: '.dad65929',
-    userMessage: '.dad65929 > div:nth-child(odd)',
-    messageText: 'div[class*="message_message__"]',
-    waitForElement: '.dad65929 > div:nth-child(odd)',
+    observeTarget: '.ds-virtual-list-visible-items',
+    outlineStrategy: 'deepseek',
+    userMessage: ':scope > [data-virtual-list-item-key]:has(.fbb737a4)',
+    messageText: '.fbb737a4',
+    waitForElement: '.fbb737a4',
     urlPattern: /chat\.deepseek\.com/,
     conversationIdPattern: /\/a\/chat\/s\/([a-zA-Z0-9]+)/,
     titleSelector: ['.afa34042'],

@@ -34,6 +34,7 @@ import { promiseTimeout, useDebounceFn, useEventListener, useTimeoutFn } from '@
 import type { SiteConfig } from '../site-configs';
 import type { OutlineItem } from './types';
 import { smartTruncate, getIntelligentIcon } from './utils';
+import { outlineStrategies } from './strategies';
 import { getNavigationApi } from '@/types/navigation';
 
 type ProgrammaticHighlightLock = {
@@ -129,6 +130,12 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
    */
   const scanDOM = (): OutlineItem[] => {
     const newItems: OutlineItem[] = [];
+    const strategy = config.outlineStrategy ? outlineStrategies[config.outlineStrategy] : null;
+
+    if (strategy) {
+      const strategyItems = strategy(targetRef.value);
+      if (strategyItems.length > 0) return strategyItems;
+    }
 
     /**
      * 模式 A: 虚拟化列表逻辑 (例如 aistudio.google.com)

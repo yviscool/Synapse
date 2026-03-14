@@ -1,21 +1,22 @@
 /**
  * DeepSeek 平台适配器
  *
- * DOM 结构（2026-02）：
+ * DOM 结构（2026-03）：
  *   ._765a5cd (根容器)
  *     ├── ._2be88ba (顶栏)
- *     │     └── .afa34042                          ← 对话标题
+ *     │     └── .afa34042                               ← 对话标题
  *     └── ._2bd7b35 (聊天区)
- *           └── .dad65929 (消息列表)
- *                 ├── ._9663006 (用户消息组)
- *                 │     └── .d29f3d7d.ds-message
- *                 │           └── .fbb737a4         ← 用户文本
- *                 ├── ._4f9bf79 (AI 回复组)
- *                 │     └── .ds-message
- *                 │           ├── .ds-think-content
- *                 │           │     └── .ds-markdown ← thinking
- *                 │           └── .ds-markdown       ← 主回复
- *                 └── ...
+ *           └── .dad65929? (旧列表容器，可选)
+ *                 └── .ds-virtual-list-visible-items    ← 当前可见消息容器
+ *                       ├── ._9663006                    ← 用户消息组
+ *                       │     └── .d29f3d7d.ds-message
+ *                       │           └── .fbb737a4        ← 用户文本
+ *                       ├── ._4f9bf79                    ← AI 回复组
+ *                       │     └── .ds-message
+ *                       │           ├── .ds-think-content
+ *                       │           │     └── .ds-markdown ← thinking
+ *                       │           └── .ds-markdown       ← 主回复
+ *                       └── ...
  *
  *   代码块：.md-code-block > .md-code-block-banner (.d813de27 = 语言) + pre
  */
@@ -41,6 +42,31 @@ interface ThinkingToggleContext {
 }
 
 export class DeepSeekAdapter extends BaseAdapter {
+  private getMessageContainer(): HTMLElement | null {
+    const visibleContainer = document.querySelector<HTMLElement>('.ds-virtual-list-visible-items')
+    if (visibleContainer) return visibleContainer
+
+    const legacyContainer = document.querySelector<HTMLElement>('.dad65929')
+    if (!legacyContainer) return null
+
+    return legacyContainer.querySelector<HTMLElement>('.ds-virtual-list-visible-items') || legacyContainer
+  }
+
+  private getMessageGroups(container: Element): HTMLElement[] {
+    return Array.from(container.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
+  }
+
+  private isUserMessageGroup(node: HTMLElement): boolean {
+    return node.classList.contains('_9663006') || !!node.querySelector('.fbb737a4')
+  }
+
+  private isAssistantMessageGroup(node: HTMLElement): boolean {
+    if (node.classList.contains('_4f9bf79')) return true
+    if (this.isUserMessageGroup(node)) return false
+
+    return !!node.querySelector(':scope > .ds-message > .ds-markdown, :scope .ds-think-content .ds-markdown')
+  }
+
   private normalizeThinkingKey(content: string): string {
     return content
       .replace(/\u200B/g, '')
@@ -290,10 +316,10 @@ export class DeepSeekAdapter extends BaseAdapter {
 
   private async expandUncachedThinking(): Promise<ThinkingToggleContext[]> {
     const expanded: ThinkingToggleContext[] = []
-    const container = document.querySelector('.dad65929')
+    const container = this.getMessageContainer()
     if (!container) return expanded
 
-    const assistants = Array.from(container.children).filter((el) => el.classList.contains('_4f9bf79'))
+    const assistants = this.getMessageGroups(container).filter((el) => this.isAssistantMessageGroup(el))
     for (const assistant of assistants) {
       if (this.hasThinkingContent(assistant)) continue
 
@@ -470,17 +496,17 @@ export class DeepSeekAdapter extends BaseAdapter {
     const messages: ChatMessage[] = []
 
     // 消息列表容器
-    const container = document.querySelector('.dad65929')
+    const container = this.getMessageContainer()
     if (!container) return messages
 
     // 遍历直接子元素，按顺序区分用户/AI
-    const children = container.children
+    const children = this.getMessageGroups(container)
 
     for (let i = 0; i < children.length; i++) {
       const child = children[i]
 
       // ── 用户消息：._9663006 包含 .d29f3d7d.ds-message ──
-      if (child.classList.contains('_9663006')) {
+      if (this.isUserMessageGroup(child)) {
         const userTextEl = child.querySelector('.fbb737a4')
         const text = userTextEl ? this.extractText(userTextEl) : ''
         if (text.trim()) {
@@ -495,7 +521,7 @@ export class DeepSeekAdapter extends BaseAdapter {
       }
 
       // ── AI 回复：._4f9bf79 包含 .ds-message ──
-      if (child.classList.contains('_4f9bf79')) {
+      if (this.isAssistantMessageGroup(child)) {
         // thinking 内容
         let thinking: string | undefined
         const thinkEl = child.querySelector('.ds-think-content .ds-markdown')
