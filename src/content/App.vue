@@ -36,6 +36,7 @@
         <SynapsePanel
             v-if="showSynapsePanel"
             :outlineConfig="outlineConfig"
+            :outlineState="outlineState"
             :key="outlineKey"
         />
         <!-- 消息提示组件 -->
@@ -62,12 +63,18 @@ import {
 } from "@vueuse/core";
 
 import { getSiteConfigByUrl } from "@/content/site-configs";
+import { useOutline } from "@/content/outline/useOutline";
 import { SynapsePanel } from "./components/synapse-panel";
 import PromptSelector from "./components/PromptSelector.vue";
 import PromptComposerPanel from "./components/PromptComposerPanel.vue";
 import { canCollect } from "@/content/collect";
 import { detectPlatformFromUrl } from "@/content/site-configs";
-import { findActiveInput } from "@/utils/inputAdapter";
+import {
+    findActiveInput,
+    readInputValue,
+    replaceInputValue,
+    type InputTarget,
+} from "@/utils/inputAdapter";
 import {
     createInsertTrace,
     insertWithRetry,
@@ -105,12 +112,27 @@ type ContentSettingsPayload = {
     theme?: "light" | "dark" | "system";
 };
 
+type PromptHistoryEntry = {
+    id: number;
+    text: string;
+};
+
+type PromptHistorySession = {
+    inputIdentity: string;
+    draftSnapshot: string;
+    entries: PromptHistoryEntry[];
+    signature: string;
+    index: number;
+};
+
 const outlineKey = ref(window.location.href);
 
 // Logic to select the correct config for the current site
 const outlineConfig = computed(() => {
     return getSiteConfigByUrl(outlineKey.value);
 });
+const outlineTargetRef = ref<HTMLElement | null>(null);
+const outlineState = useOutline(outlineConfig, outlineTargetRef);
 
 // 是否显示统一面板（有大纲配置或在 AI 平台时显示）
 const showSynapsePanel = computed(() => {
@@ -125,6 +147,7 @@ const { t, locale } = useI18n();
 const navigationApi = getNavigationApi();
 const handleNavigateSuccess = () => {
     outlineKey.value = window.location.href;
+    resetPromptHistoryNavigation();
 };
 if (navigationApi) {
     useEventListener(navigationApi, "navigatesuccess", handleNavigateSuccess);
@@ -212,6 +235,137 @@ let opener: ReturnType<typeof findActiveInput> | null = null;
 let lastActiveEl: HTMLElement | null = null;
 
 let openerFingerprint: OpenerFingerprint | null = null;
+const promptHistorySession = ref<PromptHistorySession | null>(null);
+
+function resetPromptHistoryNavigation() {
+    promptHistorySession.value = null;
+}
+
+function getInputIdentity(target: InputTarget): string {
+    const className = typeof target.el.className === "string" ? target.el.className : "";
+    return `${target.kind}:${target.el.tagName}:${target.el.id}:${className}`;
+}
+
+function isFocusedInputTarget(target: InputTarget): boolean {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active) return false;
+    if (active === target.el) return true;
+    return target.kind === "contenteditable" && target.el.contains(active);
+}
+
+function getPromptHistoryEntries(): PromptHistoryEntry[] {
+    return outlineState.items.value
+        .map((item) => ({ id: item.id, text: item.rawText.trim() }))
+        .filter((item) => item.text.length > 0)
+        .slice()
+        .reverse();
+}
+
+function buildPromptHistorySignature(entries: PromptHistoryEntry[]): string {
+    return entries.map((entry) => `${entry.id}:${entry.text}`).join("\u0000");
+}
+
+function shouldResetPromptHistorySession(
+    target: InputTarget,
+    signature: string,
+): boolean {
+    const session = promptHistorySession.value;
+    if (!session) return true;
+    if (session.inputIdentity !== getInputIdentity(target)) return true;
+    if (session.signature !== signature) return true;
+
+    const currentValue = readInputValue(target);
+    const expectedValue = session.index >= 0
+        ? (session.entries[session.index]?.text ?? session.draftSnapshot)
+        : session.draftSnapshot;
+
+    return currentValue !== expectedValue;
+}
+
+function ensurePromptHistorySession(target: InputTarget): PromptHistorySession | null {
+    const entries = getPromptHistoryEntries();
+    if (!entries.length) return null;
+
+    const signature = buildPromptHistorySignature(entries);
+    if (shouldResetPromptHistorySession(target, signature)) {
+        promptHistorySession.value = {
+            inputIdentity: getInputIdentity(target),
+            draftSnapshot: readInputValue(target),
+            entries,
+            signature,
+            index: -1,
+        };
+    }
+
+    return promptHistorySession.value;
+}
+
+function applyPromptHistoryText(target: InputTarget, text: string): boolean {
+    const replaced = replaceInputValue(target, text);
+    if (!replaced) {
+        showToast(t("common.toast.operationFailed"), "error");
+    }
+    return replaced;
+}
+
+function navigatePromptHistory(direction: "older" | "newer"): boolean {
+    const target = findActiveInput(INPUT_SELECTOR_HINTS);
+    if (!target || !isFocusedInputTarget(target)) return false;
+
+    if (direction === "older") {
+        const session = ensurePromptHistorySession(target);
+        if (!session) return false;
+
+        const nextIndex = Math.min(session.index + 1, session.entries.length - 1);
+        if (nextIndex === session.index) return true;
+        if (!applyPromptHistoryText(target, session.entries[nextIndex].text)) return false;
+
+        session.index = nextIndex;
+        return true;
+    }
+
+    const session = promptHistorySession.value;
+    if (!session) return false;
+
+    const entries = getPromptHistoryEntries();
+    const signature = buildPromptHistorySignature(entries);
+    if (shouldResetPromptHistorySession(target, signature)) {
+        resetPromptHistoryNavigation();
+        return false;
+    }
+
+    if (session.index <= 0) {
+        if (!applyPromptHistoryText(target, session.draftSnapshot)) return false;
+        resetPromptHistoryNavigation();
+        return true;
+    }
+
+    const nextIndex = session.index - 1;
+    if (!applyPromptHistoryText(target, session.entries[nextIndex].text)) return false;
+
+    session.index = nextIndex;
+    return true;
+}
+
+function restorePromptHistoryDraft(): boolean {
+    const session = promptHistorySession.value;
+    if (!session) return false;
+
+    const target = findActiveInput(INPUT_SELECTOR_HINTS);
+    if (!target || !isFocusedInputTarget(target)) {
+        resetPromptHistoryNavigation();
+        return false;
+    }
+
+    if (session.inputIdentity !== getInputIdentity(target)) {
+        resetPromptHistoryNavigation();
+        return false;
+    }
+
+    if (!applyPromptHistoryText(target, session.draftSnapshot)) return false;
+    resetPromptHistoryNavigation();
+    return true;
+}
 
 // === 数据获取函数 ===
 
@@ -326,6 +480,7 @@ watch([searchQueryDebounced, selectedCategory], () => {
  */
 async function openPanel() {
     if (visible.value) return;
+    resetPromptHistoryNavigation();
 
     // 记录当前焦点元素，用于关闭面板后恢复
     lastActiveEl = document.activeElement as HTMLElement | null;
@@ -404,7 +559,43 @@ watch(highlightIndex, (newIndex) => {
     selectorRef.value?.scrollToItem(newIndex);
 });
 
+watch([visible, editorVisible, outlineKey], () => {
+    resetPromptHistoryNavigation();
+});
+
 // === 键盘导航控制 ===
+
+function handleHistoryNavigationKeydown(event: KeyboardEvent) {
+    if (visible.value || editorVisible.value || event.isComposing) return;
+
+    const isHistoryHotkey =
+        event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        (event.key === "ArrowUp" || event.key === "ArrowDown");
+
+    if (isHistoryHotkey) {
+        const handled = event.key === "ArrowUp"
+            ? navigatePromptHistory("older")
+            : navigatePromptHistory("newer");
+
+        if (!handled) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return;
+    }
+
+    if (event.key === "Escape" && restorePromptHistoryDraft()) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+    }
+}
+
+useEventListener(document, "keydown", handleHistoryNavigationKeydown, { capture: true });
 
 /**
  * 魔法按键配置

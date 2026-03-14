@@ -59,6 +59,7 @@ import { useEventListener, useTimeoutFn } from '@vueuse/core'
 import { useOutline } from '@/content/outline/useOutline'
 import type { SiteConfig } from '@/content/site-configs'
 import type { OutlineItem } from '@/content/outline/types'
+import type { OutlineEngine } from '@/content/outline/useOutline'
 import OutlineContent from './OutlineContent.vue'
 import { flashOutlineHighlight, scrollToOutlineElement } from './useOutlineJump'
 
@@ -71,6 +72,7 @@ type RailStep = {
 
 const props = defineProps<{
   config: SiteConfig
+  outlineState?: OutlineEngine
 }>()
 
 const emit = defineEmits<{
@@ -78,7 +80,7 @@ const emit = defineEmits<{
 }>()
 
 const targetRef = ref<HTMLElement | null>(null)
-const outlineState = useOutline(props.config, targetRef)
+const outlineState = props.outlineState ?? useOutline(props.config, targetRef)
 const { items, highlightedIndex, lockHighlightDuringProgrammaticScroll } = outlineState
 const isExpanded = ref(false)
 const hoveredIndex = ref<number>(-1)

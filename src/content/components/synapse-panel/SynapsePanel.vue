@@ -119,6 +119,7 @@
             v-if="activeMode === 'outline'"
             key="outline"
             :config="outlineConfig!"
+            :outline-state="outlineState ?? undefined"
             @hint="handleHint"
             @refresh-request="handleRefresh"
           />
@@ -208,6 +209,7 @@
   <OutlineRail
     v-if="shouldShowOutlineRail"
     :config="outlineConfig!"
+    :outline-state="outlineState ?? undefined"
     @hint="handleHint"
   />
 
@@ -245,6 +247,7 @@ import { useI18n } from 'vue-i18n'
 import { canCollect } from '@/content/collect'
 import { detectPlatformFromUrl } from '@/content/site-configs'
 import type { SiteConfig } from '@/content/site-configs'
+import type { OutlineEngine } from '@/content/outline/useOutline'
 
 import CollectPanel from './CollectPanel.vue'
 import OutlineContent from './OutlineContent.vue'
@@ -256,6 +259,7 @@ type PanelMode = 'outline' | 'collect'
 
 const props = defineProps<{
   outlineConfig: SiteConfig | null
+  outlineState?: OutlineEngine | null
 }>()
 
 const { t } = useI18n()

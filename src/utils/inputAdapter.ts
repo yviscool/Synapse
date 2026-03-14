@@ -2,7 +2,7 @@
  * 输入目标类型定义
  * 支持两种输入元素：textarea 和 contenteditable 元素
  */
-type InputTarget =
+export type InputTarget =
   | { kind: 'textarea'; el: HTMLTextAreaElement }
   | { kind: 'contenteditable'; el: HTMLElement }
 
@@ -160,6 +160,58 @@ function tryAppendWithProseMirrorView(
     trace?.('append.pm.dispatch.fail', {
       error: error instanceof Error ? error.message : String(error),
     })
+    return false
+  }
+}
+
+function resolveProseMirrorView(el: HTMLElement): ProseMirrorView | null {
+  const candidates: HTMLElement[] = []
+  const seen = new Set<HTMLElement>()
+  const pushCandidate = (node: HTMLElement | null) => {
+    if (!node || seen.has(node)) return
+    seen.add(node)
+    candidates.push(node)
+  }
+
+  pushCandidate(el)
+  pushCandidate(el.closest<HTMLElement>('.ProseMirror'))
+  pushCandidate(el.querySelector<HTMLElement>('.ProseMirror'))
+
+  let parent = el.parentElement
+  let depth = 0
+  while (parent && depth < 4) {
+    pushCandidate(parent)
+    parent = parent.parentElement
+    depth += 1
+  }
+
+  return candidates
+    .map((node) => {
+      const pmViewDesc = (node as HTMLElement & { pmViewDesc?: { view?: unknown } }).pmViewDesc
+      return pmViewDesc?.view
+    })
+    .find((view): view is ProseMirrorView => isProseMirrorView(view)) || null
+}
+
+function tryReplaceWithProseMirrorView(
+  el: HTMLElement,
+  text: string,
+): boolean {
+  const maybeView = resolveProseMirrorView(el)
+  if (!maybeView) return false
+
+  try {
+    const doc = maybeView.state.doc
+    const endPos =
+      typeof doc?.content?.size === 'number'
+        ? doc.content.size
+        : (typeof doc?.textContent === 'string' ? doc.textContent.length : 0)
+
+    const tr = maybeView.state.tr.insertText(text, 0, endPos)
+    maybeView.dispatch(typeof tr.scrollIntoView === 'function' ? tr.scrollIntoView() : tr)
+    if (typeof maybeView.focus === 'function') maybeView.focus()
+    return true
+  } catch {
     return false
   }
 }
@@ -336,6 +388,54 @@ export function insertAtCursor(target: InputTarget, text: string, replaceTrigger
       inputType: 'insertText',
     }))
   }
+}
+
+export function readInputValue(target: InputTarget): string {
+  if (target.kind === 'textarea') return target.el.value
+
+  const el = resolveContentEditableRoot(target.el)
+  const maybeView = resolveProseMirrorView(el)
+  if (maybeView?.state.doc?.textContent) return maybeView.state.doc.textContent
+
+  return el.innerText || el.textContent || ''
+}
+
+export function replaceInputValue(target: InputTarget, text: string): boolean {
+  const normalizedText = text || ''
+  target.el.focus()
+
+  if (target.kind === 'textarea') {
+    const ta = target.el
+    ta.value = normalizedText
+    const cursor = ta.value.length
+    ta.selectionStart = cursor
+    ta.selectionEnd = cursor
+    ta.dispatchEvent(new Event('input', { bubbles: true }))
+    return true
+  }
+
+  const el = resolveContentEditableRoot(target.el)
+  el.focus()
+
+  if (tryReplaceWithProseMirrorView(el, normalizedText)) {
+    return true
+  }
+
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  setSelectionRange(range)
+  const replaced = replaceSelectionWithText(normalizedText)
+  if (!replaced.ok) return false
+
+  if (!replaced.usedExecCommand) {
+    el.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      data: normalizedText,
+      inputType: 'insertText',
+    }))
+  }
+
+  return true
 }
 
 /**

@@ -35,6 +35,7 @@ Synapse ist eine Browser-Erweiterung für deinen KI-Workflow — sie vereint Pro
 
 * Intelligente Analyse von Unterhaltungen zur Erstellung strukturierter Gliederungen
 * Schnellnavigation nach oben, Mitte oder unten mit Icon-Kategorisierung
+* Im KI-Eingabefeld kannst du mit `Strg + ↑ / ↓` den vorherigen oder nächsten Benutzer-Prompt aus der Gliederung schnell wieder einsetzen; mit `Esc` stellst du deinen aktuellen Entwurf wieder her
 * Ziehbare Gliederungsoberfläche, Echtzeit-Updates, Anpassung an dunkle/helle Themes
 
 ### ☁️ Daten & Synchronisierung
@@ -86,6 +87,7 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ## 🚀 Nutzungsanleitung
 
 * Im **KI-Website-Eingabefeld** `/p` eingeben oder `Alt + K` drücken für den **Prompt-Selektor**
+* Im **KI-Website-Eingabefeld** `Strg + ↑ / ↓` drücken, um schnell zwischen vorherigen oder nächsten Prompts aus der Gliederung zu wechseln; `Esc` stellt den aktuellen Entwurf wieder her
 * Schnell speichern: `Strg + Umschalt + S` oder Text markieren → Rechtsklick → Als Prompt speichern
 * Im Seitenpanel der KI-Website die aktuelle Unterhaltung mit einem Klick sammeln
 * Das Erweiterungs-Dashboard öffnen, um Prompts, Chats und Code-Snippets zu verwalten

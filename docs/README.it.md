@@ -35,6 +35,7 @@ Synapse è un'estensione browser per il tuo workflow AI. Unisce gestione prompt,
 
 * Analisi intelligente e generazione automatica struttura
 * Navigazione rapida in alto, centro e basso
+* Nel campo di input dei siti di IA, premi `Ctrl + ↑ / ↓` per reinserire rapidamente dal sommario il prompt utente precedente o successivo; premi `Esc` per ripristinare la bozza corrente
 * Pannello trascinabile con aggiornamento realtime
 
 ### ☁️ Dati e sincronizzazione
@@ -86,6 +87,7 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ## 🚀 Guida rapida
 
 * Nel campo input AI, digita `/p` o premi `Alt + K`
+* Nel campo input AI, premi `Ctrl + ↑ / ↓` per passare rapidamente ai prompt precedenti o successivi del sommario, e `Esc` per ripristinare la bozza corrente
 * Salva velocemente con `Ctrl + Shift + S` o con menu contestuale
 * Usa il pannello laterale per raccogliere chat o attivare sync realtime
 * Apri la dashboard dell'estensione per gestire prompt, chat e snippet

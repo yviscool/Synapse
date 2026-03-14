@@ -28,7 +28,7 @@
  * =================================================================================
  */
 
-import { ref, onMounted, onUnmounted, Ref, watch } from 'vue';
+import { ref, onMounted, onUnmounted, Ref, watch, toValue, type MaybeRefOrGetter } from 'vue';
 import { promiseTimeout, useDebounceFn, useEventListener, useTimeoutFn } from '@vueuse/core';
 // 导入配置文件的"类型"，而不是实体，这样 hook 保持纯净
 import type { SiteConfig } from '../site-configs';
@@ -67,7 +67,9 @@ const getProgrammaticHighlightLock = (): ProgrammaticHighlightLock | null => {
  * @param targetRef - 一个 Ref，用于存储聊天内容容器的 DOM 元素。这个 Ref 由 `init` 函数动态填充。
  * @returns 暴露给 Vue 组件的响应式状态和方法
  */
-export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null>) {
+export function useOutline(configSource: MaybeRefOrGetter<SiteConfig | null>, targetRef: Ref<HTMLElement | null>) {
+  const readConfig = (): SiteConfig | null => toValue(configSource);
+
   // --- 核心状态 ---
 
   // 1. 大纲条目列表：这是“真相的唯一来源”，UI 将根据它来渲染
@@ -129,6 +131,9 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
    * 它只负责“读取” DOM 并返回一个标准化的 `OutlineItem[]` 数组。
    */
   const scanDOM = (): OutlineItem[] => {
+    const config = readConfig();
+    if (!config) return [];
+
     const newItems: OutlineItem[] = [];
     const strategy = config.outlineStrategy ? outlineStrategies[config.outlineStrategy] : null;
 
@@ -171,6 +176,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
         newItems.push({
           id: index, // 使用按钮的索引作为id
           title: smartTruncate(title, 50),
+          rawText: title,
           icon: getIntelligentIcon(title),
           element: element, // 关键：element 指向 <ms-chat-turn> 这类“空壳”
         });
@@ -203,6 +209,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
         newItems.push({
           id: index,
           title: title,
+          rawText: (textEl.textContent || '').trim(),
           icon: getIntelligentIcon(title),
           element: msg, // element 指向消息元素本身
         });
@@ -317,6 +324,7 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   const init = async () => {
     const token = ++initRunToken;
     if (isDisposed) return;
+    const config = readConfig();
 
     // 1. 立即重置状态，显示加载中
     items.value = [];
@@ -325,6 +333,11 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
     // 2. 停止所有旧的“侦察兵”，防止它们操作旧的 DOM
     stopObservers();
     targetRef.value = null;
+
+    if (!config) {
+      isLoading.value = false;
+      return;
+    }
 
     // 3. 异步、带重试地查找新页面的“聊天容器” (`config.observeTarget`)
     const targetElement = await waitForElement(
@@ -448,6 +461,9 @@ export function useOutline(config: SiteConfig, targetRef: Ref<HTMLElement | null
   };
 
   const getScrollContainer = (): HTMLElement | Window => {
+    const config = readConfig();
+    if (!config) return window;
+
     if (config.scrollContainer === window) return window;
     if (typeof config.scrollContainer === 'string') {
       const el = document.querySelector<HTMLElement>(config.scrollContainer);

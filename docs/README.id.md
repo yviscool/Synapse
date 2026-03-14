@@ -35,6 +35,7 @@ Synapse adalah ekstensi browser untuk alur kerja AI Anda. Synapse menggabungkan 
 
 * Analisis cerdas dan pembuatan outline otomatis
 * Navigasi cepat ke atas, tengah, dan bawah
+* Di kotak input situs AI, tekan `Ctrl + ↑ / ↓` untuk mengisi ulang prompt pengguna sebelumnya atau berikutnya dari outline; tekan `Esc` untuk memulihkan draf saat ini
 * Panel dapat digeser dengan update real-time
 
 ### ☁️ Data & sinkronisasi
@@ -86,6 +87,7 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ## 🚀 Panduan penggunaan
 
 * Di kolom input situs AI, ketik `/p` atau tekan `Alt + K`
+* Di kolom input situs AI, tekan `Ctrl + ↑ / ↓` untuk beralih cepat ke prompt sebelumnya atau berikutnya dari outline, dan tekan `Esc` untuk memulihkan draf saat ini
 * Simpan cepat dengan `Ctrl + Shift + S` atau klik kanan pada teks terpilih
 * Gunakan panel samping untuk mengumpulkan percakapan atau aktifkan sinkronisasi real-time
 * Buka dashboard ekstensi untuk mengelola prompt, chat, dan snippet

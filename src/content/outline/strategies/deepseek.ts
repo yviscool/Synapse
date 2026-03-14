@@ -51,6 +51,7 @@ export function scanDeepSeekOutline(target: HTMLElement | null): OutlineItem[] {
     items.push({
       id: items.length,
       title: smartTruncate(title, 50),
+      rawText: title,
       icon: getIntelligentIcon(title),
       element: item,
     })

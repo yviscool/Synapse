@@ -37,6 +37,7 @@ Synapse is a browser extension built for your AI workflow — combining prompt m
 
 * Intelligently analyzes conversations to generate structured outlines
 * Quick navigation to top, middle, or bottom, with icon-based categorization (questions, code, explanations, etc.)
+* In AI input boxes, press `Ctrl + ↑ / ↓` to refill the previous or next user prompt from the outline, and press `Esc` to restore your current draft
 * Draggable outline interface, real-time updates, adapts to dark/light themes
 
 ### ☁️ Data & Sync
@@ -106,6 +107,7 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ## 🚀 Usage Guide
 
 * In the **AI website input box**, type `/p` or press `Alt + K` to bring up the **Prompt Selector**
+* In the **AI website input box**, press `Ctrl + ↑ / ↓` to quickly cycle through previous or next prompts from the outline, and press `Esc` to restore the current draft
 * Quickly save a prompt: `Ctrl + Shift + S` or select text → right-click → Save as prompt
 * Use the side panel on AI websites to collect the current conversation with one click, or enable real-time sync
 * Open the extension dashboard to manage prompts, chat records, and code snippets
@@ -132,4 +134,3 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ## 📜 License
 
 This project is licensed under the [MIT License](./LICENSE)
-

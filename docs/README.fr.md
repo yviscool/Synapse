@@ -35,6 +35,7 @@ Synapse est une extension de navigateur conçue pour votre workflow IA. Elle ré
 
 * Analyse intelligente et génération automatique de plan
 * Navigation rapide vers le haut, le milieu ou le bas
+* Dans le champ de saisie d’un site IA, appuyez sur `Ctrl + ↑ / ↓` pour réinjecter depuis le plan la requête utilisateur précédente ou suivante ; appuyez sur `Esc` pour restaurer votre brouillon actuel
 * Interface glissable, mise à jour en temps réel
 
 ### ☁️ Données et synchronisation
@@ -86,6 +87,7 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ## 🚀 Guide d'utilisation
 
 * Dans le champ IA, tapez `/p` ou appuyez sur `Alt + K`
+* Dans le champ IA, appuyez sur `Ctrl + ↑ / ↓` pour basculer rapidement entre les requêtes précédentes ou suivantes du plan, puis sur `Esc` pour restaurer le brouillon actuel
 * Enregistrement rapide: `Ctrl + Shift + S` ou clic droit sur texte sélectionné
 * Utilisez le panneau latéral pour collecter les conversations
 * Ouvrez le tableau de bord pour gérer prompts, conversations et snippets

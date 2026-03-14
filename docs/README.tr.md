@@ -35,6 +35,7 @@ Synapse, AI iş akışınız için geliştirilmiş bir tarayıcı uzantısıdır
 
 * Akıllı analiz ile otomatik taslak üretimi
 * Üst, orta ve alt bölümlere hızlı geçiş
+* AI giriş kutusunda `Ctrl + ↑ / ↓` ile taslaktan önceki veya sonraki kullanıcı istemini hızlıca geri doldurabilir, `Esc` ile mevcut taslağını geri yükleyebilirsin
 * Sürüklenebilir panel ve gerçek zamanlı güncelleme
 
 ### ☁️ Veri ve senkronizasyon
@@ -86,6 +87,7 @@ ChatGPT · Claude · Gemini · AI Studio · DeepSeek · Kimi · Doubao · Tencen
 ## 🚀 Kullanım rehberi
 
 * AI giriş kutusunda `/p` yazın veya `Alt + K` tuşlayın
+* AI giriş kutusunda `Ctrl + ↑ / ↓` ile taslaktaki önceki veya sonraki istemler arasında hızlıca geçin; mevcut taslağı geri yüklemek için `Esc` tuşlayın
 * `Ctrl + Shift + S` ile hızlı kaydedin veya sağ tık menüsünü kullanın
 * Yan panelden konuşmaları toplayın ya da gerçek zamanlı senkronizasyonu açın
 * Uzantı panelinde prompt, sohbet ve snippet'leri yönetin
