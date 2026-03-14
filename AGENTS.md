@@ -33,6 +33,34 @@
 > .sp-root { --sp-text-primary: #1e293b; }
 > :global(.dark) .sp-root { --sp-text-primary: rgba(255,255,255,0.95); }
 > ```
+>
+> **Kimi / Lexical 输入框陷阱**
+>
+> Kimi 的输入框不是“普通 `contenteditable`”，而是 `data-lexical-editor="true"` 的 Lexical 编辑器。  
+> 这类站点里，直接在 content script 中做 `Range.deleteContents()`、`execCommand('insertText')`、`innerText/textContent` 替换，常见症状是：
+>
+> - 第一次能写入，后续不稳定
+> - 内容偶发变成站点自带 placeholder / hint
+> - 内容被站点内部状态回滚为空
+>
+> **根因有两层：**
+>
+> 1. Lexical 自己维护 editor state，外部直接改 DOM 不等于编辑器内部接受了这次修改。
+> 2. Chrome content script 运行在 isolated world，页面脚本挂在 DOM 上的 `__lexicalEditor` 之类 expando property，content script 不能直接可靠访问。
+>
+> **错误方向：**
+>
+> - 把 Kimi 当普通 `contenteditable` 处理
+> - 在 `src/utils/inputAdapter.ts` 里继续增强通用 DOM 替换逻辑，试图兼容 Lexical
+> - 在 content script 里直接读取 `root.__lexicalEditor`
+>
+> **正确方向：**
+>
+> - 历史回填、整段替换这类“重写全文”操作，对 Kimi 必须走页面主世界 bridge。
+> - bridge 脚本放在 `public/page-bridges/*.js`，由 content script 动态注入。
+> - content script 与 bridge 用 `CustomEvent` 通信。
+> - 真正写入在 page bridge 内部完成，直接调用页面上下文中的 Lexical editor，例如 `parseEditorState(...) + setEditorState(...)`。
+> - 站点专用逻辑只放在功能调用侧，例如 `src/content/App.vue`，不要污染通用 `inputAdapter`。
 
 **输出规范**
 

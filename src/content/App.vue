@@ -118,12 +118,24 @@ type PromptHistoryEntry = {
 };
 
 type PromptHistorySession = {
-    inputIdentity: string;
+    inputEl: HTMLElement;
     draftSnapshot: string;
     entries: PromptHistoryEntry[];
     signature: string;
     index: number;
 };
+
+type KimiLexicalBridgeResult = {
+    token?: string;
+    ok?: boolean;
+    text?: string;
+};
+
+const KIMI_LEXICAL_BRIDGE_SCRIPT_ID = "__synapse_kimi_lexical_bridge__";
+const KIMI_LEXICAL_BRIDGE_CMD_EVENT = "synapse:kimi-lexical-bridge-command";
+const KIMI_LEXICAL_BRIDGE_DATA_EVENT = "synapse:kimi-lexical-bridge-data";
+const KIMI_LEXICAL_BRIDGE_READY_EVENT = "synapse:kimi-lexical-bridge-ready";
+const KIMI_LEXICAL_BRIDGE_KEY = "__synapseKimiLexicalBridgeInstalled__";
 
 const outlineKey = ref(window.location.href);
 
@@ -236,14 +248,11 @@ let lastActiveEl: HTMLElement | null = null;
 
 let openerFingerprint: OpenerFingerprint | null = null;
 const promptHistorySession = ref<PromptHistorySession | null>(null);
+const kimiLexicalBridgeReady = ref(false);
+let kimiLexicalBridgeLoadPromise: Promise<void> | null = null;
 
 function resetPromptHistoryNavigation() {
     promptHistorySession.value = null;
-}
-
-function getInputIdentity(target: InputTarget): string {
-    const className = typeof target.el.className === "string" ? target.el.className : "";
-    return `${target.kind}:${target.el.tagName}:${target.el.id}:${className}`;
 }
 
 function isFocusedInputTarget(target: InputTarget): boolean {
@@ -253,17 +262,28 @@ function isFocusedInputTarget(target: InputTarget): boolean {
     return target.kind === "contenteditable" && target.el.contains(active);
 }
 
-function getPromptHistoryEntries(): PromptHistoryEntry[] {
-    return outlineState.items.value
+function getFocusedInputTarget(): InputTarget | null {
+    return findActiveInput(INPUT_SELECTOR_HINTS);
+}
+
+function isSamePromptHistoryInput(
+    session: PromptHistorySession,
+    target: InputTarget,
+): boolean {
+    return session.inputEl === target.el;
+}
+
+const promptHistoryState = computed(() => {
+    const entries = outlineState.items.value
         .map((item) => ({ id: item.id, text: item.rawText.trim() }))
         .filter((item) => item.text.length > 0)
         .slice()
         .reverse();
-}
-
-function buildPromptHistorySignature(entries: PromptHistoryEntry[]): string {
-    return entries.map((entry) => `${entry.id}:${entry.text}`).join("\u0000");
-}
+    const signature = entries
+        .map((entry) => `${entry.id}:${entry.text.length}:${entry.text.slice(0, 24)}:${entry.text.slice(-24)}`)
+        .join("\u0000");
+    return { entries, signature };
+});
 
 function shouldResetPromptHistorySession(
     target: InputTarget,
@@ -271,25 +291,17 @@ function shouldResetPromptHistorySession(
 ): boolean {
     const session = promptHistorySession.value;
     if (!session) return true;
-    if (session.inputIdentity !== getInputIdentity(target)) return true;
-    if (session.signature !== signature) return true;
-
-    const currentValue = readInputValue(target);
-    const expectedValue = session.index >= 0
-        ? (session.entries[session.index]?.text ?? session.draftSnapshot)
-        : session.draftSnapshot;
-
-    return currentValue !== expectedValue;
+    if (!isSamePromptHistoryInput(session, target)) return true;
+    return session.signature !== signature;
 }
 
 function ensurePromptHistorySession(target: InputTarget): PromptHistorySession | null {
-    const entries = getPromptHistoryEntries();
+    const { entries, signature } = promptHistoryState.value;
     if (!entries.length) return null;
 
-    const signature = buildPromptHistorySignature(entries);
     if (shouldResetPromptHistorySession(target, signature)) {
         promptHistorySession.value = {
-            inputIdentity: getInputIdentity(target),
+            inputEl: target.el,
             draftSnapshot: readInputValue(target),
             entries,
             signature,
@@ -300,8 +312,128 @@ function ensurePromptHistorySession(target: InputTarget): PromptHistorySession |
     return promptHistorySession.value;
 }
 
+function normalizePromptHistoryComparableText(text: string): string {
+    return text
+        .replace(/\r\n?/g, "\n")
+        .replace(/\u00a0/g, " ")
+        .replace(/[\u200b-\u200d\ufeff]/g, "")
+        .trimEnd();
+}
+
+function createKimiLexicalBridgeToken(): string {
+    try {
+        return crypto.randomUUID();
+    } catch {
+        return `kimi-history-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+}
+
+async function ensureKimiLexicalBridge(): Promise<void> {
+    if (outlineConfig.value?.platform !== "kimi") return;
+    if (kimiLexicalBridgeReady.value) return;
+
+    const existing = document.getElementById(KIMI_LEXICAL_BRIDGE_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existing?.dataset.ready === "1") {
+        kimiLexicalBridgeReady.value = true;
+        return;
+    }
+
+    if (kimiLexicalBridgeLoadPromise) {
+        await kimiLexicalBridgeLoadPromise;
+        return;
+    }
+
+    let script = existing;
+    if (!script) {
+        script = document.createElement("script");
+        script.id = KIMI_LEXICAL_BRIDGE_SCRIPT_ID;
+        script.async = false;
+        script.dataset.cmdEvent = KIMI_LEXICAL_BRIDGE_CMD_EVENT;
+        script.dataset.dataEvent = KIMI_LEXICAL_BRIDGE_DATA_EVENT;
+        script.dataset.readyEvent = KIMI_LEXICAL_BRIDGE_READY_EVENT;
+        script.dataset.bridgeKey = KIMI_LEXICAL_BRIDGE_KEY;
+        script.src = chrome.runtime.getURL("page-bridges/kimi-lexical-bridge.js");
+        (document.documentElement || document.head || document.body)?.appendChild(script);
+    }
+
+    if (!script) return;
+
+    kimiLexicalBridgeLoadPromise = new Promise<void>((resolve) => {
+        let settled = false;
+        const cleanup = (
+            scriptEl: HTMLScriptElement,
+            onReady: EventListener,
+            onLoad: EventListener,
+            onError: EventListener,
+            timeoutId: number,
+        ) => {
+            window.removeEventListener(KIMI_LEXICAL_BRIDGE_READY_EVENT, onReady, true);
+            scriptEl.removeEventListener("load", onLoad);
+            scriptEl.removeEventListener("error", onError);
+            window.clearTimeout(timeoutId);
+        };
+        const finalize = (scriptEl: HTMLScriptElement, ready: boolean) => {
+            if (settled) return;
+            settled = true;
+            cleanup(scriptEl, onReady, onLoad, onError, timeoutId);
+            if (ready) {
+                scriptEl.dataset.ready = "1";
+                kimiLexicalBridgeReady.value = true;
+            }
+            resolve();
+        };
+        const onReady: EventListener = () => finalize(script, true);
+        const onLoad: EventListener = () => finalize(script, true);
+        const onError: EventListener = () => finalize(script, false);
+        const timeoutId = window.setTimeout(() => finalize(script, script.dataset.ready === "1"), 1200);
+
+        window.addEventListener(KIMI_LEXICAL_BRIDGE_READY_EVENT, onReady, true);
+        script.addEventListener("load", onLoad, { once: true });
+        script.addEventListener("error", onError, { once: true });
+    }).finally(() => {
+        kimiLexicalBridgeLoadPromise = null;
+    });
+
+    await kimiLexicalBridgeLoadPromise;
+}
+
+function tryKimiPromptHistoryReplace(target: InputTarget, text: string): boolean {
+    if (outlineConfig.value?.platform !== "kimi" || target.kind !== "contenteditable") return false;
+    if (!kimiLexicalBridgeReady.value) return false;
+
+    const token = createKimiLexicalBridgeToken();
+    let bridgeOk = false;
+    let bridgeText = "";
+    const handleResult: EventListener = (event) => {
+        const detail = (event as CustomEvent<KimiLexicalBridgeResult>).detail || {};
+        if (detail.token !== token) return;
+        bridgeOk = detail.ok === true;
+        bridgeText = typeof detail.text === "string" ? detail.text : "";
+    };
+
+    window.addEventListener(KIMI_LEXICAL_BRIDGE_DATA_EVENT, handleResult, true);
+    try {
+        window.dispatchEvent(new CustomEvent(KIMI_LEXICAL_BRIDGE_CMD_EVENT, {
+            detail: {
+                cmd: "replace-history-input",
+                token,
+                text,
+            },
+        }));
+    } finally {
+        window.removeEventListener(KIMI_LEXICAL_BRIDGE_DATA_EVENT, handleResult, true);
+    }
+
+    if (!bridgeOk) return false;
+
+    return normalizePromptHistoryComparableText(bridgeText)
+        === normalizePromptHistoryComparableText(text);
+}
+
 function applyPromptHistoryText(target: InputTarget, text: string): boolean {
-    const replaced = replaceInputValue(target, text);
+    const replaced = outlineConfig.value?.platform === "kimi"
+        ? tryKimiPromptHistoryReplace(target, text)
+        : replaceInputValue(target, text);
     if (!replaced) {
         showToast(t("common.toast.operationFailed"), "error");
     }
@@ -309,7 +441,7 @@ function applyPromptHistoryText(target: InputTarget, text: string): boolean {
 }
 
 function navigatePromptHistory(direction: "older" | "newer"): boolean {
-    const target = findActiveInput(INPUT_SELECTOR_HINTS);
+    const target = getFocusedInputTarget();
     if (!target || !isFocusedInputTarget(target)) return false;
 
     if (direction === "older") {
@@ -327,8 +459,7 @@ function navigatePromptHistory(direction: "older" | "newer"): boolean {
     const session = promptHistorySession.value;
     if (!session) return false;
 
-    const entries = getPromptHistoryEntries();
-    const signature = buildPromptHistorySignature(entries);
+    const { signature } = promptHistoryState.value;
     if (shouldResetPromptHistorySession(target, signature)) {
         resetPromptHistoryNavigation();
         return false;
@@ -351,13 +482,13 @@ function restorePromptHistoryDraft(): boolean {
     const session = promptHistorySession.value;
     if (!session) return false;
 
-    const target = findActiveInput(INPUT_SELECTOR_HINTS);
+    const target = getFocusedInputTarget();
     if (!target || !isFocusedInputTarget(target)) {
         resetPromptHistoryNavigation();
         return false;
     }
 
-    if (session.inputIdentity !== getInputIdentity(target)) {
+    if (!isSamePromptHistoryInput(session, target)) {
         resetPromptHistoryNavigation();
         return false;
     }
@@ -365,6 +496,40 @@ function restorePromptHistoryDraft(): boolean {
     if (!applyPromptHistoryText(target, session.draftSnapshot)) return false;
     resetPromptHistoryNavigation();
     return true;
+}
+
+function isPromptHistoryHotkey(event: KeyboardEvent): boolean {
+    return event.ctrlKey
+        && !event.metaKey
+        && !event.altKey
+        && !event.shiftKey
+        && (event.key === "ArrowUp" || event.key === "ArrowDown");
+}
+
+function resetPromptHistoryOnUserInteraction(eventTarget: EventTarget | null) {
+    const session = promptHistorySession.value;
+    if (!session || !(eventTarget instanceof HTMLElement)) return;
+    const sameInput = eventTarget === session.inputEl
+        || session.inputEl.contains(eventTarget)
+        || eventTarget.contains(session.inputEl);
+    if (!sameInput) return;
+
+    resetPromptHistoryNavigation();
+}
+
+function handlePromptHistoryManualKeydown(event: KeyboardEvent) {
+    if (visible.value || editorVisible.value || event.isComposing || !event.isTrusted) return;
+    if (!promptHistorySession.value) return;
+    if (isPromptHistoryHotkey(event) || event.key === "Escape") return;
+    if (event.key === "Meta" || event.key === "Control" || event.key === "Shift" || event.key === "Alt") return;
+
+    resetPromptHistoryOnUserInteraction(event.target);
+}
+
+function handlePromptHistoryManualEdit(event: Event) {
+    if (visible.value || editorVisible.value) return;
+    if (!("isTrusted" in event) || !event.isTrusted) return;
+    resetPromptHistoryOnUserInteraction(event.target);
 }
 
 // === 数据获取函数 ===
@@ -563,19 +728,24 @@ watch([visible, editorVisible, outlineKey], () => {
     resetPromptHistoryNavigation();
 });
 
+watch(
+    () => outlineConfig.value?.platform,
+    (platform) => {
+        if (platform === "kimi") {
+            void ensureKimiLexicalBridge();
+            return;
+        }
+        kimiLexicalBridgeReady.value = false;
+    },
+    { immediate: true },
+);
+
 // === 键盘导航控制 ===
 
 function handleHistoryNavigationKeydown(event: KeyboardEvent) {
     if (visible.value || editorVisible.value || event.isComposing) return;
 
-    const isHistoryHotkey =
-        event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey &&
-        !event.shiftKey &&
-        (event.key === "ArrowUp" || event.key === "ArrowDown");
-
-    if (isHistoryHotkey) {
+    if (isPromptHistoryHotkey(event)) {
         const handled = event.key === "ArrowUp"
             ? navigatePromptHistory("older")
             : navigatePromptHistory("newer");
@@ -596,6 +766,11 @@ function handleHistoryNavigationKeydown(event: KeyboardEvent) {
 }
 
 useEventListener(document, "keydown", handleHistoryNavigationKeydown, { capture: true });
+useEventListener(document, "keydown", handlePromptHistoryManualKeydown, { capture: true });
+useEventListener(document, "paste", handlePromptHistoryManualEdit, { capture: true });
+useEventListener(document, "cut", handlePromptHistoryManualEdit, { capture: true });
+useEventListener(document, "drop", handlePromptHistoryManualEdit, { capture: true });
+useEventListener(document, "compositionstart", handlePromptHistoryManualEdit, { capture: true });
 
 /**
  * 魔法按键配置
