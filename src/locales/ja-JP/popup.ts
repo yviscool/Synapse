@@ -10,10 +10,13 @@ export default {
     capturedChat: "「{title}」を収集",
     savedSnippet: "「{title}」を保存",
   },
+  shortcutsTitle: "AI サイトのショートカット",
   shortcuts: {
-    promptSelector: "プロンプト選択",
-    quickSave: "クイック保存",
-    rightClick: "選択を保存",
+    promptSelector: "プロンプトパネルを開く",
+    quickSave: "選択したテキストをクイック保存",
+    rightClick: "選択範囲を保存",
+    refillPrompt: "アウトラインから前後のプロンプトを再入力",
+    restoreDraft: "現在のドラフトを復元",
   },
   openDashboard: "ダッシュボードを開く",
   timeAgo: {

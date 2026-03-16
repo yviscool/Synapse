@@ -10,10 +10,13 @@ export default {
     capturedChat: "\"{title}\" gesammelt",
     savedSnippet: "\"{title}\" gespeichert",
   },
+  shortcutsTitle: "KI-Website-Shortcuts",
   shortcuts: {
-    promptSelector: "Prompt-Auswahl",
-    quickSave: "Schnellspeichern",
+    promptSelector: "Prompt-Panel öffnen",
+    quickSave: "Markierten Text schnell speichern",
     rightClick: "Auswahl speichern",
+    refillPrompt: "Vorherigen/nächsten Prompt aus Gliederung einfügen",
+    restoreDraft: "Aktuellen Entwurf wiederherstellen",
   },
   openDashboard: "Dashboard öffnen",
   timeAgo: {

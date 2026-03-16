@@ -10,10 +10,13 @@ export default {
     capturedChat: "Собран \"{title}\"",
     savedSnippet: "Сохранён \"{title}\"",
   },
+  shortcutsTitle: "Быстрые клавиши ИИ-сайтов",
   shortcuts: {
-    promptSelector: "Выбор промпта",
-    quickSave: "Быстрое сохранение",
+    promptSelector: "Открыть панель промптов",
+    quickSave: "Быстрое сохранение выделенного текста",
     rightClick: "Сохранить выделение",
+    refillPrompt: "Заполнить предыд./след. промпт из структуры",
+    restoreDraft: "Восстановить текущий черновик",
   },
   openDashboard: "Открыть панель",
   timeAgo: {

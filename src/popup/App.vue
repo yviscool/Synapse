@@ -54,18 +54,16 @@
     <div class="h-px bg-gray-200 dark:bg-gray-700/50"></div>
 
     <!-- Shortcuts Cheatsheet -->
-    <div class="flex flex-col gap-1.5 px-4 py-3">
-      <div class="flex items-center justify-between text-xs">
-        <kbd class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-gray-500 dark:bg-gray-800 dark:text-gray-400">{{ hotkeyOpen }}</kbd>
-        <span class="text-gray-400 dark:text-gray-500">{{ t('popup.shortcuts.promptSelector') }}</span>
+    <div class="flex flex-col gap-2 px-4 py-3">
+      <div class="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+        <div class="i-carbon-information-filled text-blue-500"></div>
+        <span>{{ shortcutTipsTitle }}</span>
       </div>
-      <div class="flex items-center justify-between text-xs">
-        <kbd class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-gray-500 dark:bg-gray-800 dark:text-gray-400">Ctrl+Shift+S</kbd>
-        <span class="text-gray-400 dark:text-gray-500">{{ t('popup.shortcuts.quickSave') }}</span>
-      </div>
-      <div class="flex items-center justify-between text-xs">
-        <kbd class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-gray-500 dark:bg-gray-800 dark:text-gray-400">Right-click</kbd>
-        <span class="text-gray-400 dark:text-gray-500">{{ t('popup.shortcuts.rightClick') }}</span>
+      <div class="flex flex-col gap-1.5">
+        <div v-for="tip in shortcutTips" :key="tip.key" class="flex items-center justify-between text-xs">
+          <kbd class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-gray-500 dark:bg-gray-800 dark:text-gray-400 whitespace-nowrap">{{ tip.key }}</kbd>
+          <span class="text-gray-400 dark:text-gray-500 text-right">{{ tip.label }}</span>
+        </div>
       </div>
     </div>
 
@@ -130,6 +128,14 @@ const isDark = computed(() => {
   if (themePreference.value === 'light') return false
   return mediaDark.value
 })
+
+const shortcutTipsTitle = computed(() => t('popup.shortcutsTitle'))
+const shortcutTips = computed(() => [
+  { key: hotkeyOpen.value, label: t('popup.shortcuts.promptSelector') },
+  { key: 'Ctrl + ↑ / ↓', label: t('popup.shortcuts.refillPrompt') },
+  { key: 'Esc', label: t('popup.shortcuts.restoreDraft') },
+  { key: 'Ctrl + Shift + S', label: t('popup.shortcuts.quickSave') },
+])
 
 function applyPopupTheme() {
   const mode = isDark.value ? 'dark' : 'light'

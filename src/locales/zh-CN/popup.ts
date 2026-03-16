@@ -7,10 +7,13 @@ export default {
     capturedChat: "采集了「{title}」",
     savedSnippet: "保存了「{title}」",
   },
+  shortcutsTitle: "AI 网站快捷键",
   shortcuts: {
-    promptSelector: "提示词面板",
-    quickSave: "快捷保存",
+    promptSelector: "打开提示词面板",
+    quickSave: "快速保存选中文本",
     rightClick: "右键保存选中",
+    refillPrompt: "从大纲回填上/下条提问",
+    restoreDraft: "恢复当前草稿",
   },
   openDashboard: "打开控制台",
   timeAgo: {

@@ -7,10 +7,13 @@ export default {
     capturedChat: "Captured \"{title}\"",
     savedSnippet: "Saved \"{title}\"",
   },
+  shortcutsTitle: "AI site shortcuts",
   shortcuts: {
-    promptSelector: "Prompt selector",
-    quickSave: "Quick save",
+    promptSelector: "Open prompt panel",
+    quickSave: "Quick save selected text",
     rightClick: "Save selection",
+    refillPrompt: "Refill prev/next prompt",
+    restoreDraft: "Restore current draft",
   },
   openDashboard: "Open Dashboard",
   timeAgo: {

@@ -147,29 +147,6 @@
             </div>
         </header>
 
-        <section
-            class="border-b border-gray-200/60 bg-white/70 dark:bg-gray-900/70 dark:border-gray-800/70 backdrop-blur-sm"
-        >
-            <div class="max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-start gap-3">
-                <div class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    <div class="i-carbon-information-filled text-base text-blue-500"></div>
-                    <span>{{ shortcutTipsTitle }}</span>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <span
-                        v-for="tip in shortcutTips"
-                        :key="tip.key"
-                        class="inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50/80 px-3 py-1.5 text-xs font-medium text-blue-900 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-100"
-                    >
-                        <span class="rounded-md bg-white/85 px-1.5 py-0.5 font-semibold text-blue-700 dark:bg-white/10 dark:text-blue-100">
-                            {{ tip.key }}
-                        </span>
-                        <span>{{ tip.label }}</span>
-                    </span>
-                </div>
-            </div>
-        </section>
-
         <router-view />
 
         <!-- 设置模态框 -->
@@ -253,28 +230,6 @@ const menuItems = [
     { name: 'menu.chat', path: '/chat' },
     { name: 'menu.tools', path: '/tools' },
 ];
-
-const isChineseLocale = computed(() => String(locale.value).startsWith("zh"));
-const shortcutTipsTitle = computed(() => (
-    isChineseLocale.value ? "AI 网站快捷键" : "AI site shortcuts"
-));
-const shortcutTips = computed(() => {
-    if (isChineseLocale.value) {
-        return [
-            { key: "Alt + K", label: "打开提示词面板" },
-            { key: "Ctrl + ↑ / ↓", label: "从大纲快速回填上一条/下一条提问" },
-            { key: "Esc", label: "恢复当前草稿" },
-            { key: "Ctrl + Shift + S", label: "快速保存选中文本" },
-        ];
-    }
-
-    return [
-        { key: "Alt + K", label: "Open prompt panel" },
-        { key: "Ctrl + ↑ / ↓", label: "Refill previous/next prompt from outline" },
-        { key: "Esc", label: "Restore current draft" },
-        { key: "Ctrl + Shift + S", label: "Quick save selected text" },
-    ];
-});
 
 async function setLocale() {
     const settings = await getSettings();
